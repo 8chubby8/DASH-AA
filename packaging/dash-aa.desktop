@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=DASH-AA
+GenericName=Head unit
+Comment=DASH with Android Auto in the viewport
+Exec=@APP@
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+.kotlin/
+*.iml
+.idea/
+local.properties
+.vscode/
+.DS_Store
+handoff.md
