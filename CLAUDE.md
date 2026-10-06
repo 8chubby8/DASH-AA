@@ -376,8 +376,9 @@ design. If something in them seems wrong or incomplete, raise it — do not work
 - **Target hardware (next):** a touchscreen PC running a lightweight DASH-AA Linux (roadmap 1.2.x).
 - **Deferred until Roger raises them:** the steering-wheel module → Android Auto, and touchscreen work beyond
   what the dedicated PC needs to boot and be usable.
-- **Repository:** none yet (Roger, 2026-10-05). Do not initialise git without asking. Native's repository,
-  https://github.com/8chubby8/DASH (public, GPL-3.0), is not touched.
+- **Repository:** https://github.com/8chubby8/DASH-AA — public, GPL-3.0, branch `main` (set up 2026-10-06).
+  Commit and push when a piece of work is agreed complete. Native's repository,
+  https://github.com/8chubby8/DASH, is separate and never touched from here.
 
 ---
 
