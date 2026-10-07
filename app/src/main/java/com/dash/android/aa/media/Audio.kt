@@ -126,7 +126,7 @@ class AudioOut internal constructor(
                     while (true) { (queue.poll() ?: break).ack() }
                     onStuck?.invoke()
                     Log.w(TAG, "${Aa.channelName(channel)}: the sound system is not taking audio — carrying on in silence " +
-                        "(Layout › Android Auto › Restart sound, or: systemctl --user restart wireplumber)")
+                        "(Android Auto › Connection › Restart sound, or: systemctl --user restart wireplumber)")
                 }
             }
         }

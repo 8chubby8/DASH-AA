@@ -22,6 +22,74 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.1
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-07. Tests pass; Roger looked it over on the G14 (Developer moved to the main
+tree and the clock added on his look).
+
+**What and why.** The first stage of 1.1.x, the settings panel reorganised for Linux (roadmap 1.1.x).
+Native's tree was built around Android: System was mostly deep links into Android's settings. DASH-AA is
+heading for a machine with **no desktop** (Roger: "the 'desktop' will be dash"), where there is nothing to
+hand off to, so DASH's settings become the machine's settings. This stage moves every existing control to
+its final home, so the later stages only add.
+
+**The tree** (agreed with Roger, 2026-10-07): Appearance · Layout · Android Auto · Audio · Connections ·
+Display · Power · Modules · Vehicle · Notifications · System · Developer.
+
+**Done:**
+- **Android Auto is its own category**, no longer under Layout, split into three tabs: **Connection**
+  (status, on/off, Reconnect, Restart sound), **Picture** (video, frame rate, density) and **Night &
+  Driver Side**.
+- **Its sound controls moved to Audio:** **Output** (where Android Auto's sound plays), **Microphone**
+  (whose microphone), **Mixing** (volume, lower music under directions). **Calls** stays in Audio. No
+  setting is reset: they are saved by name, not by where they are shown.
+- **System › This Machine:** the report of what DASH found on the machine, and its Copy button, moved
+  out of About DASH. About keeps who made DASH and where to find it.
+- **Developer is back as a category**, last in the tree, for the machine and DASH itself (the module
+  tools stay in Modules, where 1.5.10 put them). It first went inside System as a fourth level — the
+  panel was taught tabs inside tabs for it — but on screen it belonged on the main tree (Roger: "you were
+  right before"). With nothing else using it, tabs inside tabs was taken out again, and the settings
+  panel's navigation (`SettingsShell.kt`) is native's, unchanged. It was never committed; if Appearance ›
+  Layout ever wants it, it is a small change to build again.
+- **New categories and tabs** appear as honest placeholders saying when they arrive: Connections (Wi-Fi,
+  Bluetooth — 1.1.4), Display (Brightness, Screen Blanking, Touchscreen, **Rotation** — 1.1.3; Rotation is
+  back, reversing the 2026-10-05 drop), Power (Sleep / Shut Down / Restart, Leave DASH — 1.1.5; Ignition
+  Behaviour waits for a module that reports ignition), System (Date & Time, Updates — 1.1.6), Developer
+  (Logs — 1.1.6, Terminal — 1.1.7, **Switch to Desktop** — 1.2.x: Roger's way back to a full desktop
+  when one is installed).
+- **Modules › Activity Log stays in Modules** (Roger: module logs live with the modules).
+- **With no phone projecting, the viewport shows a big analogue clock** instead of the weather scene
+  (Roger: "a simple modern style analogue clock"). Plain and modern: no numerals, sixty fine marks with
+  the hours heavier, three hands. Coloured from the theme like all DASH chrome, so a future theme
+  changes it too; the settings for how it looks come later. The status line ("Connect your phone…") is
+  unchanged beneath it. **The weather scene stays as the settings panel's landing.**
+- The README's Android Auto section follows the new places.
+- The roadmap gains the **no-desktop checklist**: everything the desktop does today that DASH must take
+  over, each with its stage.
+
+**Outstanding:**
+- **The Bible is not updated.** The settings tree in `docs/interface.md` is still native's (2026-07-20
+  addendum). It changes when Roger says so.
+- **Where Power › Leave DASH goes** is left open (Roger: "the answer will become obvious once more of
+  the shell is finished").
+- **Appearance and Layout** stay separate until Roger decides how to link them.
+- The README still tells the user to pair the phone in the desktop's Bluetooth settings. That stays true
+  until 1.1.4 makes DASH the pairing helper.
+
+**For native:**
+- **Take as they are:** `ui/clock/AnalogueClock.kt` (plain Compose, nothing of Linux — native has no
+  empty viewport to show it in today, but it is there for when it wants a clock),
+  `ui/settings/content/ThisMachineContent.kt`, and the cut from
+  `AboutContent.kt` (the report section removed; the rest of native's About is unchanged).
+- **`SettingsTree.kt`:** take the categories and their order, Developer included. Native's **Apps** category fills the Android
+  Auto slot. Native's tabs for Connections, Display and Power are its Android deep links
+  (`SystemLinksContent`, `RotationContent`, `PowerContent`), split across those categories.
+- **Does not apply:** the Android Auto tabs and the Audio tabs' contents (Android Auto settings).
+
+---
+
 ## Version 1.0.9
 
 **Mirrors upstream:** DASH 1.7.1

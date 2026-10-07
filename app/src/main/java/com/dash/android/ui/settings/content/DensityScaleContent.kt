@@ -52,7 +52,7 @@ import com.dash.android.ui.common.controlWidth
  *
  *  ~~**Android Density**~~ — *DASH-AA: dropped (Roger, 2026-10-05).* It set Android's system density
  *  for the viewport apps; DASH-AA's viewport is Android Auto, whose own density is negotiated with
- *  the phone and lives in Layout › Android Auto.
+ *  the phone and lives in Android Auto › Picture.
  *
  * Each stepper persists on the tap, so the bar and the panel's own text resize immediately.
  */

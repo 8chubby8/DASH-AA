@@ -77,10 +77,10 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 | `transport/bluetooth/BluetoothSppTransport.kt` | Linux implementation under native's class name: BlueZ bonded devices, SDP, RFCOMM (`linux/BlueZ.kt`). `D.A.S.H` name marker, connect-out model and re-sweep kept. |
 | `system/DeviceReport.kt` | Android probes replaced by the Linux capabilities DASH-AA depends on. |
 | `ui/screen/MainScreen.kt` | No activity (permissions, screen-on splash, `requestedOrientation` removed); **the viewport added** in the settings-blind rectangle; Transport Manager links open the desktop's Wi-Fi/Bluetooth panels. |
-| `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05); Layout › Android Auto and Audio › Calls added. |
+| `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05). From 1.1.1, the tree reorganised for Linux — see *DASH changes* below. |
 | `ui/settings/content/DensityScaleContent.kt` | Android half (app density, Android font) dropped. |
 | `ui/settings/content/LocationContent.kt` | "Use device location" (Android permission) dropped. |
-| `ui/settings/content/AboutContent.kt` | Wordmark DASH-AA + the native version it mirrors; links open with `xdg-open`. |
+| `ui/settings/content/AboutContent.kt` | Wordmark DASH-AA + the native version it mirrors; links open with `xdg-open`. The report section moved out (1.1.1 — see *DASH changes*). |
 | `ui/settings/content/SplashContent.kt` | Desktop file dialog for Android's picker; window size for Android's configuration. |
 | `ui/splash/SplashScreen.kt` | Animated splash decoded by Skia instead of Android's `AnimatedImageDrawable`. |
 | `ui/settings/content/LicenceContent.kt` | The third-party list names what DASH-AA bundles (Compose for Desktop, Skia, JNA, jSerialComm, kXML2, the Java runtime) and aasdk, from which the Android Auto definitions derive. Same obligation, different components. |
@@ -92,7 +92,10 @@ Shared files changed for DASH itself rather than for Linux, starting with 1.1.x.
 the changelog version that made the change, and anything native needs that Linux didn't: an Android-side
 shim, a permission, a tab.
 
-*(None yet.)*
+| Version | Files | What native takes |
+|---|---|---|
+| 1.1.1 | `ui/settings/SettingsTree.kt` | The reorganised categories and their order, Developer back as the last. Native's Apps category fills the Android Auto slot; its Android deep links, Rotation and Power tabs fill Connections, Display and Power. |
+| 1.1.1 | `ui/settings/content/ThisMachineContent.kt`, `AboutContent.kt` | The report moves from About DASH to System › This Machine. Take the new tab as it is, and cut the report section from native's About. `system/DeviceReport.kt` stays each edition's own. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
 
@@ -106,8 +109,10 @@ Notification Suppression are dropped from the tree for the same reason.
 
 `Main.kt`, `R.kt`, `system/DesktopSettings.kt`, `system/DesktopScale.kt`,
 `transport/bluetooth/linux/BlueZ.kt`, `ui/viewport/AndroidAutoViewport.kt`,
-`ui/androidauto/AndroidAutoContent.kt` (Layout › Android Auto), `ui/androidauto/CallsContent.kt`
-(Audio › Calls), and the whole of `aa/` — the Android Auto head unit, calls, echo cancelling and call
+`ui/androidauto/AndroidAutoContent.kt` (Android Auto › Connection, Picture, Night & Driver Side),
+`ui/androidauto/CallsContent.kt` (Audio › Calls), `ui/audio/AudioContent.kt` (Audio › Output,
+Microphone, Mixing), `ui/clock/AnalogueClock.kt` (the clock in the viewport when no phone is projecting —
+shared-ready, nothing of Linux in it), and the whole of `aa/` — the Android Auto head unit, calls, echo cancelling and call
 volume included.
 
 ---

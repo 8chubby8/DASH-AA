@@ -3,32 +3,20 @@ package com.dash.android.ui.settings.content
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dash.android.BuildConfig
 import com.dash.android.R
-import com.dash.android.prefs.DashPreferences
-import com.dash.android.system.buildDeviceReport
-import com.dash.android.system.formatDeviceReport
 import com.dash.android.ui.theme.LocalDashTheme
 import com.dash.android.ui.common.MAINBODY
 import com.dash.android.ui.common.BODY
@@ -37,8 +25,10 @@ import com.dash.android.ui.common.MAINBODY_LINE
 /**
  * System › About DASH (roadmap 1.5.14).
  *
- * Four sections, in the order a stranger needs them: **what this is** (the name and the version),
- * **who made it**, **where to find it**, and **what it found on this device**.
+ * Three sections, in the order a stranger needs them: **what this is** (the name and the version),
+ * **who made it**, and **where to find it**. The fourth, **what it found on this device**, moved to its
+ * own tab, System › This Machine, in DASH-AA 1.1.1 — it will grow as each new tab checks for what it
+ * needs, and About is the wrong place for a list that long.
  *
  * The licence lives on its own tab next door rather than here. About answers *who and where*; the
  * licence is a legal text with real bulk — the GPL in full, plus every dependency — and folding it
@@ -54,13 +44,6 @@ private const val URL_ISSUES = "https://github.com/8chubby8/DASH/issues"
 fun AboutContent() {
     val theme = LocalDashTheme.current
     val context = LocalContext.current
-    val appContext = remember { context.applicationContext }
-    val prefs = remember { DashPreferences(appContext) }
-    val clipboard = LocalClipboardManager.current
-    val dashTextScale by prefs.dashTextScale.collectAsState(initial = 1.0f)
-
-    val report = remember(dashTextScale) { buildDeviceReport(appContext, dashTextScale) }
-    var copied by remember { mutableStateOf(false) }
 
     // An ordinary tab: the settings shell owns the scroll and the content padding, exactly as it
     // does for every other read-and-set surface. Nothing here needs the box height.
@@ -140,30 +123,6 @@ fun AboutContent() {
                 qr = ImageBitmap.imageResource(R.drawable.qr_issues),
                 onOpen = openerFor(context, URL_ISSUES),
             )
-        }
-
-        // ── This device ──────────────────────────────────────────────────────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            SettingsContentHeader("Report")
-            InfoRows(report.map { it.label to it.value })
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                LinkButton(if (copied) "COPIED" else "COPY REPORT") {
-                    clipboard.setText(AnnotatedString(formatDeviceReport(report)))
-                    copied = true
-                }
-                if (copied) {
-                    Text(
-                        "Paste it into your bug report.",
-                        color = theme.textColourSecondary.copy(alpha = 0.62f),
-                        fontSize = BODY,
-                        fontFamily = theme.font,
-                    )
-                }
-            }
         }
     }
 }

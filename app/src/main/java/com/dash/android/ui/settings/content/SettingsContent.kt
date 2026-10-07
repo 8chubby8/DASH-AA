@@ -10,7 +10,12 @@ import com.dash.android.ui.modules.ModulesContent
 import com.dash.android.ui.monitor.SerialMonitorContent
 import com.dash.android.ui.signal.SignalMonitorContent
 import com.dash.android.ui.transports.TransportManagerContent
-import com.dash.android.ui.androidauto.AndroidAutoContent
+import com.dash.android.ui.androidauto.AndroidAutoConnectionContent
+import com.dash.android.ui.androidauto.AndroidAutoNightContent
+import com.dash.android.ui.androidauto.AndroidAutoPictureContent
+import com.dash.android.ui.audio.AudioMicrophoneContent
+import com.dash.android.ui.audio.AudioMixingContent
+import com.dash.android.ui.audio.AudioOutputContent
 import com.dash.android.ui.androidauto.CallsContent
 import com.dash.android.ui.settings.SettingsSub
 import com.dash.android.ui.theme.LocalDashTheme
@@ -30,13 +35,19 @@ fun SettingsContent(sub: SettingsSub) {
         "appearance.splash" -> SplashContent()
         "layout.systembar" -> SystemBarContent()
         "layout.modulepanel" -> ModulePanelContent()
-        "layout.androidauto" -> AndroidAutoContent()
+        "androidauto.connection" -> AndroidAutoConnectionContent()
+        "androidauto.picture" -> AndroidAutoPictureContent()
+        "androidauto.night" -> AndroidAutoNightContent()
+        "audio.output" -> AudioOutputContent()
+        "audio.microphone" -> AudioMicrophoneContent()
         "audio.calls" -> CallsContent()
+        "audio.mixing" -> AudioMixingContent()
         "modules.management" -> ModulesContent()
         "modules.transport" -> TransportManagerContent()
         "modules.serial" -> SerialMonitorContent()
         "modules.signal" -> SignalMonitorContent()
         "system.location" -> LocationContent()
+        "system.machine" -> ThisMachineContent()
         "system.about" -> AboutContent()
         "system.licence" -> LicenceContent()
         else -> WipPlaceholder(sub)
@@ -55,7 +66,7 @@ private fun WipPlaceholder(sub: SettingsSub) {
             letterSpacing = 2.sp,
         )
         Text(
-            sub.wipVersion?.let { "Arrives with $it." } ?: "Empty — wired in a later 1.5.x version.",
+            sub.wipVersion?.let { "Arrives with $it." } ?: "Not built yet.",
             color = theme.textColourSecondary.copy(alpha = 0.7f),
             fontSize = MAINBODY,
             fontFamily = theme.font,

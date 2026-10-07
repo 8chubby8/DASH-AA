@@ -11,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,17 +23,13 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dash.android.aa.AaStatus
 import com.dash.android.aa.AndroidAutoHost
 import com.dash.android.aa.input.EvdevTouch
 import com.dash.android.ui.common.BODY
 import com.dash.android.ui.theme.LocalDashTheme
-import com.dash.android.ui.weather.LocalWeatherSnapshot
-import com.dash.android.ui.weather.WeatherScene
-import com.dash.android.weather.WeatherArt
-import com.dash.android.weather.WeatherSnapshot
+import com.dash.android.ui.clock.AnalogueClock
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.SamplingMode
 
@@ -53,8 +48,9 @@ import org.jetbrains.skia.SamplingMode
  * - **The module panel and the settings blind draw over it**, as upstream's do over an app — and touches
  *   on them never reach the phone, because they are on top.
  *
- * **When no phone is projecting it shows the weather scene** (Roger, 2026-10-05) — interface.md's "the
- * system never goes black" — with one quiet line saying what Android Auto is doing. Tapping that line
+ * **When no phone is projecting it shows a big analogue clock** (Roger, 2026-10-07; it was the weather
+ * scene from 2026-10-05, which stays as the settings panel's landing) — interface.md's "the system never
+ * goes black" — with one quiet line saying what Android Auto is doing. Tapping that line
  * after the phone has closed Android Auto reconnects.
  */
 @Composable
@@ -158,11 +154,8 @@ private fun ProjectionSurface(host: AndroidAutoHost) {
 @Composable
 private fun IdleViewport(status: AaStatus, onReconnect: () -> Unit) {
     val theme = LocalDashTheme.current
-    val context = LocalContext.current
-    val art = remember { WeatherArt(context) }
-    val snapshot = LocalWeatherSnapshot.current ?: WeatherSnapshot.clockOnly()
     Box(Modifier.fillMaxSize()) {
-        WeatherScene(snapshot, art, theme.font, Modifier.fillMaxSize())
+        AnalogueClock(Modifier.fillMaxSize())
         val line = statusLine(status)
         if (line != null) {
             val tappable = status is AaStatus.Ended || status is AaStatus.Retrying

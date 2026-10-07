@@ -94,20 +94,20 @@ terminal, it logs there (add `2>&1 | tee ~/dash-aa.log` to keep it).
    on the phone while DASH-AA waits.
 3. The viewport fills with Android Auto.
 
-Settings › **Layout › Android Auto** has the rest:
-- video resolution and frame rate
-- **density** (how big the phone draws its interface)
-- night mode
-- which side the driver sits
-- sound, volume, and lowering music under directions
-- the microphone
-- **Restart sound**, which appears only when the sound system has stopped
+Settings › **Android Auto** has the rest:
+- **Connection:** whether the phone is projecting, Android Auto on or off, Reconnect, and **Restart
+  sound**, which appears only when the sound system has stopped
+- **Picture:** video resolution, frame rate, and **density** (how big the phone draws its interface)
+- **Night & Driver Side:** night mode, and which side the driver sits
+
+Settings › **Audio** has the sound: where Android Auto's sound plays (**Output**), whose microphone it uses
+(**Microphone**), and the volume and lowering music under directions (**Mixing**).
 
 **Phone calls go over Bluetooth, not USB.** That's how Android Auto works in every car: the phone uses the
 head unit as a hands-free kit and only projects the call screen. So, once, **pair the phone with the
 computer** in your desktop's Bluetooth settings. DASH-AA then gives Android Auto the computer's Bluetooth
 address. During a call, it joins the phone's voice to the speakers and the microphone to the phone.
-Layout › Android Auto › *Calls* says whether it's ready. **Settings › Audio › Calls** has:
+Android Auto › Connection › *Calls* says whether it's ready. **Settings › Audio › Calls** has:
 - the call volume (up to 300%, independent of music)
 - echo cancelling, which runs only for the length of a call. The microphone is never open otherwise.
 

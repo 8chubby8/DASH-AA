@@ -11,6 +11,13 @@ package com.dash.android.ui.settings
  * each one as an honest placeholder; [wipVersion] is the version its feature lights up at (the
  * WIP-placeholder convention). As features are rehomed, [SettingsStatus.LIVE] entries gain real
  * content.
+ *
+ * **DASH-AA 1.1.1 — the tree reorganised for Linux** (Roger, 2026-10-07; roadmap 1.1.x). Native's tree
+ * was built around Android: System was deep links into Android's own settings. On a Linux head unit with
+ * no desktop there is nothing to hand off to, so DASH's settings become the machine's settings —
+ * Connections, Display and Power join the tree. Android Auto leaves Layout for a category of its own,
+ * and its sound controls move to Audio. **For native:** the categories are the same; native's Apps
+ * category fills the Android Auto slot, and Connections, Display and Power hold its Android deep links.
  */
 enum class SettingsStatus { LIVE, WIP }
 
@@ -53,20 +60,55 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
         )
     ),
     SettingsCategory(
+        // Kept apart from Appearance for now (Roger, 2026-10-07): they belong together, and Roger is
+        // still deciding how to link them.
         "layout", "Layout", listOf(
-            // First in Layout (roadmap 1.5.15, Roger's call). Layout owns the structural decisions —
-            // where the bar sits, how zones divide, where panels dock — and which way the whole
-            // screen faces is the most structural of them, so it comes before the rest.
-            // DASH-AA (Roger, 2026-10-05): Rotation is dropped with the other Android tabs — the
-            // desktop compositor owns which way the screen faces, not the app.
             SettingsSub("layout.systembar", "System Bar", SettingsStatus.LIVE),
             SettingsSub("layout.modulepanel", "Module Panel", SettingsStatus.LIVE),
-            // DASH-AA: the viewport's tenant. Android Auto *is* the viewport surface here, so its
-            // settings sit with the other surfaces rather than under a category of their own. The App
-            // Launcher placeholder is gone with it — the launcher in DASH-AA is Android Auto's own.
-            SettingsSub("layout.androidauto", "Android Auto", SettingsStatus.LIVE),
             wip("layout.elements", "Elements", "1.9.x"),
             wip("layout.overlays", "Overlays", "v2"),
+        )
+    ),
+    SettingsCategory(
+        // DASH-AA: the viewport's tenant, configured. Native's Apps category fills this slot. Its sound
+        // controls live in Audio, with the rest of the sound.
+        "androidauto", "Android Auto", listOf(
+            SettingsSub("androidauto.connection", "Connection", SettingsStatus.LIVE),
+            SettingsSub("androidauto.picture", "Picture", SettingsStatus.LIVE),
+            SettingsSub("androidauto.night", "Night & Driver Side", SettingsStatus.LIVE),
+        )
+    ),
+    SettingsCategory(
+        "audio", "Audio", listOf(
+            SettingsSub("audio.output", "Output", SettingsStatus.LIVE),
+            SettingsSub("audio.microphone", "Microphone", SettingsStatus.LIVE),
+            // DASH-AA (Roger, 2026-10-05): calls through the head unit — their volume, independent of
+            // music, and echo cancelling. Stays in Audio (Roger, 2026-10-07).
+            SettingsSub("audio.calls", "Calls", SettingsStatus.LIVE),
+            SettingsSub("audio.mixing", "Mixing", SettingsStatus.LIVE),
+        )
+    ),
+    SettingsCategory(
+        "connections", "Connections", listOf(
+            wip("connections.wifi", "Wi-Fi", "1.1.4"),
+            wip("connections.bluetooth", "Bluetooth", "1.1.4"),
+        )
+    ),
+    SettingsCategory(
+        // Rotation is back (Roger, 2026-10-07): on Linux it is part of the display settings.
+        "display", "Display", listOf(
+            wip("display.brightness", "Brightness", "1.1.3"),
+            wip("display.blanking", "Screen Blanking", "1.1.3"),
+            wip("display.touchscreen", "Touchscreen", "1.1.3"),
+            wip("display.rotation", "Rotation", "1.1.3"),
+        )
+    ),
+    SettingsCategory(
+        "power", "Power", listOf(
+            // Waits for a module that reports ignition — not a version, so it says so.
+            wip("power.ignition", "Ignition Behaviour", "a module that reports ignition"),
+            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.5"),
+            wip("power.leave", "Leave DASH", "1.1.5"),
         )
     ),
     SettingsCategory(
@@ -82,6 +124,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             // DASH's own decision log — not the wire (that's Serial Monitor) but the reasons behind the
             // refused / dropped / left-dormant outcomes that currently only reach logcat. Roger's call,
             // 2026-07-27: it belongs here beside the boards it explains, but it is v2 work, not v1.
+            // Stays here (Roger, 2026-10-07): module logs live with the modules; DASH's own logs are
+            // Developer › Logs.
             wip("modules.logs", "Activity Log", "v2"),
         )
     ),
@@ -95,17 +139,6 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
         )
     ),
     SettingsCategory(
-        "audio", "Audio", listOf(
-            // DASH-AA (Roger, 2026-10-05): calls through the head unit — their volume, independent of
-            // music, and echo cancelling. First in Audio because it is the one live tab here.
-            SettingsSub("audio.calls", "Calls", SettingsStatus.LIVE),
-            wip("audio.output", "Output Selection", "v2"),
-            wip("audio.routing", "Audio Routing", "v2"),
-            wip("audio.volume", "Volume Behaviour", "v2"),
-            wip("audio.perapp", "Per-app Audio", "v2"),
-        )
-    ),
-    SettingsCategory(
         "notifications", "Notifications", listOf(
             wip("notifications.overlays", "Overlay Trigger Mapping", "v2"),
             wip("notifications.perapp", "Per-app Management", "v2"),
@@ -114,11 +147,14 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             wip("notifications.history", "History", "v2"),
         )
     ),
-    // DASH-AA: the Apps category is dropped — it managed Android apps installed on the head unit, and
-    // DASH-AA has none; Android Auto's apps live on the phone.
     SettingsCategory(
         "system", "System", listOf(
             SettingsSub("system.location", "Location", SettingsStatus.LIVE),
+            wip("system.datetime", "Date & Time", "1.1.6"),
+            // What DASH found on this machine — moved out of About DASH (1.1.1), because it will grow as
+            // each new tab checks for what it needs.
+            SettingsSub("system.machine", "This Machine", SettingsStatus.LIVE),
+            wip("system.updates", "Updates", "1.1.6"),
             // About and Licence are separate tabs on purpose (roadmap 1.5.14). About is who made
             // DASH and where to find it; Licence is the GPL-3.0 §5(d) notice, the full text and the
             // third-party attributions — a legal surface with enough bulk to bury the other.
@@ -127,11 +163,20 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             // lazily, which needs a finite height to measure against. It pays for that by applying
             // the shell's own content padding itself — see LicenceContent.
             SettingsSub("system.licence", "Licence", SettingsStatus.LIVE, fillsBox = true),
-            // DASH-AA: Android Settings Links and Power are dropped with the Android tabs (Roger,
-            // 2026-10-05). Leaving DASH-AA is Ctrl+Q; the window's own keys are listed in the README.
         )
     ),
-    // Developer category removed (roadmap 1.5.10): its Serial + Signal Monitor moved under Modules;
-    // Transport Diagnostics is absorbed by Transport Manager; the Log Viewer becomes Modules › Activity
-    // Log, deferred to v2. Nothing is left behind a safety gate — every instrument is a normal tab.
+    // Developer category removed at roadmap 1.5.10 (Serial + Signal Monitor moved under Modules) and
+    // back in DASH-AA 1.1.1, last in the tree, for the machine and DASH itself — the module tools stay in
+    // Modules. It sat inside System first; on screen it belonged on the main tree (Roger, 2026-10-07).
+    // No safety gate — native decided nothing in settings sits behind one.
+    SettingsCategory(
+        "developer", "Developer", listOf(
+            wip("developer.terminal", "Terminal", "1.1.7"),
+            wip("developer.logs", "Logs", "1.1.6"),
+            // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into
+            // desktop"). Proposed as a switch without a reboot — DASH closes, the desktop starts,
+            // logging out brings DASH back. Needs the 1.2.x start-up script, so it waits for it.
+            wip("developer.desktop", "Switch to Desktop", "1.2.x"),
+        )
+    ),
 )

@@ -24,12 +24,111 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(next — Roger, 2026-10-06)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 complete, 2026-10-07)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
 
-**Scope:** still to be set out by Roger.
+**Why it changes (2026-10-07):** native's tree was built around Android. Its System category was mostly deep
+links into Android's own settings, and its Audio placeholders were per-app Android audio. On the laptop,
+DASH-AA can hand off to GNOME's settings. On the 1.2.x touchscreen PC there is no desktop to hand off to,
+so DASH's settings have to *be* the machine's settings. The categories change to reflect what Linux does.
+
+**The tree (agreed with Roger, 2026-10-07):**
+
+```
+Appearance     Size & Scale, Transitions, Splash, Colours, Fonts, Presets, Ambient
+Layout         System Bar, Module Panel, Elements, Overlays
+Android Auto   Connection, Picture, Night & Driver side
+Audio          Output, Microphone, Calls, Mixing
+Connections    Wi-Fi, Bluetooth
+Display        Brightness, Screen blanking, Touchscreen, Rotation
+Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
+Modules        Module Manager, Transport Manager, Serial Monitor, Signal Monitor, Activity Log
+Vehicle        (v3)
+Notifications  (v2)
+System         Location, Date & Time, This Machine, Updates, About, Licence
+Developer      Terminal, Logs, Switch to Desktop
+```
+
+Roger's rulings in getting here:
+- **Lots of top-level categories.** Connections, Display and Power stay separate rather than being folded
+  into one "Machine" category.
+- **Appearance and Layout stay separate for now.** They belong together, but nesting Layout inside
+  Appearance would make a fourth level of navigation, and group headings in the category rail were tried
+  and rejected. Roger will find a better way to link them.
+- **Rotation is back, in Display.** This reverses the 2026-10-05 decision to drop it. On Linux, rotation is
+  part of the display settings.
+- **Calls stays in Audio** for now.
+- **Developer is its own category, last in the tree**, holding Terminal, DASH's own Logs and Switch to
+  Desktop: the machine and DASH itself, while the module tools stay in Modules. It was first placed
+  inside System, as a fourth level; on screen it belonged on the main tree (Roger, 2026-10-07).
+- **Modules › Activity Log stays in Modules.** It is the record of what modules did and why; DASH's own
+  logs are Developer › Logs.
+- **The Bible is not yet updated.** The tree in `docs/interface.md` (2026-07-20 addendum) is still native's.
+  It is changed when Roger says so.
+
+**No desktop, as standard (Roger, 2026-10-07):** "the idea is to have no desktop as standard. the
+'desktop' will be dash. so we need to make sure everything we are going to need is going to be
+available." So every tab is built to work **with no desktop present**. It talks to the machine's own
+services directly, and "open the desktop's settings" is at most an extra when a desktop happens to be
+there (the laptop today), never the way a thing gets done.
+
+**The rules every new tab follows:** no root (each uses a service the person at the seat may already use:
+PipeWire, NetworkManager, BlueZ, logind, the display program). Capability detection first: a tab whose
+service is missing says so in plain words, or does not appear, and nothing else is affected. **Each stage
+is tested in a session with no desktop** — DASH alone on the screen — as well as on GNOME.
+
+**What the desktop does today that DASH must take over.** The checklist this work answers to; each item
+names the stage that covers it.
+
+| The desktop does this now | With no desktop | Stage |
+|---|---|---|
+| Joins Wi-Fi networks | DASH talks to NetworkManager itself | 1.1.4 |
+| Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | 1.1.4 |
+| Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
+| Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.3 (and 1.2.x) |
+| Blanks the screen and sleeps | DASH does it | 1.1.3, 1.1.5 |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | 1.1.4 / 1.1.7, with the touchscreen work |
+| Picks files (the splash image) | DASH's own file picker | 1.1.6 |
+| Opens web links | The QR codes in About already cover a machine with no browser | done |
+| Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
+| Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | 1.1.5 |
+| A way back to a full desktop, when one is installed | Developer › **Switch to Desktop** (Roger, 2026-10-07): DASH closes, the desktop starts, logging out of it brings DASH back — no reboot, no root | 1.2.x |
+| Shuts down and restarts | DASH, through logind | 1.1.5 |
+| Updates the system | DASH updates itself without root; system updates need a decision | 1.1.6 |
+
+**Stages:**
+
+- **1.1.1 — The new tree.** **(complete — 2026-10-07)** Every control moves to its final home, so later stages only add. Android Auto
+  leaves Layout for its own category, split into Connection, Picture, and Night & Driver side. Its sound
+  controls move into Audio now: where the sound plays (Output), whose microphone (Microphone), volume and
+  lowering music under directions (Mixing). The machine-capability report moves out of About DASH into
+  System › This Machine. Developer returns as a category. Every tab not yet
+  built is an honest "arrives with 1.1.x" placeholder (native's work-in-progress convention). Also, at
+  Roger's asking: with no phone projecting, the viewport shows a big analogue clock instead of the
+  weather scene, which stays as the settings panel's landing. Settings for the clock's look come later.
+- **1.1.2 — Audio.** Choose which speakers and which microphone (PipeWire).
+- **1.1.3 — Display.** Rotation first: ask the display service to rotate the screen (GNOME's Mutter on the
+  laptop; whatever runs the display on the 1.2.x PC), so the touchscreen turns with it. Where no display
+  service is reachable, DASH rotates its own picture, and its own touch input, inside the window. Then
+  brightness and screen blanking.
+- **1.1.4 — Connections.** Wi-Fi through NetworkManager and Bluetooth through BlueZ, with "open the
+  desktop's settings" kept as the fallback.
+- **1.1.5 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
+  a module that reports ignition.
+- **1.1.6 — System.** Date & Time, Updates, and Developer › Logs.
+- **1.1.7 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
+  from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
+  on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
+  to look at or fix the machine without leaving DASH. No safety gate, as native decided for its tools.
+
+**For native:** the categories are the same on both editions. Only what sits behind the platform-specific
+tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
+its **Apps** category (both are settings for whatever runs in the viewport). Connections, Display and
+Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code.
+Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
+equivalents or do not apply.
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
