@@ -50,6 +50,10 @@ data class AaSettings(
     /** The friend's voice on a call, as a gain: 1.0 as the phone sends it, above 1.0 boosted. */
     val callVolume: Float = 1.0f,
     val volume: Float = 1.0f,
+    /** Audio › Mixer (1.1.2): each of Android Auto's three sounds, under [volume]. */
+    val musicLevel: Float = 1.0f,
+    val directionsLevel: Float = 1.0f,
+    val systemLevel: Float = 1.0f,
 ) {
     /** Driver side resolved — AUTO follows the country the laptop is set to. */
     val leftHandDrive: Boolean get() = when (driverSide) {
@@ -96,6 +100,9 @@ class AaPreferences(private val context: Context) {
             p[ECHO] = next.echoCancel
             p[CALL_VOLUME] = next.callVolume
             p[VOLUME] = next.volume
+            p[MUSIC_LEVEL] = next.musicLevel
+            p[DIRECTIONS_LEVEL] = next.directionsLevel
+            p[SYSTEM_LEVEL] = next.systemLevel
         }
     }
 
@@ -112,6 +119,9 @@ class AaPreferences(private val context: Context) {
         echoCancel = p[ECHO] ?: true,
         callVolume = p[CALL_VOLUME] ?: 1.0f,
         volume = p[VOLUME] ?: 1.0f,
+        musicLevel = p[MUSIC_LEVEL] ?: 1.0f,
+        directionsLevel = p[DIRECTIONS_LEVEL] ?: 1.0f,
+        systemLevel = p[SYSTEM_LEVEL] ?: 1.0f,
     )
 
     private companion object {
@@ -127,5 +137,8 @@ class AaPreferences(private val context: Context) {
         val ECHO = booleanPreferencesKey("aa_echo_cancel")
         val CALL_VOLUME = floatPreferencesKey("aa_call_volume")
         val VOLUME = floatPreferencesKey("aa_volume")
+        val MUSIC_LEVEL = floatPreferencesKey("aa_music_level")
+        val DIRECTIONS_LEVEL = floatPreferencesKey("aa_directions_level")
+        val SYSTEM_LEVEL = floatPreferencesKey("aa_system_level")
     }
 }

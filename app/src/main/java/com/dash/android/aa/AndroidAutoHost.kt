@@ -16,6 +16,7 @@ import com.dash.android.aa.protocol.AaSessionHost
 import com.dash.android.aa.protocol.HeadUnitConfig
 import com.dash.android.aa.protocol.VideoGeometry
 import com.dash.android.aa.usb.AaUsb
+import com.dash.android.audio.ViewportVolume
 import com.dash.android.transport.DashController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +64,7 @@ sealed interface AaStatus {
 class AndroidAutoHost(
     private val app: DashApplication,
     private val controller: DashController,
-) {
+) : ViewportVolume {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val prefs = AaPreferences(app)
 
@@ -106,12 +107,14 @@ class AndroidAutoHost(
     private val touch = TouchTracker { pointers, index, action -> session?.sendTouch(pointers, index, action) }
     private var decoder: VideoDecoder? = null
 
-    private val bridge = AaBridge(
-        state = controller.systemState,
-        scope = scope,
-        onVolumeStep = { step -> scope.launch { prefs.update { s -> s.copy(volume = (s.volume + step * VOLUME_STEP).coerceIn(0f, 1f)) } } },
-        onMuted = { audio.muted = it },
-    )
+    private val bridge = AaBridge(state = controller.systemState, scope = scope)
+
+    /** Android Auto's own volume, for the volume buttons when the user points them here (Audio › Output). */
+    override fun stepVolume(direction: Int) {
+        scope.launch { prefs.update { s -> s.copy(volume = (s.volume + direction * VOLUME_STEP).coerceIn(0f, 1f)) } }
+    }
+
+    override fun setMuted(muted: Boolean) { audio.muted = muted }
 
     // ---- The viewport, as the UI reports it ----
 
@@ -147,6 +150,9 @@ class AndroidAutoHost(
                 settings = s
                 audio.volume = s.volume
                 audio.duckMedia = s.duckMedia
+                audio.musicLevel = s.musicLevel
+                audio.directionsLevel = s.directionsLevel
+                audio.systemLevel = s.systemLevel
                 val active = activeConnectionSettings
                 if (active != null && connectionFieldsDiffer(active, s)) requestRestart("settings changed")
                 if (!s.enabled) session?.requestShutdown()

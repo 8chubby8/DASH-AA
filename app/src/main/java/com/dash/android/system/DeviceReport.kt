@@ -3,6 +3,7 @@ package com.dash.android.system
 import android.content.Context
 import com.dash.android.BuildConfig
 import com.dash.android.aa.AaCapabilities
+import com.dash.android.audio.linux.PipeWireSound
 import com.dash.android.transport.bluetooth.linux.BlueZ
 import java.awt.GraphicsEnvironment
 import java.io.File
@@ -46,6 +47,7 @@ fun buildDeviceReport(context: Context, dashTextScale: Float): List<ReportLine> 
             BlueZ.Adapter.OFF -> "Adapter off"
             BlueZ.Adapter.ABSENT -> "No adapter"
         }),
+        ReportLine("Sound", PipeWireSound.summary()),
         ReportLine("Android Auto USB", AaCapabilities.usbSummary()),
         ReportLine("Video decoder", AaCapabilities.decoderSummary()),
         ReportLine("Touchscreen", AaCapabilities.touchSummary()),

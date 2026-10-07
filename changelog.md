@@ -22,6 +22,90 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.2
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-07. Tests pass, and the PipeWire side was checked against the G14's real
+PipeWire (1.6.9). Roger accepted it ("im happy with that").
+
+**What and why.** The first of the two Audio stages (roadmap 1.1.x). Roger: Audio is "a machine status and
+settings tab mixed with dash specific car type controls". With no desktop there is no other sound panel,
+so this stage makes DASH's Audio tabs the machine's sound settings: which speakers, which microphone, how
+loud, and what else is playing. 1.1.3 adds the car side (equaliser, balance, fade, loudness), built so a
+future sound module (Roger's 5-way active crossover) can take that processing over.
+
+**The tabs** are now Output · Input · Mixer · Sound · Calls. Microphone became **Input**, Mixing became
+**Mixer**, and **Sound** is a placeholder for 1.1.3. No setting was reset.
+
+**Done:**
+- **Output:** the machine's speakers as a list, the one in use filled. Choosing one makes it PipeWire's
+  default, so every app follows it and WirePlumber remembers it. Each is named by the port in use
+  ("Speakers", "Headphones") over the card's name. A USB sound card or headphones appear the moment they
+  are plugged in, and go when pulled out. Then the volume (5% steps), mute, and a **start-up volume
+  limit**: when DASH starts, the volume comes down to it if it was left higher, and is never turned up
+  (off by default). Android Auto's Phone / DASH-AA choice sits beneath, in its own section.
+- **Input:** the microphones, chosen the same way; input volume and mute; and **Test microphone**, a
+  live level meter. It listens only while switched on and the tab is open, and records nothing. The rule
+  that DASH-AA listens only when the phone opens the microphone still stands, and the user asks for this
+  one. Android Auto's microphone choice beneath.
+- **Mixer:** Android Auto's overall volume (still what the steering wheel moves), and a level each for its
+  **music**, **directions and assistant**, and **system sounds**, beneath it. Lowering music under
+  directions moved here. Under **Everything else**, a level for each other app while it plays. DASH-AA's
+  own streams and the phone's Bluetooth nodes are left out: calls have their level in Calls, and the
+  phone's Bluetooth music would only double Android Auto's.
+- **Volume buttons, the user's choice** (Roger: "let it be decided by the user which it controls").
+  The steering wheel's volume arrives as system messages from a SYSTEM module (`media_volume_up`,
+  `media_volume_down`, `media_muted` — system_commands.md). Audio › Output › **Volume buttons** sends them
+  to the **Machine** (the default output, in 5% steps) or to **Android Auto** (its own volume, as before,
+  and still the default). They moved out of Android Auto's bridge into DASH (`audio/VolumeButtons.kt`).
+  Before, they were heard only while a phone projected; now they work with no phone at all. Mute follows
+  the choice: change it while muted and the old target is unmuted and the new one muted. A sound module
+  becomes a third choice once one is designed. (interface.md's tree already has a "Volume behaviour"
+  entry under Audio; this is it.)
+- **How it talks to PipeWire** (`audio/linux/PipeWireSound.kt`): one `pw-dump --monitor` for the life of
+  DASH reports every change as it happens, and changes go out as short `wpctl` commands. These run one at a
+  time on their own thread and are killed after 3 seconds, so a hung sound system cannot stall DASH or
+  Android Auto (the 1.0.5 rule). A stepper pressed quickly sends one command with the latest value, not
+  ten. Volumes are shown as `wpctl` and every desktop shows them: the cube root of PipeWire's gain, which
+  sounds even. If PipeWire stops, the tabs say so and the monitor picks it up again when it returns.
+- **The seam** (`audio/SoundSystem.kt`): the tabs only talk to a `SoundSystem` interface, never to
+  PipeWire, so they are shared code. PipeWire is DASH-AA's implementation.
+- **Capability detection:** with no `pw-dump` or `wpctl`, every Audio tab says "PipeWire's tools are not
+  installed — install pipewire and wireplumber" and nothing else is affected. **System › This Machine**
+  gains a *Sound* line (PipeWire and its version, or what is missing).
+- The README's Audio section describes the new tabs.
+- **Tests:** `PipeWireSoundTest` feeds the graph batches shaped exactly as PipeWire 1.6.9 prints them
+  (devices and their ports, defaults, volumes, removals, DASH-AA's and the phone's nodes left out, the
+  level meter's scale). `PipeWireSoundProbe` (opt-in, `-Dsound=1`) runs against the real PipeWire. It
+  plays a silent stream from a test app, sees it appear, sets its level twice in quick succession and
+  reads 45% back, sees it go, and reads the microphone about 35 times a second. It never touches the
+  machine's default devices or their volume. `VolumeButtonsTest` sends the wheel's messages through the
+  real system state and checks each lands where it is pointed, an old press is never replayed, and mute
+  moves with the choice.
+
+**Outstanding:**
+- **Tried in a session with no desktop** once the 1.2.x session exists, and with a real steering-wheel
+  module sending the volume buttons.
+- A sound card whose profile is switched off (an HDMI output with no screen plugged in) does not appear.
+  WirePlumber switches it on when something is connected; choosing profiles by hand is not offered.
+- WirePlumber remembers each app's level (by its application id), so a level set in the Mixer comes back
+  the next time that app plays.
+
+**For native:**
+- **Take as they are:** `audio/SoundSystem.kt`, `audio/SoundPreferences.kt` and `audio/VolumeButtons.kt`
+  (native's viewport tenant implements `ViewportVolume`, or the choice offers only the machine).
+- **Take, removing the Android Auto parts:** `ui/audio/AudioContent.kt` (the Android Auto sections, and the
+  Mixer's Android Auto levels, are DASH-AA's). `SettingsTree.kt`: Audio's tabs, Output · Input · Mixer ·
+  Sound · Calls.
+- **Needs an Android equivalent:** a `SoundSystem` on `AudioManager`: the media volume as the output's
+  volume, and the start-up limit applied to it. Android chooses its own speakers, does not let one app set
+  another's level, and keeps the microphone level to itself, so those lists come back empty and the tabs
+  leave them out. The level meter needs the microphone permission.
+- **Does not apply:** `audio/linux/PipeWireSound.kt`.
+
+---
+
 ## Version 1.1.1
 
 **Mirrors upstream:** DASH 1.7.1

@@ -2,8 +2,19 @@ package com.dash.android
 
 import android.content.Context
 import com.dash.android.aa.AndroidAutoHost
+import com.dash.android.audio.SoundPreferences
+import com.dash.android.audio.SoundSettings
+import com.dash.android.audio.SoundSystem
+import com.dash.android.audio.VolumeButtons
+import com.dash.android.audio.limitStartupVolume
+import com.dash.android.audio.linux.PipeWireSound
 import com.dash.android.transport.DashController
 import com.dash.android.transport.TransportManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * The DASH application object — and the owner of the transport stack (roadmap 1.5.11).
@@ -41,6 +52,12 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     lateinit var androidAuto: AndroidAutoHost
         private set
 
+    /**
+     * **The machine's sound** (DASH-AA 1.1.2) — what the Audio tabs show and change. PipeWire here;
+     * watched for the life of the process, so a sound card plugged in mid-drive appears at once.
+     */
+    val sound: SoundSystem = PipeWireSound()
+
     fun onCreate() {
         transport = TransportManager(this)
         controller = DashController(transport, this)
@@ -48,5 +65,15 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
         transport.start()
         controller.start()
         androidAuto.start()
+        sound.start()
+        VolumeButtons(controller.systemState, sound, SoundPreferences(this).settings, androidAuto,
+            CoroutineScope(SupervisorJob() + Dispatchers.Default)).start()
+        Thread({
+            runBlocking {
+                val limit = runCatching { SoundPreferences(this@DashApplication).settings.first().startupLimit }
+                    .getOrDefault(SoundSettings.LIMIT_OFF)
+                if (limit > SoundSettings.LIMIT_OFF) sound.limitStartupVolume(limit)
+            }
+        }, "dash-sound-startup").apply { isDaemon = true }.start()
     }
 }

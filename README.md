@@ -100,8 +100,17 @@ Settings › **Android Auto** has the rest:
 - **Picture:** video resolution, frame rate, and **density** (how big the phone draws its interface)
 - **Night & Driver Side:** night mode, and which side the driver sits
 
-Settings › **Audio** has the sound: where Android Auto's sound plays (**Output**), whose microphone it uses
-(**Microphone**), and the volume and lowering music under directions (**Mixing**).
+Settings › **Audio** is the machine's sound settings, so you don't need the desktop's:
+- **Output:** which speakers everything plays through (plug in a USB sound card or headphones and they
+  appear), the volume, mute, a **start-up volume limit** so the car isn't blasted when DASH starts, and
+  **Volume buttons**: whether the steering wheel's volume turns the whole machine or only Android Auto.
+  Below, whether Android Auto's sound plays on the phone or through DASH-AA.
+- **Input:** which microphone, its volume, and **Test microphone**, a level meter that shows the
+  microphone hears you. Nothing is recorded. Below, whether Android Auto uses the phone's microphone or DASH-AA's.
+- **Mixer:** Android Auto's volume and separate levels for its music, directions and system sounds,
+  lowering music under directions, and a level for anything else that is playing.
+
+The choices are the machine's: they need PipeWire and WirePlumber, and if those are missing the tabs say so.
 
 **Phone calls go over Bluetooth, not USB.** That's how Android Auto works in every car: the phone uses the
 head unit as a hands-free kit and only projects the call screen. So, once, **pair the phone with the

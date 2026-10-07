@@ -29,6 +29,7 @@ import javax.sound.sampled.AudioSystem
  *
  * **What DASH-AA does to the sound** is unchanged: its own volume (the steering-wheel `media_volume_*`),
  * mute (`media_muted`), and lowering music under spoken directions — the head unit is the car's mixer.
+ * From 1.1.2 the Mixer also sets each sound's own level beneath that volume.
  */
 class AudioOut internal constructor(
     /** Where sound goes — PipeWire normally; a test can hand in an output that misbehaves. */
@@ -39,6 +40,10 @@ class AudioOut internal constructor(
     @Volatile var volume: Float = 1.0f
     @Volatile var muted: Boolean = false
     @Volatile var duckMedia: Boolean = true
+    /** Audio › Mixer: the level of each of the three sounds, under [volume]. */
+    @Volatile var musicLevel: Float = 1.0f
+    @Volatile var directionsLevel: Float = 1.0f
+    @Volatile var systemLevel: Float = 1.0f
     /** Called when a stream finds the sound system no longer taking audio. */
     @Volatile var onStuck: (() -> Unit)? = null
 
@@ -78,7 +83,12 @@ class AudioOut internal constructor(
     private fun gainFor(channel: Int): Float {
         if (muted) return 0f
         val duck = if (duckMedia && channel == Aa.CH_MEDIA_AUDIO && speechActive) DUCK_GAIN else 1f
-        return volume * duck
+        val level = when (channel) {
+            Aa.CH_MEDIA_AUDIO -> musicLevel
+            Aa.CH_SPEECH_AUDIO -> directionsLevel
+            else -> systemLevel
+        }
+        return volume * level * duck
     }
 
     /** One chunk of sound and its acknowledgement, which happens exactly once whoever gets there first. */

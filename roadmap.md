@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 complete, 2026-10-07)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; next 1.1.3)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -40,7 +40,7 @@ so DASH's settings have to *be* the machine's settings. The categories change to
 Appearance     Size & Scale, Transitions, Splash, Colours, Fonts, Presets, Ambient
 Layout         System Bar, Module Panel, Elements, Overlays
 Android Auto   Connection, Picture, Night & Driver side
-Audio          Output, Microphone, Calls, Mixing
+Audio          Output, Input, Mixer, Sound, Calls
 Connections    Wi-Fi, Bluetooth
 Display        Brightness, Screen blanking, Touchscreen, Rotation
 Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
@@ -84,19 +84,19 @@ names the stage that covers it.
 
 | The desktop does this now | With no desktop | Stage |
 |---|---|---|
-| Joins Wi-Fi networks | DASH talks to NetworkManager itself | 1.1.4 |
-| Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | 1.1.4 |
+| Joins Wi-Fi networks | DASH talks to NetworkManager itself | 1.1.5 |
+| Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | 1.1.5 |
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
-| Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.3 (and 1.2.x) |
-| Blanks the screen and sleeps | DASH does it | 1.1.3, 1.1.5 |
-| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | 1.1.4 / 1.1.7, with the touchscreen work |
-| Picks files (the splash image) | DASH's own file picker | 1.1.6 |
+| Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.4 (and 1.2.x) |
+| Blanks the screen and sleeps | DASH does it | 1.1.4, 1.1.6 |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | 1.1.5 / 1.1.8, with the touchscreen work |
+| Picks files (the splash image) | DASH's own file picker | 1.1.7 |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
-| Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | 1.1.5 |
+| Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | 1.1.6 |
 | A way back to a full desktop, when one is installed | Developer › **Switch to Desktop** (Roger, 2026-10-07): DASH closes, the desktop starts, logging out of it brings DASH back — no reboot, no root | 1.2.x |
-| Shuts down and restarts | DASH, through logind | 1.1.5 |
-| Updates the system | DASH updates itself without root; system updates need a decision | 1.1.6 |
+| Shuts down and restarts | DASH, through logind | 1.1.6 |
+| Updates the system | DASH updates itself without root; system updates need a decision | 1.1.7 |
 
 **Stages:**
 
@@ -108,17 +108,40 @@ names the stage that covers it.
   built is an honest "arrives with 1.1.x" placeholder (native's work-in-progress convention). Also, at
   Roger's asking: with no phone projecting, the viewport shows a big analogue clock instead of the
   weather scene, which stays as the settings panel's landing. Settings for the clock's look come later.
-- **1.1.2 — Audio.** Choose which speakers and which microphone (PipeWire).
-- **1.1.3 — Display.** Rotation first: ask the display service to rotate the screen (GNOME's Mutter on the
+- **Audio is the machine's sound settings and the car's sound menu in one** (Roger, 2026-10-07: "a
+  machine status and settings tab mixed with dash specific car type controls"). With no desktop, there
+  is no other sound panel. Its tabs: **Output** (device, master volume, mute, start-up volume limit),
+  **Input** (microphone, input level with a live meter), **Mixer** (a level for each source: Android
+  Auto's music, its directions, its system sounds, any other app — calls keep their level in Calls; lowering music under
+  directions moves in here, and the separate Mixing tab goes), **Sound** (equaliser, balance, fade,
+  loudness, subwoofer, speed-dependent volume) and **Calls** (as now). It is built in two stages
+  (Roger, 2026-10-07):
+- **1.1.2 — Audio: the machine.** **(complete — 2026-10-07)** Output, Input and Mixer, all through PipeWire as the seat user
+  (`wpctl`, `pw-dump`), never on the Android Auto session thread. The chosen output and microphone
+  become the machine's defaults, so everything follows them. The lists update live as devices are
+  plugged in and pulled out. Where PipeWire is missing, the tabs say so and nothing else is affected.
+  The Mixer names streams by the identity each already has (the 1.0.x rule). **Volume buttons** (Roger,
+  2026-10-07): the user chooses what the steering wheel's volume turns — the machine or Android Auto, and a
+  sound module once one exists.
+- **1.1.3 — Audio: the car.** DASH's own sound chain: one "DASH" output, a PipeWire filter-chain
+  (equaliser → balance and fade → the chosen device) that all sound plays through, like a car's DSP
+  between head unit and amplifier. **PipeWire owns it and DASH only adjusts it.** It is a config file
+  in `~/.config/pipewire/`, so it starts with PipeWire, and if DASH stops the sound keeps playing with
+  the last settings. Changing the output device moves only its tail, so the settings stay. Fade appears
+  only on an output with rear channels; speed-dependent volume only when a module reports speed (both
+  capability-detected, never faked). Later, not now: per-speaker time alignment and crossover.
+  **Built ready for a sound module** (Roger, 2026-10-07): the Sound tab edits DASH's sound settings,
+  which are handed to a *sound processor*. DASH's PipeWire chain is the only processor at 1.1.3.
+- **1.1.4 — Display.** Rotation first: ask the display service to rotate the screen (GNOME's Mutter on the
   laptop; whatever runs the display on the 1.2.x PC), so the touchscreen turns with it. Where no display
   service is reachable, DASH rotates its own picture, and its own touch input, inside the window. Then
   brightness and screen blanking.
-- **1.1.4 — Connections.** Wi-Fi through NetworkManager and Bluetooth through BlueZ, with "open the
+- **1.1.5 — Connections.** Wi-Fi through NetworkManager and Bluetooth through BlueZ, with "open the
   desktop's settings" kept as the fallback.
-- **1.1.5 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
+- **1.1.6 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
   a module that reports ignition.
-- **1.1.6 — System.** Date & Time, Updates, and Developer › Logs.
-- **1.1.7 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
+- **1.1.7 — System.** Date & Time, Updates, and Developer › Logs.
+- **1.1.8 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
   from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
   on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
   to look at or fix the machine without leaving DASH. No safety gate, as native decided for its tools.
@@ -127,7 +150,9 @@ names the stage that covers it.
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
 its **Apps** category (both are settings for whatever runs in the viewport). Connections, Display and
 Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code.
-Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
+Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
+Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
+non-root Android path, so native's Sound tab is thinner. Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
 equivalents or do not apply.
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
@@ -163,6 +188,13 @@ The machine as the phone's Wi-Fi hotspot plus the Bluetooth start-up handshake, 
 without a cable. Deferred by Roger's first ruling (wired first).
 
 #### Later, unordered
+- **Sound modules** (Roger, 2026-10-07; not yet designed). Roger's own: a 5-way active crossover that
+  also does fade, balance, speed-dependent volume and loudness. A sound module tells DASH what it can
+  do; each function it offers is taken off DASH's PipeWire chain (never done twice), and what it does not
+  offer stays in DASH. Every option is still controlled from DASH's Sound tab, and the settings are
+  DASH's, so they carry across with the module present or not. To design: the messages (likely a SYSTEM
+  module, system_commands.md vocabulary, transport.md unchanged), how the sound reaches the module, and
+  who supplies the speed.
 - Android Auto's media and navigation status channels — "now playing" and turn-by-turn for upstream's
   planned elements (1.9.x / v2), offered through the same SDK as any element would read them.
 - Hardware video decode (VA-API) if the CPU cost ever matters.

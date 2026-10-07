@@ -34,13 +34,14 @@ import kotlinx.coroutines.launch
  * | `media_play_pause` / `media_next` / `media_prev` | media keys |
  * | `voice_activate` | the assistant |
  * | `button_home_pressed` | home |
- * | `media_volume_up` / `media_volume_down` / `media_muted` | DASH-AA's own output volume and mute |
+ *
+ * The volume buttons (`media_volume_up` / `media_volume_down` / `media_muted`) are not here since 1.1.2:
+ * they are DASH's (`audio/VolumeButtons.kt`), heard with or without a phone, and reach Android Auto's
+ * volume only when the user chooses it in Audio › Output.
  */
 class AaBridge(
     private val state: SystemState,
     private val scope: CoroutineScope,
-    private val onVolumeStep: (Int) -> Unit,
-    private val onMuted: (Boolean) -> Unit,
 ) {
     /** The sensors to advertise for a connection starting now. */
     fun sensorsFor(settings: AaSettings): List<Int> = buildList {
@@ -86,11 +87,6 @@ class AaBridge(
                             .forEach { type -> eventFor(type, s)?.let { sendSensor(type, it) } }
                     }
             }
-            launch {
-                state.values.map { it["media_muted"]?.value }.distinctUntilChanged().collect { v ->
-                    if (v != null) onMuted(v.isTrue())
-                }
-            }
             // The event bus replays its recent history to a new subscriber; a press from before this
             // connection must never reach the phone, so anything older than the attach is ignored.
             state.events.collect { e ->
@@ -101,8 +97,6 @@ class AaBridge(
                     "media_prev" -> sendKey(Aa.KEY_MEDIA_PREVIOUS)
                     "voice_activate" -> sendKey(Aa.KEY_SEARCH)
                     "button_home_pressed" -> sendKey(Aa.KEY_HOME)
-                    "media_volume_up" -> onVolumeStep(+1)
-                    "media_volume_down" -> onVolumeStep(-1)
                     else -> return@collect
                 }
                 Log.i(TAG, "control ${e.function} → Android Auto")

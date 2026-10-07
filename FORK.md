@@ -72,10 +72,10 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 
 | File | Why |
 |---|---|
-| `DashApplication.kt` | No Android `Application`: it *is* the Context, made in `Main.kt`. Also owns the Android Auto host. Native's reasoning (the bus lives for the process) kept in spirit. |
+| `DashApplication.kt` | No Android `Application`: it *is* the Context, made in `Main.kt`. Also owns the Android Auto host and, from 1.1.2, the machine's sound (`PipeWireSound`, with the start-up volume limit). Native's reasoning (the bus lives for the process) kept in spirit. |
 | `transport/usb/UsbSerialTransport.kt` | Linux implementation under native's class name: tty devices instead of Android's USB host API. Native's profile (115200 8N1, DTR/RTS high), per-device assembler and re-sweep kept. |
 | `transport/bluetooth/BluetoothSppTransport.kt` | Linux implementation under native's class name: BlueZ bonded devices, SDP, RFCOMM (`linux/BlueZ.kt`). `D.A.S.H` name marker, connect-out model and re-sweep kept. |
-| `system/DeviceReport.kt` | Android probes replaced by the Linux capabilities DASH-AA depends on. |
+| `system/DeviceReport.kt` | Android probes replaced by the Linux capabilities DASH-AA depends on (from 1.1.2, PipeWire as *Sound*). |
 | `ui/screen/MainScreen.kt` | No activity (permissions, screen-on splash, `requestedOrientation` removed); **the viewport added** in the settings-blind rectangle; Transport Manager links open the desktop's Wi-Fi/Bluetooth panels. |
 | `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05). From 1.1.1, the tree reorganised for Linux — see *DASH changes* below. |
 | `ui/settings/content/DensityScaleContent.kt` | Android half (app density, Android font) dropped. |
@@ -96,6 +96,9 @@ shim, a permission, a tab.
 |---|---|---|
 | 1.1.1 | `ui/settings/SettingsTree.kt` | The reorganised categories and their order, Developer back as the last. Native's Apps category fills the Android Auto slot; its Android deep links, Rotation and Power tabs fill Connections, Display and Power. |
 | 1.1.1 | `ui/settings/content/ThisMachineContent.kt`, `AboutContent.kt` | The report moves from About DASH to System › This Machine. Take the new tab as it is, and cut the report section from native's About. `system/DeviceReport.kt` stays each edition's own. |
+| 1.1.2 | `audio/SoundSystem.kt`, `audio/SoundPreferences.kt`, `audio/VolumeButtons.kt` (new) | The seam the Audio tabs talk through, DASH's own sound settings (the start-up volume limit, what the volume buttons turn), and the volume buttons themselves — heard from the system state for the life of the process, no longer only inside Android Auto. Take both as they are. Native writes an Android `SoundSystem` (`AudioManager` for volume; no choice of speakers, and other apps' levels are not Android's to set, so those lists come back empty and the tabs leave them out). |
+| 1.1.2 | `ui/audio/AudioContent.kt` | Audio › Output, Input, Mixer, built only on `SoundSystem`. Take it; the *Android Auto* sections and the Mixer's Android Auto levels are DASH-AA's and come out (native's viewport tenant is its apps). |
+| 1.1.2 | `ui/settings/SettingsTree.kt` | Audio's tabs become Output · Input · Mixer · Sound · Calls (Microphone → Input, Mixing → Mixer), and the later stages' placeholder numbers move up one. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
 
@@ -110,8 +113,8 @@ Notification Suppression are dropped from the tree for the same reason.
 `Main.kt`, `R.kt`, `system/DesktopSettings.kt`, `system/DesktopScale.kt`,
 `transport/bluetooth/linux/BlueZ.kt`, `ui/viewport/AndroidAutoViewport.kt`,
 `ui/androidauto/AndroidAutoContent.kt` (Android Auto › Connection, Picture, Night & Driver Side),
-`ui/androidauto/CallsContent.kt` (Audio › Calls), `ui/audio/AudioContent.kt` (Audio › Output,
-Microphone, Mixing), `ui/clock/AnalogueClock.kt` (the clock in the viewport when no phone is projecting —
+`ui/androidauto/CallsContent.kt` (Audio › Calls), `audio/linux/PipeWireSound.kt` (the machine's sound
+through PipeWire — DASH-AA's `SoundSystem`, 1.1.2), `ui/clock/AnalogueClock.kt` (the clock in the viewport when no phone is projecting —
 shared-ready, nothing of Linux in it), and the whole of `aa/` — the Android Auto head unit, calls, echo cancelling and call
 volume included.
 

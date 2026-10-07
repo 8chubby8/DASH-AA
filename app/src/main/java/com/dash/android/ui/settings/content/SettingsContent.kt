@@ -13,8 +13,8 @@ import com.dash.android.ui.transports.TransportManagerContent
 import com.dash.android.ui.androidauto.AndroidAutoConnectionContent
 import com.dash.android.ui.androidauto.AndroidAutoNightContent
 import com.dash.android.ui.androidauto.AndroidAutoPictureContent
-import com.dash.android.ui.audio.AudioMicrophoneContent
-import com.dash.android.ui.audio.AudioMixingContent
+import com.dash.android.ui.audio.AudioInputContent
+import com.dash.android.ui.audio.AudioMixerContent
 import com.dash.android.ui.audio.AudioOutputContent
 import com.dash.android.ui.androidauto.CallsContent
 import com.dash.android.ui.settings.SettingsSub
@@ -39,9 +39,9 @@ fun SettingsContent(sub: SettingsSub) {
         "androidauto.picture" -> AndroidAutoPictureContent()
         "androidauto.night" -> AndroidAutoNightContent()
         "audio.output" -> AudioOutputContent()
-        "audio.microphone" -> AudioMicrophoneContent()
+        "audio.input" -> AudioInputContent()
         "audio.calls" -> CallsContent()
-        "audio.mixing" -> AudioMixingContent()
+        "audio.mixer" -> AudioMixerContent()
         "modules.management" -> ModulesContent()
         "modules.transport" -> TransportManagerContent()
         "modules.serial" -> SerialMonitorContent()

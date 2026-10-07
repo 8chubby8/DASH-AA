@@ -50,7 +50,7 @@ class AaUnitTest {
     @Test fun `sensors are advertised only when a module feeds them`() {
         val state = SystemState()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val bridge = AaBridge(state, scope, {}, {})
+        val bridge = AaBridge(state, scope)
         assertEquals(listOf(Aa.SENSOR_DRIVING_STATUS), bridge.sensorsFor(AaSettings()))
         state.store("headlights_on", "true")
         state.store("vehicle_speed", "48")
@@ -67,7 +67,7 @@ class AaUnitTest {
     @Test fun `a steering-wheel press from before the connection is never replayed to the phone`() {
         val state = SystemState()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val bridge = AaBridge(state, scope, {}, {})
+        val bridge = AaBridge(state, scope)
         state.fire("media_next", null)                 // pressed before the phone connected
         Thread.sleep(20)
         val keys = mutableListOf<Int>()

@@ -80,35 +80,38 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     ),
     SettingsCategory(
         "audio", "Audio", listOf(
+            // DASH-AA 1.1.2: the machine's sound settings and the car's sound menu in one (Roger,
+            // 2026-10-07). Mixing became Mixer, and Microphone became Input.
             SettingsSub("audio.output", "Output", SettingsStatus.LIVE),
-            SettingsSub("audio.microphone", "Microphone", SettingsStatus.LIVE),
+            SettingsSub("audio.input", "Input", SettingsStatus.LIVE),
+            SettingsSub("audio.mixer", "Mixer", SettingsStatus.LIVE),
+            wip("audio.sound", "Sound", "1.1.3"),
             // DASH-AA (Roger, 2026-10-05): calls through the head unit — their volume, independent of
             // music, and echo cancelling. Stays in Audio (Roger, 2026-10-07).
             SettingsSub("audio.calls", "Calls", SettingsStatus.LIVE),
-            SettingsSub("audio.mixing", "Mixing", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(
         "connections", "Connections", listOf(
-            wip("connections.wifi", "Wi-Fi", "1.1.4"),
-            wip("connections.bluetooth", "Bluetooth", "1.1.4"),
+            wip("connections.wifi", "Wi-Fi", "1.1.5"),
+            wip("connections.bluetooth", "Bluetooth", "1.1.5"),
         )
     ),
     SettingsCategory(
         // Rotation is back (Roger, 2026-10-07): on Linux it is part of the display settings.
         "display", "Display", listOf(
-            wip("display.brightness", "Brightness", "1.1.3"),
-            wip("display.blanking", "Screen Blanking", "1.1.3"),
-            wip("display.touchscreen", "Touchscreen", "1.1.3"),
-            wip("display.rotation", "Rotation", "1.1.3"),
+            wip("display.brightness", "Brightness", "1.1.4"),
+            wip("display.blanking", "Screen Blanking", "1.1.4"),
+            wip("display.touchscreen", "Touchscreen", "1.1.4"),
+            wip("display.rotation", "Rotation", "1.1.4"),
         )
     ),
     SettingsCategory(
         "power", "Power", listOf(
             // Waits for a module that reports ignition — not a version, so it says so.
             wip("power.ignition", "Ignition Behaviour", "a module that reports ignition"),
-            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.5"),
-            wip("power.leave", "Leave DASH", "1.1.5"),
+            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.6"),
+            wip("power.leave", "Leave DASH", "1.1.6"),
         )
     ),
     SettingsCategory(
@@ -150,11 +153,11 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     SettingsCategory(
         "system", "System", listOf(
             SettingsSub("system.location", "Location", SettingsStatus.LIVE),
-            wip("system.datetime", "Date & Time", "1.1.6"),
+            wip("system.datetime", "Date & Time", "1.1.7"),
             // What DASH found on this machine — moved out of About DASH (1.1.1), because it will grow as
             // each new tab checks for what it needs.
             SettingsSub("system.machine", "This Machine", SettingsStatus.LIVE),
-            wip("system.updates", "Updates", "1.1.6"),
+            wip("system.updates", "Updates", "1.1.7"),
             // About and Licence are separate tabs on purpose (roadmap 1.5.14). About is who made
             // DASH and where to find it; Licence is the GPL-3.0 §5(d) notice, the full text and the
             // third-party attributions — a legal surface with enough bulk to bury the other.
@@ -171,8 +174,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     // No safety gate — native decided nothing in settings sits behind one.
     SettingsCategory(
         "developer", "Developer", listOf(
-            wip("developer.terminal", "Terminal", "1.1.7"),
-            wip("developer.logs", "Logs", "1.1.6"),
+            wip("developer.terminal", "Terminal", "1.1.8"),
+            wip("developer.logs", "Logs", "1.1.7"),
             // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into
             // desktop"). Proposed as a switch without a reboot — DASH closes, the desktop starts,
             // logging out brings DASH back. Needs the 1.2.x start-up script, so it waits for it.
