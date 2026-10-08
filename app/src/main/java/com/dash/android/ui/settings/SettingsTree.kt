@@ -82,10 +82,12 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
         "audio", "Audio", listOf(
             // DASH-AA 1.1.2: the machine's sound settings and the car's sound menu in one (Roger,
             // 2026-10-07). Mixing became Mixer, and Microphone became Input.
-            SettingsSub("audio.output", "Output", SettingsStatus.LIVE),
-            SettingsSub("audio.input", "Input", SettingsStatus.LIVE),
-            SettingsSub("audio.mixer", "Mixer", SettingsStatus.LIVE),
-            wip("audio.sound", "Sound", "1.1.3"),
+            // 1.1.3 (Roger, 2026-10-08): renamed for what they hold, and the equaliser first, as the one
+            // used most. The ids stay as they were, so nothing anywhere resets.
+            SettingsSub("audio.sound", "Equaliser", SettingsStatus.LIVE),
+            SettingsSub("audio.output", "Speakers", SettingsStatus.LIVE),
+            SettingsSub("audio.input", "Microphone", SettingsStatus.LIVE),
+            SettingsSub("audio.mixer", "Volumes", SettingsStatus.LIVE),
             // DASH-AA (Roger, 2026-10-05): calls through the head unit — their volume, independent of
             // music, and echo cancelling. Stays in Audio (Roger, 2026-10-07).
             SettingsSub("audio.calls", "Calls", SettingsStatus.LIVE),
@@ -93,25 +95,25 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     ),
     SettingsCategory(
         "connections", "Connections", listOf(
-            wip("connections.wifi", "Wi-Fi", "1.1.5"),
-            wip("connections.bluetooth", "Bluetooth", "1.1.5"),
+            wip("connections.wifi", "Wi-Fi", "1.1.6"),
+            wip("connections.bluetooth", "Bluetooth", "1.1.6"),
         )
     ),
     SettingsCategory(
         // Rotation is back (Roger, 2026-10-07): on Linux it is part of the display settings.
         "display", "Display", listOf(
-            wip("display.brightness", "Brightness", "1.1.4"),
-            wip("display.blanking", "Screen Blanking", "1.1.4"),
-            wip("display.touchscreen", "Touchscreen", "1.1.4"),
-            wip("display.rotation", "Rotation", "1.1.4"),
+            wip("display.brightness", "Brightness", "1.1.5"),
+            wip("display.blanking", "Screen Blanking", "1.1.5"),
+            wip("display.touchscreen", "Touchscreen", "1.1.5"),
+            wip("display.rotation", "Rotation", "1.1.5"),
         )
     ),
     SettingsCategory(
         "power", "Power", listOf(
             // Waits for a module that reports ignition — not a version, so it says so.
             wip("power.ignition", "Ignition Behaviour", "a module that reports ignition"),
-            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.6"),
-            wip("power.leave", "Leave DASH", "1.1.6"),
+            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.7"),
+            wip("power.leave", "Leave DASH", "1.1.7"),
         )
     ),
     SettingsCategory(
@@ -153,11 +155,11 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     SettingsCategory(
         "system", "System", listOf(
             SettingsSub("system.location", "Location", SettingsStatus.LIVE),
-            wip("system.datetime", "Date & Time", "1.1.7"),
+            wip("system.datetime", "Date & Time", "1.1.8"),
             // What DASH found on this machine — moved out of About DASH (1.1.1), because it will grow as
             // each new tab checks for what it needs.
             SettingsSub("system.machine", "This Machine", SettingsStatus.LIVE),
-            wip("system.updates", "Updates", "1.1.7"),
+            wip("system.updates", "Updates", "1.1.8"),
             // About and Licence are separate tabs on purpose (roadmap 1.5.14). About is who made
             // DASH and where to find it; Licence is the GPL-3.0 §5(d) notice, the full text and the
             // third-party attributions — a legal surface with enough bulk to bury the other.
@@ -174,8 +176,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     // No safety gate — native decided nothing in settings sits behind one.
     SettingsCategory(
         "developer", "Developer", listOf(
-            wip("developer.terminal", "Terminal", "1.1.8"),
-            wip("developer.logs", "Logs", "1.1.7"),
+            wip("developer.terminal", "Terminal", "1.1.9"),
+            wip("developer.logs", "Logs", "1.1.8"),
             // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into
             // desktop"). Proposed as a switch without a reboot — DASH closes, the desktop starts,
             // logging out brings DASH back. Needs the 1.2.x start-up script, so it waits for it.

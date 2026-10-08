@@ -52,21 +52,50 @@ import com.dash.android.ui.settings.content.Stepper
 import com.dash.android.ui.theme.LocalDashTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import com.dash.android.audio.CarSound
+import com.dash.android.audio.SoundControl
+import com.dash.android.audio.SoundProcessor
+import com.dash.android.audio.SpeakerAssignment
+import com.dash.android.audio.SpeakerPosition
+import com.dash.android.audio.balanceLabel
+import com.dash.android.audio.defaultOutputs
+import com.dash.android.audio.fadeLabel
+import com.dash.android.audio.hasFade
+import com.dash.android.audio.SurroundMode
+import com.dash.android.ui.settings.content.FitPresetSegment
+import com.dash.android.audio.outputChoices
+import com.dash.android.audio.outputsLabel
+import com.dash.android.audio.usesLow
+import com.dash.android.ui.common.DashButton
+import com.dash.android.ui.common.SUBHEADING
+import com.dash.android.ui.common.TINY
+import kotlin.math.abs
 
 /**
- * Audio › Output, Input and Mixer (DASH-AA 1.1.2) — the machine's sound settings and the car's sound
+ * Audio › Equaliser, Speakers, Microphone and Volumes (DASH-AA 1.1.2; renamed, and the Equaliser added, 1.1.3) — the machine's sound settings and the car's sound
  * menu in one (Roger, 2026-10-07). With no desktop there is no other sound panel, so these tabs choose
  * the speakers and the microphone for the whole machine, set its volume, and show everything playing.
  * Android Auto's own choices sit beneath, in their own section.
  *
- * Built only on [SoundSystem], never on PipeWire, so the tabs are shared code: native takes them with
- * an Android [SoundSystem] behind them. Calls is next door in `ui/androidauto/CallsContent.kt`; Sound
- * (equaliser, balance, fade) arrives with 1.1.3.
+ * Built only on [SoundSystem] and [SoundProcessor], never on PipeWire, so the tabs are shared code:
+ * native takes them with Android ones behind them. Calls is next door in `ui/androidauto/CallsContent.kt`.
  *
  * Levels are steppers, as everywhere in DASH — the design language has no slider — in steps of 5%.
  */
 
-/** Audio › Output: which speakers, how loud, how loud at most when DASH starts, and what the volume buttons turn. */
+/**
+ * Audio › Speakers: where the sound plays, how loud, how loud at most when DASH starts, and what the volume
+ * buttons turn. With **Car sound** on (1.1.3) it is the speaker layout — each position on a device of the
+ * user's choosing, or none — and everything plays through DASH's [SoundProcessor]. Off, it is the
+ * machine's choice of one device, as at 1.1.2.
+ */
 @Composable
 fun AudioOutputContent() {
     val (sound, state) = rememberSound()
@@ -75,18 +104,49 @@ fun AudioOutputContent() {
     val prefs = remember { SoundPreferences(app) }
     val scope = rememberCoroutineScope()
     val soundSettings by prefs.settings.collectAsState(initial = SoundSettings())
+    val processor by app.soundProcessor.state.collectAsState()
     val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
     val out = state.defaultOutput
+    val car = soundSettings.car
+    val speakers = state.outputs.filterNot { it.dash }
+    fun updateCar(t: (CarSound) -> CarSound) = scope.launch { prefs.update { it.copy(car = t(it.car)) } }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
-        SettingsContentHeader("Output")
+        SettingsContentHeader("Speakers")
         if (!state.available) InfoRows(listOf("Sound" to state.note))
-        SettingBlock(
-            name = "Speakers",
-            help = "Where all sound plays. Plug in a sound card or headphones and they appear here.",
-            fullWidthControl = true,
-            control = { DeviceChoice(state.outputs, "No speakers found") { sound.setDefault(it) } },
-        )
+        if (processor.available) {
+            SettingBlock(
+                name = "Car sound",
+                help = "On: all sound goes through DASH. Audio › Equaliser shapes it, and each speaker below plays " +
+                    "through the device you choose. Off: everything plays straight to one device, untouched.",
+                control = {
+                    PresetSegment(listOf("Off", "On"), if (car.enabled) 1 else 0, controlWidth) { i ->
+                        updateCar { c -> if (i == 1) c.turnedOn(out?.takeIf { !it.dash }) else c.copy(enabled = false) }
+                    }
+                },
+            )
+        } else {
+            InfoRows(listOf("Car sound" to processor.note))
+        }
+        if (car.enabled && processor.available) {
+            if (processor.note.isNotEmpty()) InfoRows(listOf("Car sound" to processor.note))
+            if (SoundControl.LAYOUT in processor.offers) SpeakerPosition.entries.forEach { position ->
+                SpeakerLayout(position, car.speakers[position], speakers, controlWidth) { a ->
+                    updateCar { c -> c.copy(speakers = if (a == null) c.speakers - position else c.speakers + (position to a)) }
+                }
+                if (position == SpeakerPosition.SURROUND && car.speakers[position] != null && SoundControl.SURROUND_EFFECT in processor.offers) {
+                    SurroundEffect(car, controlWidth) { t -> updateCar(t) }
+                }
+            }
+            SettingsSectionHeader("Volume")
+        } else {
+            SettingBlock(
+                name = "Speakers",
+                help = "Where all sound plays. Plug in a sound card or headphones and they appear here.",
+                fullWidthControl = true,
+                control = { DeviceChoice(speakers, "No speakers found") { sound.setDefault(it) } },
+            )
+        }
         SettingBlock(
             name = "Volume",
             control = { VolumeStepper(out?.volume, out?.muted == true, controlWidth) { v -> out?.let { sound.setVolume(it.id, v) } } },
@@ -137,7 +197,260 @@ fun AudioOutputContent() {
     }
 }
 
-/** Audio › Input: which microphone, how sensitive, and a meter to see it hears you. */
+/** Turning Car sound on for the first time puts the front speakers on the device playing now. */
+private fun CarSound.turnedOn(playing: SoundDevice?): CarSound {
+    if (speakers.isNotEmpty() || playing == null) return copy(enabled = true)
+    val front = SpeakerAssignment(playing.key, playing.label, defaultOutputs(SpeakerPosition.FRONT, playing.channels))
+    return copy(enabled = true, speakers = mapOf(SpeakerPosition.FRONT to front))
+}
+
+private val POSITION_HELP = mapOf(
+    SpeakerPosition.FRONT to "The front doors.",
+    SpeakerPosition.REAR to "The rear doors.",
+    SpeakerPosition.SURROUND to "The parcel shelf: full stereo, or a surround effect — see Mode below.",
+    SpeakerPosition.CENTRE to "In the dashboard: left and right together, so voices sit in the middle.",
+    SpeakerPosition.SUBWOOFER to "Only the low notes, below the crossover set in Audio › Equaliser.",
+)
+
+/**
+ * One speaker position: its device (or none), which of the device's outputs when it has more than one
+ * way to be used, and its level. A device chosen but not plugged in stays chosen, and says so.
+ */
+@Composable
+private fun SpeakerLayout(
+    position: SpeakerPosition,
+    assignment: SpeakerAssignment?,
+    devices: List<SoundDevice>,
+    controlWidth: Modifier,
+    onChange: (SpeakerAssignment?) -> Unit,
+) {
+    val device = assignment?.let { a -> devices.firstOrNull { it.key == a.device } }
+    SettingsSectionHeader(position.label)
+    SettingBlock(
+        name = "Device",
+        help = POSITION_HELP[position],
+        fullWidthControl = true,
+        control = {
+            val rows = listOf(ChoiceRow("None", null, assignment == null) { onChange(null) }) +
+                devices.map { d ->
+                    ChoiceRow(d.label, d.detail, d.key == assignment?.device) {
+                        onChange(SpeakerAssignment(d.key, d.label, defaultOutputs(position, d.channels), assignment?.level ?: 1f))
+                    }
+                } +
+                listOfNotNull(assignment?.takeIf { device == null }?.let { ChoiceRow(it.label, "Not connected", true) {} })
+            ChoiceList(rows)
+        },
+    )
+    if (assignment == null) return
+    val choices = device?.let { outputChoices(position, it.channels) }.orEmpty()
+    if (choices.size > 1) {
+        SettingBlock(
+            name = "Outputs",
+            help = if (position.stereo) "Which of the device's outputs play left and right." else "Which of the device's outputs it plays on.",
+            fullWidthControl = true,
+            control = {
+                ChoiceList(choices.map { c ->
+                    ChoiceRow(outputsLabel(c, device!!.channels), null, c == assignment.outputs) { onChange(assignment.copy(outputs = c)) }
+                })
+            },
+        )
+    }
+    SettingBlock(
+        name = "Level",
+        help = "Like an amplifier's gain: set once, so the speakers match each other. The volume turns them all together.",
+        control = { VolumeStepper(assignment.level, false, controlWidth) { v -> onChange(assignment.copy(level = v)) } },
+    )
+}
+
+/**
+ * The shelf's Mode and, for the effects, its Delay (Roger, 2026-10-08). Changes live, like a level.
+ */
+@Composable
+private fun SurroundEffect(car: CarSound, controlWidth: Modifier, update: ((CarSound) -> CarSound) -> Unit) {
+    val modes = SurroundMode.entries
+    SettingBlock(
+        name = "Mode",
+        help = "Full stereo plays left and right. Surround plays the difference between them, the same on both " +
+            "speakers: voices cancel, and the room, the echo and anything panned wide remain. Wide surround is " +
+            "the speakers wired across the two positive terminals — left minus right on the left, right minus " +
+            "left on the right — and the widest.",
+        fullWidthControl = true,
+        control = { FitPresetSegment(modes.map { it.label }, modes.indexOf(car.surroundMode)) { i -> update { it.copy(surroundMode = modes[i]) } } },
+    )
+    if (car.surroundMode != SurroundMode.STEREO) {
+        SettingBlock(
+            name = "Delay",
+            help = "Plays the effect a little late, so it sounds like the room around you rather than another " +
+                "speaker. Pro Logic used about 15–20 ms.",
+            control = {
+                val label = if (car.surroundDelay == 0) "Off" else "${car.surroundDelay} ms"
+                ListStepper(label, CarSound.SURROUND_DELAYS, car.surroundDelay, controlWidth) { v -> update { it.copy(surroundDelay = v) } }
+            },
+        )
+    }
+}
+
+/**
+ * Audio › Equaliser (1.1.3): how the car's sound is shaped on its way to the speakers — the equaliser,
+ * balance, fade and crossover. Each control appears only when the speaker layout needs it.
+ */
+@Composable
+fun AudioSoundContent() {
+    val app = LocalContext.current.applicationContext as DashApplication
+    val prefs = remember { SoundPreferences(app) }
+    val scope = rememberCoroutineScope()
+    val soundSettings by prefs.settings.collectAsState(initial = SoundSettings())
+    val processor by app.soundProcessor.state.collectAsState()
+    val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
+    val car = soundSettings.car
+    fun updateCar(t: (CarSound) -> CarSound) = scope.launch { prefs.update { it.copy(car = t(it.car)) } }
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
+        SettingsContentHeader("Equaliser")
+        when {
+            !processor.available -> InfoRows(listOf("Car sound" to processor.note))
+            !car.enabled -> Note("Car sound is off, so these wait until it is on. Turn it on in Audio › Speakers.")
+        }
+        // Only what the processor can do (DASH's own chain does it all); before it has said, everything.
+        val offers = processor.offers.takeIf { processor.available } ?: SoundControl.entries.toSet()
+        if (SoundControl.EQUALISER in offers) {
+            SettingBlock(
+                name = "Equaliser",
+                help = "Ten bands, an octave apart, each up or down 12 dB.",
+                fullWidthControl = true,
+                control = {
+                    Equaliser(car.eq) { band, gain ->
+                        updateCar { c -> c.copy(eq = c.eq.toMutableList().also { it[band] = gain.coerceIn(CarSound.EQ_MIN, CarSound.EQ_MAX) }) }
+                    }
+                },
+            )
+            SettingBlock(
+                name = "Flat",
+                help = "Every band back to 0 dB.",
+                control = { DashButton("Flat", onClick = { updateCar { it.copy(eq = List(CarSound.EQ_BANDS.size) { 0 }) } }, modifier = controlWidth) },
+            )
+        }
+        if (SoundControl.ANTI_DISTORTION in offers) {
+            SettingBlock(
+                name = "Anti-distortion",
+                help = "Turns everything down by your biggest boost, so the equaliser can never make the sound " +
+                    "crackle. Off is louder, but boosts can distort at high volume.",
+                control = {
+                    PresetSegment(listOf("Off", "On"), if (car.antiDistortion) 1 else 0, controlWidth) { i ->
+                        updateCar { it.copy(antiDistortion = i == 1) }
+                    }
+                },
+            )
+        }
+        if (SoundControl.BALANCE in offers) {
+            SettingBlock(
+                name = "Balance",
+                control = {
+                    Stepper(
+                        value = balanceLabel(car.balance),
+                        modifier = controlWidth,
+                        onMinus = { updateCar { it.copy(balance = (it.balance - 1).coerceAtLeast(-CarSound.SIDE_STEPS)) } },
+                        onPlus = { updateCar { it.copy(balance = (it.balance + 1).coerceAtMost(CarSound.SIDE_STEPS)) } },
+                    )
+                },
+            )
+        }
+        if (SoundControl.FADE in offers && car.hasFade) {
+            SettingBlock(
+                name = "Fade",
+                help = "Between the front doors and the rear doors. The parcel shelf is not part of it.",
+                control = {
+                    Stepper(
+                        value = fadeLabel(car.fade),
+                        modifier = controlWidth,
+                        onMinus = { updateCar { it.copy(fade = (it.fade - 1).coerceAtLeast(-CarSound.SIDE_STEPS)) } },
+                        onPlus = { updateCar { it.copy(fade = (it.fade + 1).coerceAtMost(CarSound.SIDE_STEPS)) } },
+                    )
+                },
+            )
+        }
+        val subCrossover = SoundControl.CROSSOVER in offers && car.usesLow
+        if (subCrossover || SoundControl.LOW_CUT in offers) SettingsSectionHeader("Crossover")
+        if (subCrossover) {
+            SettingBlock(
+                name = "Subwoofer",
+                help = "The subwoofer plays everything below this.",
+                control = { ListStepper("${car.subCutoff} Hz", CarSound.SUB_CUTOFFS, car.subCutoff, controlWidth) { v -> updateCar { it.copy(subCutoff = v) } } },
+            )
+        }
+        if (SoundControl.LOW_CUT in offers) {
+            SettingBlock(
+                name = "Low cut",
+                help = "The other speakers play only above this, sparing small speakers bass they cannot play. Off plays everything.",
+                control = {
+                    val label = if (car.lowCut == CarSound.LOW_CUT_OFF) "Off" else "${car.lowCut} Hz"
+                    ListStepper(label, CarSound.LOW_CUTS, car.lowCut, controlWidth) { v -> updateCar { it.copy(lowCut = v) } }
+                },
+            )
+        }
+    }
+}
+
+/** A stepper that moves through [values], staying on the ends. */
+@Composable
+private fun ListStepper(label: String, values: List<Int>, value: Int, modifier: Modifier, onSet: (Int) -> Unit) {
+    val i = values.indexOf(value).takeIf { it >= 0 } ?: values.indexOfFirst { it >= value }.coerceAtLeast(0)
+    Stepper(
+        value = label,
+        modifier = modifier,
+        onMinus = { onSet(values[(i - 1).coerceAtLeast(0)]) },
+        onPlus = { onSet(values[(i + 1).coerceAtMost(values.size - 1)]) },
+    )
+}
+
+/**
+ * The equaliser, drawn as one: a column for each band with its level, a bar from the 0 dB line, and a
+ * button above and below — the stepper stood on end, ten abreast, since the design language has no slider.
+ */
+@Composable
+private fun Equaliser(gains: List<Int>, onSet: (Int, Int) -> Unit) {
+    val theme = LocalDashTheme.current
+    val ink = theme.textColourSecondary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(ink.copy(alpha = 0.08f))
+            .border(1.dp, ink.copy(alpha = 0.18f), RoundedCornerShape(11.dp))
+            .padding(vertical = 6.dp, horizontal = 3.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        CarSound.EQ_BANDS.forEachIndexed { band, hz ->
+            val gain = gains.getOrElse(band) { 0 }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                EqButton("+") { onSet(band, gain + 1) }
+                Text(if (gain > 0) "+$gain" else "$gain", color = ink, fontSize = BODY, fontFamily = theme.font, maxLines = 1)
+                Canvas(Modifier.width(8.dp).height(96.dp)) {
+                    val mid = size.height / 2
+                    val h = mid * gain / CarSound.EQ_MAX
+                    drawRoundRect(ink.copy(alpha = 0.14f), cornerRadius = CornerRadius(size.width / 2))
+                    drawRect(ink, topLeft = Offset(0f, if (h > 0) mid - h else mid), size = Size(size.width, abs(h)))
+                    drawLine(ink.copy(alpha = 0.6f), Offset(-3f, mid), Offset(size.width + 3f, mid), strokeWidth = 1.5f)
+                }
+                EqButton("−") { onSet(band, gain - 1) }
+                Text(if (hz >= 1000) "${hz / 1000}k" else "$hz", color = ink.copy(alpha = 0.68f), fontSize = TINY, fontFamily = theme.font, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EqButton(sign: String, onClick: () -> Unit) {
+    val theme = LocalDashTheme.current
+    Box(
+        modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(sign, color = theme.textColourSecondary, fontSize = SUBHEADING, fontFamily = theme.font)
+    }
+}
+
+/** Audio › Microphone: which microphone, how sensitive, and a meter to see it hears you. */
 @Composable
 fun AudioInputContent() {
     val (sound, state) = rememberSound()
@@ -158,10 +471,10 @@ fun AudioInputContent() {
     }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
-        SettingsContentHeader("Input")
+        SettingsContentHeader("Microphone")
         if (!state.available) InfoRows(listOf("Sound" to state.note))
         SettingBlock(
-            name = "Microphone",
+            name = "Which microphone",
             help = "What the phone hears for the assistant and for calls.",
             fullWidthControl = true,
             control = { DeviceChoice(state.inputs, "No microphone found") { sound.setDefault(it) } },
@@ -199,7 +512,7 @@ fun AudioInputContent() {
 }
 
 /**
- * Audio › Mixer: a level for every source. Android Auto's are DASH-AA's own and always here; anything
+ * Audio › Volumes: a level for every source. Android Auto's are DASH-AA's own and always here; anything
  * else appears while it plays. The friend's voice on a call has its own level in Calls.
  */
 @Composable
@@ -210,10 +523,10 @@ fun AudioMixerContent() {
     val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
-        SettingsContentHeader("Mixer")
+        SettingsContentHeader("Volumes")
         SettingBlock(
             name = "Android Auto",
-            help = "All of Android Auto's sound. The volume buttons move this when Output › Volume buttons is set to Android Auto.",
+            help = "All of Android Auto's sound. The volume buttons move this when Speakers › Volume buttons is set to Android Auto.",
             control = { VolumeStepper(s.volume, false, controlWidth) { v -> aa.set { it.copy(volume = v) } } },
         )
         SettingBlock(
@@ -274,14 +587,22 @@ private fun VolumeStepper(volume: Float?, muted: Boolean, modifier: Modifier, on
     )
 }
 
-/**
- * The devices to choose between, one row each, the one in use filled — the segmented selector stood on
- * end, because device names are far too long to sit side by side.
- */
+/** The devices to choose between, the one in use filled. */
 @Composable
 private fun DeviceChoice(devices: List<SoundDevice>, empty: String, onChoose: (SoundDevice) -> Unit) {
-    val theme = LocalDashTheme.current
     if (devices.isEmpty()) { Note(empty); return }
+    ChoiceList(devices.map { d -> ChoiceRow(d.label, d.detail, d.isDefault) { if (!d.isDefault) onChoose(d) } })
+}
+
+private data class ChoiceRow(val label: String, val detail: String?, val selected: Boolean, val onClick: () -> Unit)
+
+/**
+ * Choices one row each, the chosen one filled — the segmented selector stood on end, because device
+ * names are far too long to sit side by side.
+ */
+@Composable
+private fun ChoiceList(rows: List<ChoiceRow>) {
+    val theme = LocalDashTheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -291,19 +612,19 @@ private fun DeviceChoice(devices: List<SoundDevice>, empty: String, onChoose: (S
             .padding(3.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        devices.forEach { d ->
-            val ink = if (d.isDefault) theme.backgroundColourSecondary else theme.textColourSecondary
+        rows.forEach { r ->
+            val ink = if (r.selected) theme.backgroundColourSecondary else theme.textColourSecondary
             Column(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (d.isDefault) theme.textColourSecondary else Color.Transparent)
-                    .clickable { if (!d.isDefault) onChoose(d) }
+                    .background(if (r.selected) theme.textColourSecondary else Color.Transparent)
+                    .clickable { if (!r.selected) r.onClick() }
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(d.label, color = ink, fontSize = BODY, fontFamily = theme.font)
-                if (d.detail != null) Text(d.detail, color = ink.copy(alpha = 0.68f), fontSize = BODY, lineHeight = BODY_LINE, fontFamily = theme.font)
+                Text(r.label, color = ink, fontSize = BODY, fontFamily = theme.font)
+                if (r.detail != null) Text(r.detail, color = ink.copy(alpha = 0.68f), fontSize = BODY, lineHeight = BODY_LINE, fontFamily = theme.font)
             }
         }
     }

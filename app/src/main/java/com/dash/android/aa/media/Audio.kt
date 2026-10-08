@@ -40,7 +40,7 @@ class AudioOut internal constructor(
     @Volatile var volume: Float = 1.0f
     @Volatile var muted: Boolean = false
     @Volatile var duckMedia: Boolean = true
-    /** Audio › Mixer: the level of each of the three sounds, under [volume]. */
+    /** Audio › Volumes: the level of each of the three sounds, under [volume]. */
     @Volatile var musicLevel: Float = 1.0f
     @Volatile var directionsLevel: Float = 1.0f
     @Volatile var systemLevel: Float = 1.0f

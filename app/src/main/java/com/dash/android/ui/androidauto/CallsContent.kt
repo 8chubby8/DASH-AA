@@ -5,6 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import com.dash.android.audio.CarSound
+import com.dash.android.audio.SoundControl
+import com.dash.android.audio.SoundPreferences
+import com.dash.android.audio.SoundSettings
+import com.dash.android.audio.callChoices
+import com.dash.android.audio.effectiveCalls
+import com.dash.android.audio.usesLow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -18,6 +25,7 @@ import com.dash.android.aa.AaSettings
 import com.dash.android.ui.common.SETTING_SPACING
 import com.dash.android.ui.common.controlWidth
 import com.dash.android.ui.settings.content.InfoRows
+import com.dash.android.ui.settings.content.FitPresetSegment
 import com.dash.android.ui.settings.content.PresetSegment
 import com.dash.android.ui.settings.content.SettingBlock
 import com.dash.android.ui.settings.content.SettingsContentHeader
@@ -68,6 +76,46 @@ fun CallsContent() {
             name = "Echo cancelling",
             control = {
                 PresetSegment(listOf("Off", "On"), if (s.echoCancel) 1 else 0, controlWidth) { i -> set { it.copy(echoCancel = i == 1) } }
+            },
+        )
+        CallSpeakers(controlWidth)
+    }
+}
+
+/**
+ * Where a call plays (1.1.3, Roger 2026-10-08) — with Car sound on, and only the choices the speaker layout
+ * makes sense of: *Front only* when something plays behind the front, *Driver's side* when there are front
+ * speakers (the side is Android Auto's driver side), the subwoofer only when there is one.
+ */
+@Composable
+private fun CallSpeakers(controlWidth: Modifier) {
+    val app = LocalContext.current.applicationContext as DashApplication
+    val prefs = remember { SoundPreferences(app) }
+    val scope = rememberCoroutineScope()
+    val car = prefs.settings.collectAsState(initial = SoundSettings()).value.car
+    val processor by app.soundProcessor.state.collectAsState()
+    if (!car.enabled || !processor.available || SoundControl.CALL_ROUTING !in processor.offers) return
+    fun update(t: (CarSound) -> CarSound) { scope.launch { prefs.update { it.copy(car = t(it.car)) } } }
+
+    val choices = car.callChoices()
+    if (choices.size > 1) {
+        SettingBlock(
+            name = "Calls play through",
+            fullWidthControl = true,
+            control = {
+                FitPresetSegment(choices.map { it.label }, choices.indexOf(car.effectiveCalls())) { i ->
+                    update { it.copy(calls = choices[i]) }
+                }
+            },
+        )
+    }
+    if (car.usesLow) {
+        SettingBlock(
+            name = "Subwoofer in calls",
+            control = {
+                PresetSegment(listOf("Off", "On"), if (car.callsSubwoofer) 1 else 0, controlWidth) { i ->
+                    update { it.copy(callsSubwoofer = i == 1) }
+                }
             },
         )
     }

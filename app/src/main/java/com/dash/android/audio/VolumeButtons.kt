@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** What the volume buttons turn up and down — Audio › Output › Volume buttons. */
+/** What the volume buttons turn up and down — Audio › Speakers › Volume buttons. */
 enum class VolumeTarget {
     /** The machine's volume: everything that plays. */
     MACHINE,

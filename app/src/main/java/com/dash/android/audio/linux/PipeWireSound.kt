@@ -132,6 +132,18 @@ class PipeWireSound : SoundSystem {
         }
     }
 
+    /** The name of the output everything plays to now, as WirePlumber has it — even one of DASH-AA's own. */
+    fun defaultSinkName(): String? = synchronized(graph) { graph.defaultName("default.audio.sink") }
+
+    /** The id PipeWire has given the node named [name] now, if it is there — for DASH-AA's own nodes. */
+    fun nodeId(name: String): String? = synchronized(graph) { graph.idOf(name) }
+
+    /**
+     * The ids of the streams playing into any node named in [into]: with [calls], only those that say they
+     * are a call (`media.role` Phone or Communication); otherwise only apps', never DASH-AA's own.
+     */
+    fun streamsInto(into: Set<String>, calls: Boolean): List<String> = synchronized(graph) { graph.streamsInto(into, calls) }
+
     override fun setMuted(id: String, muted: Boolean) {
         commands.execute { wpctl("set-mute", id, if (muted) "1" else "0") }
     }
@@ -183,7 +195,7 @@ class PipeWireSound : SoundSystem {
             return if (version != null) "PipeWire $version" else "PipeWire"
         }
 
-        private fun which(name: String): String? =
+        internal fun which(name: String): String? =
             (System.getenv("PATH") ?: "/usr/bin").split(':').map { File(it, name) }.firstOrNull { it.canExecute() }?.absolutePath
 
         /** The loudest sample in a chunk, on a decibel scale from −60 dB (0) to full scale (1). */
@@ -220,6 +232,25 @@ internal class PwGraph {
         private set
 
     fun clear() { objects.clear(); defaults.clear(); loaded = false }
+
+    fun streamsInto(into: Set<String>, calls: Boolean): List<String> {
+        val nodes = objects.values.filter { it.str("type")?.endsWith("Node") == true }.associateBy { it.id() }
+        return objects.values.filter { it.str("type")?.endsWith("Link") == true }.mapNotNull { l ->
+            val info = l.info() ?: return@mapNotNull null
+            val from = nodes[info["output-node-id"]?.jsonPrimitive?.intOrNull] ?: return@mapNotNull null
+            val to = nodes[info["input-node-id"]?.jsonPrimitive?.intOrNull] ?: return@mapNotNull null
+            val p = from.props() ?: return@mapNotNull null
+            if (to.props()?.str("node.name") !in into || p.str("media.class") != "Stream/Output/Audio") return@mapNotNull null
+            val role = p.str("media.role")
+            val ok = if (calls) role == "Phone" || role == "Communication" else !isOurs(from)
+            if (ok) from.id().toString() else null
+        }.distinct()
+    }
+
+    fun defaultName(key: String): String? = defaults[key]
+
+    fun idOf(name: String): String? =
+        objects.values.firstOrNull { it.str("type")?.endsWith("Node") == true && it.props()?.str("node.name") == name }?.id()?.toString()
 
     fun apply(batch: String) {
         val items = json.parseToJsonElement(batch).jsonArray
@@ -260,13 +291,17 @@ internal class PwGraph {
                 val description = p.str("node.description") ?: p.str("node.nick") ?: name
                 val route = routeOf(p, direction)
                 val (volume, muted) = volumeOf(n)
+                val dash = name == PipeWireChain.SINK
                 SoundDevice(
                     id = n.id().toString(),
-                    label = route ?: description,
-                    detail = if (route != null) description else null,
+                    label = if (dash) "DASH" else route ?: description,
+                    detail = if (dash) "The car's sound — the speaker layout" else if (route != null) description else null,
                     isDefault = defaults[defaultKey] == name,
                     volume = volume,
                     muted = muted,
+                    key = name,
+                    channels = channelsOf(p),
+                    dash = dash,
                 )
             }
             .sortedBy { it.label.lowercase() }
@@ -298,10 +333,23 @@ internal class PwGraph {
         )
     }
 
-    /** DASH-AA's own nodes — Android Auto's streams, the call loopbacks, the echo canceller, the level meter. */
+    /**
+     * DASH-AA's own nodes — Android Auto's streams, the call loopbacks, the echo canceller, the level
+     * meter, the inside of the car's sound chain. The chain's way in is the exception: it is the
+     * machine's output while Car sound is on.
+     */
     private fun isOurs(n: JsonObject): Boolean {
         val p = n.props() ?: return false
-        return p.str("node.name")?.startsWith("dash-aa") == true || p.str("application.name") == "DASH-AA"
+        val name = p.str("node.name")
+        if (name == PipeWireChain.SINK) return false
+        return name?.startsWith("dash-aa") == true || p.str("application.name") == "DASH-AA"
+    }
+
+    /** `audio.position`, which PipeWire writes as a list or as a string of one: `[ FL, FR ]`. */
+    private fun channelsOf(p: JsonObject): List<String> = when (val v = p["audio.position"]) {
+        is JsonArray -> v.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        is JsonPrimitive -> v.contentOrNull.orEmpty().trim('[', ']', ' ').split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        else -> emptyList()
     }
 
     /**

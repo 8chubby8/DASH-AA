@@ -57,6 +57,15 @@ data class SoundDevice(
     val isDefault: Boolean,
     val volume: Float,
     val muted: Boolean,
+    /** What the device is called underneath, unchanged by reboots and replugging (1.1.3) — [id] is not. */
+    val key: String = id,
+    /** Its outputs (or inputs), by channel name in order — `FL`, `FR`, `LFE`, `AUX0`… Empty if unknown. */
+    val channels: List<String> = emptyList(),
+    /**
+     * DASH's own output, the way into the car's sound (1.1.3): while it runs, it is the default and
+     * everything plays through it. Never one of the speakers.
+     */
+    val dash: Boolean = false,
 )
 
 data class SoundStream(
@@ -74,7 +83,7 @@ val SoundState.defaultOutput: SoundDevice? get() = outputs.firstOrNull { it.isDe
 val SoundState.defaultInput: SoundDevice? get() = inputs.firstOrNull { it.isDefault }
 
 /**
- * **The start-up volume limit** (Audio › Output). A head unit that starts at the volume it was left at
+ * **The start-up volume limit** (Audio › Speakers). A head unit that starts at the volume it was left at
  * can blast the car when the engine turns over; this brings the default output down to [limit] if it
  * was left above it, and never turns anything up.
  */

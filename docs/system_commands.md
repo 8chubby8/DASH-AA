@@ -90,6 +90,7 @@ overridden only if the module needs different behaviour.
 | gear_position | multi-state | park / reverse / neutral / drive / 1 / 2 / 3 | store + event | — (event-driven) | — |
 | vehicle_speed | continuous | km/h | store only | 5hz | 1 km/h |
 | steering_angle | continuous | degrees | store only | 20hz | 2 degrees |
+| engine_running | boolean | true / false | store + event | — (event-driven) | — |
 | engine_rpm | continuous | rpm | store only | 5hz | 50 rpm |
 | fuel_level | continuous | percentage 0-100 | store only | 0.2hz | 1 % |
 | coolant_temp | continuous | degrees C | store only | 0.5hz | 1 °C |
@@ -104,6 +105,45 @@ overridden only if the module needs different behaviour.
 |--------|------|--------|-----------|
 | seatbelt_driver_fastened | boolean | true / false | store + event |
 | seatbelt_passenger_fastened | boolean | true / false | store + event |
+| seatbelt_driver_warning | boolean | true / false | store + event |
+| seatbelt_passenger_warning | boolean | true / false | store + event |
+| seatbelt_rear_left_warning | boolean | true / false | store + event |
+| seatbelt_rear_centre_warning | boolean | true / false | store + event |
+| seatbelt_rear_right_warning | boolean | true / false | store + event |
+| seatbelt_third_row_left_warning | boolean | true / false | store + event |
+| seatbelt_third_row_centre_warning | boolean | true / false | store + event |
+| seatbelt_third_row_right_warning | boolean | true / false | store + event |
+
+> **Added 2026-10-08 (DASH-AA 1.1.3) — Roger's call.** A seat belt warning for every seat. **The module
+> decides** whether someone is sitting there and whether they are buckled; the signal only says whether
+> that seat's warning should play (true) or stop (false). DASH does not judge occupancy or belts. The
+> rear seats follow the doors' names; the third row is for seven- and eight-seaters. A car without a
+> seat simply never sends its signal.
+
+---
+
+## Head Unit
+
+| Signal | Type | Values | Behaviour |
+|--------|------|--------|-----------|
+| sound_ready | boolean | true / false | store + event |
+| screen_on | boolean | true / false | store + event |
+
+> **Added 2026-10-08 (DASH-AA 1.1.3) — Roger's call.** Signals about the head unit itself rather than
+> the vehicle. Like every system message they are sourceless (transport.md): DASH generates them
+> itself and relays them to any module that subscribes, and a module may report them as well.
+>
+> **`sound_ready`** is DASH's version of a car amplifier's remote wire. **true:** DASH's sound is up
+> and set as the user left it — play. **false:** it is stopped, starting, restarting or being restored
+> — stay silent. It goes false *before* the sound stops and true only *after* it is restored, so a
+> sound module can keep its amplifiers quiet through boot, shutdown, a change of speaker layout, and
+> the sound system restarting, with no thump, pop or hum. It is not `media_muted`, which is the user
+> pressing mute. What a module does with it is the module's own decision.
+>
+> **`screen_on`** says whether the head unit's screen is on. What uses it is decided later.
+>
+> **`engine_running`** (Vehicle State) is the engine itself, which `ignition_state` cannot say: the
+> ignition can be on with the engine stopped.
 
 ---
 

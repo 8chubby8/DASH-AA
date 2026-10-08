@@ -22,6 +22,158 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.3
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-08. Tests pass (52), including the opt-in probes on the G14's real PipeWire
+(1.6.9, WirePlumber 0.5.17), which now play a tone through the chain and measure it at the far end. Roger
+tested every setting on the G14 and accepted it ("I really like it… I like the way it works").
+
+**What and why.** The second of the three Audio stages (roadmap 1.1.x, split into three by Roger on
+2026-10-08). Roger asked for each part of the car to be played by a device of his choosing, as in his XF
+(front and rear doors, surround speakers on the parcel shelf, a centre and a subwoofer in the dashboard),
+planned for his X-Type. Then, going through the problems found one by one, he settled anti-distortion, the
+restart protection, where calls play, `sound_ready`, controls that follow the speakers and the processor,
+the tab names, and the surround effect — pulled forward from 1.1.4.
+
+**The tabs** are now **Equaliser · Speakers · Microphone · Volumes · Calls** (Roger: Sound → Equaliser,
+moved to the top as the one used most; Output → Speakers; Input → Microphone; Mixer → Volumes). Their ids
+are unchanged, so no setting was reset.
+
+**Done:**
+- **Car sound** (Speakers, at the top). On, all sound goes through DASH's own output and on to the
+  **speaker layout**: **Front** (front doors), **Rear** (rear doors), **Surround** (parcel shelf),
+  **Centre** and **Subwoofer**, each a device or **None**, each with its own **level** (its amplifier
+  gain). A device with more than one way to be used shows **Outputs**: on a stereo card the subwoofer or
+  centre can take both sides, the left or the right; on a 7.1 card each position picks its pair or output,
+  and starts on the one named for it. A device chosen but unplugged stays chosen and says "Not connected".
+  An output given to two positions plays both. Turning Car sound on for the first time puts Front on the
+  device playing now. Off, Speakers is as Output was at 1.1.2.
+- **Surround's Mode** (Roger: "full stereo, surround, wide surround"): **Full stereo**; **Surround**, half
+  of left minus right, the same to both shelf speakers (Pro Logic's single surround channel); **Wide
+  surround**, true Hafler — left minus right on the left, right minus left on the right, as speakers wired
+  across the two positive terminals. Voices, recorded the same in both channels, cancel; the room and
+  anything panned wide remain. A **Delay** (Off, 5–30 ms) makes the effect sound like the room rather than
+  another speaker. Not called Dolby or Pro Logic (Dolby's marks). Mode and delay change live; balance still
+  moves the effect; calls never play it.
+- **Equaliser**: a **ten-band equaliser** (31 Hz–16 kHz, an octave apart, ±12 dB in 1 dB steps), drawn as
+  one control with a button above and below each band (the design language has no slider), and **Flat**;
+  **Anti-distortion** (Roger: on by default) — everything is turned down by the biggest boost before the
+  equaliser, so the boosted band ends at 0 dB and nothing can crackle; **balance** (Left 10 to Right 10);
+  **fade**, the front doors against the rear doors only, offered only when both have a device (Roger: the
+  shelf is not part of fade); and **Crossover**: where the subwoofer stops (40–200 Hz, 80 by default, only
+  with a subwoofer) and a **low cut** for the other speakers (Off, 40–200 Hz). Linkwitz-Riley, 24 dB an
+  octave. Balance moves the centre only as far as it moves the middle; neither balance nor fade touches
+  the subwoofer.
+- **Calls** (Calls tab, with Car sound on): **Calls play through** *All speakers* / *Front only* /
+  *Driver's side* (the driver's front speaker, from Android Auto's driver side), and **Subwoofer in calls**.
+  Only the choices the layout makes sense of are offered (Roger: with only front speakers, *Front only*
+  is pointless): *Front only* when Rear or Surround has a device, *Driver's side* when Front does, the
+  subwoofer when there is one. Calls have their own way in, "DASH calls", with the low cut and crossover
+  but not the music's equaliser, balance, fade or surround effect, so the choice changes mid-call with no
+  gap. Anything marked as a call (`media.role` Phone or Communication; DASH-AA's own call audio now is)
+  is sent that way.
+- **Controls follow the processor and the speakers.** The processor declares what it offers
+  (`ProcessorState.offers`: layout, equaliser, anti-distortion, balance, fade, crossover, low cut, call
+  routing, surround effect), and the tabs show only those. DASH's PipeWire chain offers them all; a sound
+  module or Android will offer fewer, and nothing that does nothing is ever shown.
+- **Volume.** With Car sound on, DASH's output is the default and its volume is the volume (so the
+  start-up limit and the volume buttons' *Machine* turn it). The layout's devices sit at full, like
+  amplifiers. Turning on gives DASH's output the volume the speakers had before they go to full; turning
+  off gives it back first. The loudness never jumps.
+- **PipeWire restart protection** (Roger: nothing out of the speakers until DASH has control again). DASH
+  notices PipeWire going; when it returns, the layout's devices are muted as they reappear, DASH waits for
+  its chain, moves anything that landed straight on a speaker back onto its output, restores the volumes
+  and settings, and only then unmutes. The WirePlumber rule mentioned on the way was not needed: muting
+  covers it.
+- **`sound_ready`** (Roger: the amplifier remote wire, sent to modules). DASH raises it into the sourceless
+  core itself, so any subscribed module hears it like any other system signal — no change to the wire
+  (transport.md already lets DASH relay what it "internally generates"). **false** before the sound stops,
+  while it starts, restarts, changes layout or is restored, and as DASH closes (a shutdown hook, before the
+  transports go); **true** once it is back as the user left it. With Car sound off, it follows PipeWire.
+- **How it is built** (`audio/linux/PipeWireChain.kt`). **PipeWire owns it and DASH only adjusts it**: two
+  of the seat user's systemd services, each a small `pipewire -c` process with its config in
+  `~/.config/pipewire/`. They start with PipeWire whether DASH runs or not. No root.
+  - `dash-aa-sound`, **the way in**: DASH's output → anti-distortion → equaliser → low cut and subwoofer
+    crossover → the surround difference and its delay, offered on as left, right, low and surround; and
+    the calls' own way in beside it. Its shape never changes in use, so it never restarts while it runs;
+    every control changes live (`pw-cli set-param`, about 16 ms). Its first line names its shape: a DASH
+    that changes the shape (an upgrade) swaps it as switching off and on would, so nothing blasts.
+  - `dash-aa-speakers`, **the layout**: for music and for calls, a mixer for each output the layout uses
+    (levels, balance, fade, surround mode and call routing, all live), then PipeWire's combine-stream,
+    which sends each device its outputs and lines up separate cards' delays. Changing which device plays
+    what restarts only this, for about a second of silence.
+- **What broke on the way, and what it forced** (each found on the G14):
+  - Restarting the part apps play into sends whatever is playing to a raw device, at full volume with no
+    processing, and **it does not come back**. Hence two services, and the way in never restarting.
+  - A stream told to play into the layout does not relink when the layout restarts (`node.dont-reconnect`
+    or `node.dont-fallback`). So the way in **offers its sound as a recording** and the layout takes it as
+    it starts, which always links; the layout's service waits for the way in (and fails, to be retried, if
+    it never comes).
+  - **When DASH's output vanishes, WirePlumber makes DASH's internal splitter the default and remembers it
+    as the user's choice**, so the sound returns with the equaliser bypassed. While Car sound runs, a
+    default left on one of DASH's internal parts is put back on DASH's output; a real device the user picks
+    is left alone. Found because a probe started and stopped a copy of the chain under the real names
+    beside Roger's live one and moved his default; the probes now use names of their own.
+  - **A filter output that is both a final output of the chain and feeds another filter plays silence.**
+    The surround effect's tap on left and right silenced the whole chain in Roger's first test of it. Every
+    final output now goes through a copy of its own, as PipeWire's examples do — and the probes now play a
+    tone and measure it at the far end, since checking links alone had passed while nothing played.
+  - A high-pass filter at 0 Hz passes everything, so the low cut's *Off* is a setting, not a restart.
+- **DASH stopping or starting never changes the sound.** Only switching Car sound off stops the services.
+  A DASH that merely starts with it off (a fresh data folder, a test) leaves a running chain alone.
+- **Capability detection:** with no PipeWire, a PipeWire older than 1.0 (no combine-stream), or no systemd
+  user manager, Car sound doesn't appear, Speakers says why, and the rest of Audio works as at 1.1.2.
+- **The Bible** (`docs/system_commands.md`, changed on Roger's word): `sound_ready` and `screen_on` in a
+  new *Head Unit* section; a seat belt **warning** for every seat (driver, passenger, rear left / centre /
+  right, third row left / centre / right) — the module decides when, DASH does not judge who sits where;
+  and `engine_running`, which `ignition_state` cannot say. All registered in `SystemCommands.kt`. The
+  existing `seatbelt_driver_fastened` / `seatbelt_passenger_fastened` stay, for Roger to tidy.
+- **Tests:** `CarSoundTest` (what each output plays; balance, fade between the doors only, shared outputs;
+  the three surround modes and their balance; calls' routing and choices; anti-distortion; output choices
+  and names; storage). `PipeWireChainTest` (both configs as PipeWire reads them: ports that exist, no final
+  output feeding another filter, one way-in shape whatever the settings, the calls' way in, one stream per
+  device for music and for calls, the first line changing only with the layout's shape, mixers of more than
+  eight inputs, the live controls). Opt-in (`-Dsound=1`), under names of their own so they can run beside a
+  live Car sound: `PipeWireChainProbe` runs the configs on the real PipeWire, checks the whole route for
+  music and calls, **plays a tone and measures it out of the way in and into the speakers**, moves a
+  playing call onto "DASH calls" and a stray off a speaker back onto DASH, changes controls live, and
+  restarts the layout while the app stays on DASH; `PipeWireChainUnitsProbe` has `systemd-analyze` check
+  both units and times the layout's wait. All 52 pass.
+- The roadmap: 1.1.4 is now *Audio: the rest* (loudness, speed-dependent volume), and Display, Connections,
+  Power, System and Terminal each moved up one stage (roadmap and settings-tree placeholders).
+- The README's Audio section describes the renamed tabs, Car sound, its services and how to remove them.
+
+**Outstanding:**
+- **In the car**, with real speakers and a second card; and **with no desktop**, with the 1.2.x session.
+- **GNOME's sound settings** list "DASH" and DASH's internal parts. Choosing a real device there sends the
+  sound around DASH. Left until the 1.2.x PC, which has no GNOME (Roger, 2026-10-08: he switches Car sound
+  off before using the laptop for anything else).
+- If PipeWire restarts, there is a moment between it returning and DASH's mute landing in which a stray
+  could sound briefly. Short, and covered by `sound_ready` for a sound module's amplifiers.
+- A sound module should go quiet if it stops hearing from DASH at all (DASH cannot send `sound_ready` false
+  if it crashes or the cable comes out) — advice for the module documents when they come.
+- Per-speaker time alignment, loudness, speed-dependent volume: 1.1.4 and later.
+
+**For native:**
+- **Take as they are:** `audio/CarSound.kt` (the settings, `feeds()`/`callFeeds()`, `SoundProcessor` and
+  its `offers`), `audio/SoundReady.kt`, `audio/SoundPreferences.kt`, `audio/SoundSystem.kt`,
+  `core/SystemCommands.kt` (the new signals). Native's `docs/system_commands.md` is not touched; the
+  additions are recorded here and in DASH-AA's copy.
+- **Take, removing the Android Auto parts:** `ui/audio/AudioContent.kt` (the Equaliser, Speakers,
+  Microphone and Volumes tabs); `ui/androidauto/CallsContent.kt`'s *Calls play through* and *Subwoofer in
+  calls* (native's Calls tab, if it gains one); `SettingsTree.kt` and `SettingsContent.kt` (names, order,
+  the later stages renumbered).
+- **Needs an Android equivalent:** a `SoundProcessor` that offers what Android can do — the equaliser
+  (Android's `Equalizer` effect), perhaps anti-distortion — and nothing else: Android plays through one
+  output and gives no non-root way to shape other apps' balance or fade. The tabs then show no layout,
+  fade, crossover or surround effect, by the processor's own word. `sound_ready` on native follows its
+  audio being up.
+- **Does not apply:** `audio/linux/PipeWireChain.kt`, its services, and `aa/echo-cancel.conf`'s call role.
+
+---
+
 ## Version 1.1.2
 
 **Mirrors upstream:** DASH 1.7.1

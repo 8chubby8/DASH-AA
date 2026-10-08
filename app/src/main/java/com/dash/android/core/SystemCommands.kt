@@ -53,7 +53,7 @@ object SystemCommands {
         // Wipers
         storeAndEvent("wipers_front_state", "wipers_rear_on")
         // Vehicle State — stateful
-        storeAndEvent("ignition_state", "handbrake_on", "gear_position")
+        storeAndEvent("ignition_state", "handbrake_on", "gear_position", "engine_running")
         // Vehicle State — continuous
         storeOnly(
             "vehicle_speed", "steering_angle", "engine_rpm", "fuel_level", "coolant_temp",
@@ -61,6 +61,14 @@ object SystemCommands {
         )
         // Safety
         storeAndEvent("seatbelt_driver_fastened", "seatbelt_passenger_fastened")
+        // Safety — a warning for every seat; the module decides when (DASH-AA 1.1.3, Roger 2026-10-08)
+        storeAndEvent(
+            "seatbelt_driver_warning", "seatbelt_passenger_warning",
+            "seatbelt_rear_left_warning", "seatbelt_rear_centre_warning", "seatbelt_rear_right_warning",
+            "seatbelt_third_row_left_warning", "seatbelt_third_row_centre_warning", "seatbelt_third_row_right_warning",
+        )
+        // Head Unit — DASH raises these itself, and a module may too (DASH-AA 1.1.3)
+        storeAndEvent("sound_ready", "screen_on")
         // EV / Charging
         storeAndEvent("charge_connected")
         storeOnly("charge_level")

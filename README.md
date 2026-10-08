@@ -100,17 +100,40 @@ Settings › **Android Auto** has the rest:
 - **Picture:** video resolution, frame rate, and **density** (how big the phone draws its interface)
 - **Night & Driver Side:** night mode, and which side the driver sits
 
-Settings › **Audio** is the machine's sound settings, so you don't need the desktop's:
-- **Output:** which speakers everything plays through (plug in a USB sound card or headphones and they
-  appear), the volume, mute, a **start-up volume limit** so the car isn't blasted when DASH starts, and
-  **Volume buttons**: whether the steering wheel's volume turns the whole machine or only Android Auto.
+Settings › **Audio** is the machine's sound settings and the car's sound menu in one, so you don't need
+the desktop's:
+- **Equaliser:** a ten-band equaliser, **Flat**, **Anti-distortion** (on by default: turns everything down
+  by your biggest boost so the sound can't crackle), balance, fade (front doors against rear doors, when
+  both have speakers), and the crossover (where the subwoofer stops, and a low cut for the other speakers).
+  These work when Car sound is on.
+- **Speakers:** **Car sound** at the top (below), then the volume, mute, a **start-up volume limit** so the
+  car isn't blasted when DASH starts, and **Volume buttons**: whether the steering wheel's volume turns
+  the whole machine or only Android Auto. With Car sound off, which device everything plays through.
   Below, whether Android Auto's sound plays on the phone or through DASH-AA.
-- **Input:** which microphone, its volume, and **Test microphone**, a level meter that shows the
+- **Microphone:** which microphone, its volume, and **Test microphone**, a level meter that shows the
   microphone hears you. Nothing is recorded. Below, whether Android Auto uses the phone's microphone or DASH-AA's.
-- **Mixer:** Android Auto's volume and separate levels for its music, directions and system sounds,
+- **Volumes:** Android Auto's volume and separate levels for its music, directions and system sounds,
   lowering music under directions, and a level for anything else that is playing.
+- **Calls:** below.
+
+**Car sound** sends everything through DASH, like a car's sound processor between head unit and
+amplifiers. You lay out the car's speakers: **Front**, **Rear**, **Surround** (the parcel shelf),
+**Centre** and **Subwoofer**. Each plays through a device you choose, or none, with its own level. One card
+with several outputs can serve several positions, or each can have its own card. The shelf's **Mode** is
+*Full stereo*, *Surround* (the difference between left and right: voices fade, the room remains) or *Wide
+surround* (as speakers wired across the two positive terminals), with a **Delay**. With Car sound on,
+DASH's own output is the default and its volume is the volume; the speakers' devices sit at full. Only
+the controls your speakers make sense of are shown.
+
+It runs as two of your own services, `dash-aa-sound` and `dash-aa-speakers` (`systemctl --user status
+dash-aa-sound`), with their settings in `~/.config/pipewire/dash-aa-*.conf`. They start with PipeWire, so
+the sound keeps its settings even when DASH isn't running, so switch Car sound off before using the computer
+for anything else. Turning it off stops and disables them. To
+remove them by hand, run `systemctl --user disable --now dash-aa-speakers dash-aa-sound`, then delete
+those files and `~/.config/systemd/user/dash-aa-*.service`.
 
 The choices are the machine's: they need PipeWire and WirePlumber, and if those are missing the tabs say so.
+Car sound also needs PipeWire 1.0 or newer and systemd's user manager; without them it doesn't appear.
 
 **Phone calls go over Bluetooth, not USB.** That's how Android Auto works in every car: the phone uses the
 head unit as a hands-free kit and only projects the call screen. So, once, **pair the phone with the
@@ -119,6 +142,8 @@ address. During a call, it joins the phone's voice to the speakers and the micro
 Android Auto › Connection › *Calls* says whether it's ready. **Settings › Audio › Calls** has:
 - the call volume (up to 300%, independent of music)
 - echo cancelling, which runs only for the length of a call. The microphone is never open otherwise.
+- with Car sound on, **Calls play through** all speakers, the front only or the driver's side, and
+  **Subwoofer in calls** — only the choices your speakers make sense of.
 
 **Then, on the phone, give the computer calls only:** Settings › Connected devices › the computer's gear ›
 turn **Media audio off** and leave **Phone calls on**. Android Auto's music already comes over USB. If the

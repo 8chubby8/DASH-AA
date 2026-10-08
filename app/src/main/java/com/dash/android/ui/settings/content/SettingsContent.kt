@@ -16,6 +16,7 @@ import com.dash.android.ui.androidauto.AndroidAutoPictureContent
 import com.dash.android.ui.audio.AudioInputContent
 import com.dash.android.ui.audio.AudioMixerContent
 import com.dash.android.ui.audio.AudioOutputContent
+import com.dash.android.ui.audio.AudioSoundContent
 import com.dash.android.ui.androidauto.CallsContent
 import com.dash.android.ui.settings.SettingsSub
 import com.dash.android.ui.theme.LocalDashTheme
@@ -42,6 +43,7 @@ fun SettingsContent(sub: SettingsSub) {
         "audio.input" -> AudioInputContent()
         "audio.calls" -> CallsContent()
         "audio.mixer" -> AudioMixerContent()
+        "audio.sound" -> AudioSoundContent()
         "modules.management" -> ModulesContent()
         "modules.transport" -> TransportManagerContent()
         "modules.serial" -> SerialMonitorContent()

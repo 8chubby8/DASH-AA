@@ -50,7 +50,7 @@ data class AaSettings(
     /** The friend's voice on a call, as a gain: 1.0 as the phone sends it, above 1.0 boosted. */
     val callVolume: Float = 1.0f,
     val volume: Float = 1.0f,
-    /** Audio › Mixer (1.1.2): each of Android Auto's three sounds, under [volume]. */
+    /** Audio › Volumes (1.1.2): each of Android Auto's three sounds, under [volume]. */
     val musicLevel: Float = 1.0f,
     val directionsLevel: Float = 1.0f,
     val systemLevel: Float = 1.0f,

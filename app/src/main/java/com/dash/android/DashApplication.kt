@@ -3,17 +3,25 @@ package com.dash.android
 import android.content.Context
 import com.dash.android.aa.AndroidAutoHost
 import com.dash.android.audio.SoundPreferences
+import com.dash.android.audio.SoundProcessor
+import com.dash.android.audio.SoundReady
+import com.dash.android.aa.AaPreferences
 import com.dash.android.audio.SoundSettings
 import com.dash.android.audio.SoundSystem
 import com.dash.android.audio.VolumeButtons
 import com.dash.android.audio.limitStartupVolume
+import com.dash.android.audio.linux.PipeWireChain
 import com.dash.android.audio.linux.PipeWireSound
 import com.dash.android.transport.DashController
 import com.dash.android.transport.TransportManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -56,7 +64,15 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
      * **The machine's sound** (DASH-AA 1.1.2) — what the Audio tabs show and change. PipeWire here;
      * watched for the life of the process, so a sound card plugged in mid-drive appears at once.
      */
-    val sound: SoundSystem = PipeWireSound()
+    private val pipeWire = PipeWireSound()
+    val sound: SoundSystem = pipeWire
+
+    /**
+     * **The car's sound** (DASH-AA 1.1.3) — the speaker layout, equaliser, balance, fade and crossover,
+     * done by PipeWire as the user's own services. Handed every change to the settings, here rather than
+     * in a tab, so a setting changed anywhere (one day by a module) takes effect.
+     */
+    val soundProcessor: SoundProcessor = PipeWireChain(pipeWire)
 
     fun onCreate() {
         transport = TransportManager(this)
@@ -66,8 +82,20 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
         controller.start()
         androidAuto.start()
         sound.start()
-        VolumeButtons(controller.systemState, sound, SoundPreferences(this).settings, androidAuto,
-            CoroutineScope(SupervisorJob() + Dispatchers.Default)).start()
+        soundProcessor.start()
+        val soundScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        VolumeButtons(controller.systemState, sound, SoundPreferences(this).settings, androidAuto, soundScope).start()
+        val car = SoundPreferences(this).settings.map { it.car }.distinctUntilChanged()
+        soundScope.launch {
+            // The driver's side is Android Auto's setting, the one place DASH-AA keeps it.
+            combine(car, AaPreferences(this@DashApplication).settings.map { !it.leftHandDrive }) { c, right -> c to right }
+                .distinctUntilChanged()
+                .collect { (c, right) -> soundProcessor.apply(c, right) }
+        }
+        val ready = SoundReady(controller.systemState)
+        ready.start(soundScope, sound.state, soundProcessor.state, car)
+        // Closing DASH: the amplifiers are told first, while the transports are still up.
+        Runtime.getRuntime().addShutdownHook(Thread { ready.quiet() })
         Thread({
             runBlocking {
                 val limit = runCatching { SoundPreferences(this@DashApplication).settings.first().startupLimit }

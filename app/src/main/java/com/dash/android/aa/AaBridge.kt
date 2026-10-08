@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  *
  * The volume buttons (`media_volume_up` / `media_volume_down` / `media_muted`) are not here since 1.1.2:
  * they are DASH's (`audio/VolumeButtons.kt`), heard with or without a phone, and reach Android Auto's
- * volume only when the user chooses it in Audio › Output.
+ * volume only when the user chooses it in Audio › Speakers.
  */
 class AaBridge(
     private val state: SystemState,

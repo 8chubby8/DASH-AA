@@ -109,7 +109,7 @@ class AndroidAutoHost(
 
     private val bridge = AaBridge(state = controller.systemState, scope = scope)
 
-    /** Android Auto's own volume, for the volume buttons when the user points them here (Audio › Output). */
+    /** Android Auto's own volume, for the volume buttons when the user points them here (Audio › Speakers). */
     override fun stepVolume(direction: Int) {
         scope.launch { prefs.update { s -> s.copy(volume = (s.volume + direction * VOLUME_STEP).coerceIn(0f, 1f)) } }
     }
