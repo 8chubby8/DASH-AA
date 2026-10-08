@@ -108,7 +108,7 @@ class CarSoundTest {
         val c = xf.copy(eq = listOf(3, 2, 0, 0, -1, 0, 0, 1, 2, 4), balance = -2, fade = 5, subCutoff = 60, lowCut = 80)
         val text = json.encodeToString(CarSound.serializer(), c)
         assertEquals(c, json.decodeFromString(CarSound.serializer(), text))
-        val later = text.replaceFirst("{", "{\"timeAlignment\":[1,2,3],")
+        val later = text.replaceFirst("{", "{\"speakerPhase\":[1,2,3],")
         assertEquals(c, json.decodeFromString(CarSound.serializer(), later))
     }
 
@@ -169,5 +169,19 @@ class CarSoundTest {
         assertEquals(shape(SurroundMode.STEREO), shape(SurroundMode.WIDE))
         // A call never plays the effect.
         assertTrue(xf.copy(surroundMode = SurroundMode.WIDE).callFeeds(false).values.flatten().filter { it.source == SoundSource.DIFF }.all { it.gain == 0f })
+    }
+
+    @Test fun `speed volume rises with each doubling of speed, and only when the speed is known`() {
+        assertEquals(0f, speedBoostDb(null, 10))
+        assertEquals(0f, speedBoostDb(120f, 0))
+        assertEquals(0f, speedBoostDb(25f, 10))
+        assertEquals(4.77f, speedBoostDb(112.65f, 5), 0.02f)                  // 70 mph at 5
+        assertEquals(2f * speedBoostDb(60f, 5), speedBoostDb(120f, 5), 0.001f)
+        assertEquals(SPEED_MAX_DB, speedBoostDb(300f, 10))
+    }
+
+    @Test fun `time alignment is nothing until it is on`() {
+        assertTrue(xf.outputDelays().values.all { it == 0f })
+        assertEquals(xf.feeds().keys, xf.outputDelays().keys)
     }
 }

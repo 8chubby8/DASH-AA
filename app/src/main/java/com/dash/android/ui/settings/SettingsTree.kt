@@ -91,6 +91,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             // DASH-AA (Roger, 2026-10-05): calls through the head unit — their volume, independent of
             // music, and echo cancelling. Stays in Audio (Roger, 2026-10-07).
             SettingsSub("audio.calls", "Calls", SettingsStatus.LIVE),
+            // DASH-AA 1.1.4 (Roger, 2026-10-08): the car sound in numbered slots, so fine-tuning is never lost.
+            SettingsSub("audio.saved", "Saved", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(

@@ -222,6 +222,153 @@ class PipeWireChainProbe {
             dir.deleteRecursively()
         }
     }
+
+    /**
+     * Opt-in (-Dsound=1): time alignment **measured**. The layout plays to a silent sink of the probe's own
+     * (no speaker hears it); a click goes in the same on both sides, and the lag between left and right
+     * coming out is what the distances say: front left 40 cm nearer, so 1.17 ms (56 samples) later.
+     */
+    @Test fun `time alignment measured through the real delays`() {
+        if (System.getProperty("sound") == null) return
+        val sound = PipeWireSound().apply { start() }
+        waitFor("PipeWire") { sound.state.value.available }
+        val defaultBefore = sound.defaultSinkName()
+        val dir = Files.createTempDirectory("dash-align").toFile()
+        val car = CarSound(enabled = true, timeAlignment = true, speakers = mapOf(
+            SpeakerPosition.FRONT to SpeakerAssignment("dash-probe-null", "Probe", listOf("FL", "FR"), distances = listOf(80, 120)),
+        ))
+        val wayIn = File(dir, "a.conf").apply { writeText(probeNames(PipeWireChain.wayInConfig(car))) }
+        val layout = File(dir, "b.conf").apply { writeText(probeNames(PipeWireChain.layoutConfig(car)!!)) }
+        // Made on the server by pw-cli, held open for the test: it goes when pw-cli does.
+        val n = ProcessBuilder("pw-cli").redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+        n.outputStream.write(("create-node adapter { factory.name = support.null-audio-sink node.name = \"dash-probe-null\" " +
+            "media.class = \"Audio/Sink\" audio.position = [ FL FR ] priority.session = 0 priority.driver = 0 node.passive = true " +
+            "monitor.channel-volumes = false node.always-process = true }\n").toByteArray())
+        n.outputStream.flush()
+        var a: Process? = null
+        var b: Process? = null
+        var player: Process? = null
+        try {
+            waitFor("the silent sink") { sound.nodeId("dash-probe-null") != null }
+            a = pipewire(wayIn)
+            waitFor("the way in") { sound.nodeId(N.PROCESSED) != null }
+            b = pipewire(layout)
+            // A click every quarter second, the same both sides.
+            val clicks = java.nio.ByteBuffer.allocate(48000 * 6 * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            for (i in 0 until 48000 * 6) { val v: Short = if (i % 12000 < 4) 16000 else 0; clicks.putShort(v); clicks.putShort(v) }
+            val clickFile = File(dir, "clicks.raw").apply { writeBytes(clicks.array()) }
+            player = ProcessBuilder(
+                "pw-cat", "--playback", "--raw", "--format", "s16", "--rate", "48000", "--channels", "2",
+                "--target", N.SINK, "-P", "node.name=dash-probe-player", clickFile.absolutePath,
+            ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+            waitFor("the route to the silent sink") { links().any { it.startsWith("output.${N.SPEAKERS}_") && it.endsWith("-> dash-probe-null") } }
+            Thread.sleep(800)
+            val rec = ProcessBuilder(
+                "pw-cat", "--record", "--raw", "--format", "f32", "--rate", "48000", "--channels", "2",
+                "--target", "dash-probe-null", "-P", "node.name=dash-probe-ear stream.capture.sink=true", "-",
+            ).redirectError(ProcessBuilder.Redirect.DISCARD).start()
+            val want = 48000 * 8
+            val buf = ByteArray(want)
+            var got = 0
+            val until = System.currentTimeMillis() + 2500
+            while (got < want && System.currentTimeMillis() < until) { val r = rec.inputStream.read(buf, got, want - got); if (r < 0) break; got += r }
+            rec.destroy()
+            val f = java.nio.ByteBuffer.wrap(buf, 0, got).order(java.nio.ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+            val frames = f.limit() / 2
+            val left = DoubleArray(frames) { f.get(it * 2).toDouble() }
+            val right = DoubleArray(frames) { f.get(it * 2 + 1).toDouble() }
+            assertTrue(left.any { kotlin.math.abs(it) > 0.05 }, "the clicks came through")
+            val lag = (-200..200).maxBy { d -> (0 until frames).sumOf { i -> val j = i - d; if (j in 0 until frames) left[i] * right[j] else 0.0 } }
+            println("time alignment: left plays $lag samples after right (${"%.2f".format(lag / 48.0)} ms); designed ${"%.2f".format(40 / 34.3)} ms")
+            // 40 cm is 55.98 samples; PipeWire takes whole samples, rounding down: within one, 7 mm.
+            assertTrue(lag in 55..56, "left is 40 cm nearer, so 56 samples later, not $lag")
+        } finally {
+            player?.destroy(); b?.destroy(); b?.waitFor(); a?.destroy(); a?.waitFor(); n.destroy(); n.waitFor()
+            assertEquals(defaultBefore, sound.defaultSinkName(), "the machine's default is untouched")
+        }
+    }
+
+    /** [hz] for [seconds], the same both sides, at about −21 dBFS, as a raw file pw-cat can play. */
+    private fun toneFile(dir: File, hz: Int, seconds: Int = 4): File {
+        val b = java.nio.ByteBuffer.allocate(48000 * seconds * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until 48000 * seconds) {
+            val v = (3000 * kotlin.math.sin(2 * Math.PI * hz * i / 48000)).toInt().toShort()
+            b.putShort(v); b.putShort(v)
+        }
+        return File(dir, "tone$hz.raw").apply { writeBytes(b.array()) }
+    }
+
+    /** The level, dB full scale, of [channel] of the way in's result while [tone] plays into DASH's output. */
+    private fun measure(tone: File): Double {
+        val player = ProcessBuilder(
+            "pw-cat", "--playback", "--raw", "--format", "s16", "--rate", "48000", "--channels", "2",
+            "--target", N.SINK, "-P", "node.name=dash-probe-player", tone.absolutePath,
+        ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+        try {
+            Thread.sleep(800)
+            val p = ProcessBuilder(
+                "pw-cat", "--record", "--raw", "--format", "f32", "--rate", "48000", "--channels", "4",
+                "--target", N.PROCESSED, "-P", "node.name=dash-probe-ear", "-",
+            ).redirectError(ProcessBuilder.Redirect.DISCARD).start()
+            val want = 48000 * 16 * 3 / 2
+            val buf = ByteArray(want)
+            var n = 0
+            val until = System.currentTimeMillis() + 2500
+            while (n < want && System.currentTimeMillis() < until) { val r = p.inputStream.read(buf, n, want - n); if (r < 0) break; n += r }
+            p.destroy()
+            val f = java.nio.ByteBuffer.wrap(buf, 0, n).order(java.nio.ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+            val frames = f.limit() / 4
+            val skip = frames / 3                                        // past the start, once settled
+            var sum = 0.0
+            for (i in skip until frames) { val v = f.get(i * 4).toDouble(); sum += v * v }
+            return 10 * kotlin.math.log10(sum / (frames - skip).coerceAtLeast(1) + 1e-20)
+        } finally {
+            player.destroy()
+        }
+    }
+
+    /**
+     * Opt-in (-Dsound=1): loudness and speed volume **measured**, not just linked — tones played into the
+     * way in, its result recorded, and the change each makes compared with what the maths says. Only the
+     * way in runs, so nothing reaches a speaker.
+     */
+    @Test fun `loudness and speed volume measured through the real filters`() {
+        if (System.getProperty("sound") == null) return
+        val sound = PipeWireSound().apply { start() }
+        waitFor("PipeWire") { sound.state.value.available }
+        val car = CarSound(enabled = true, loudness = 4, loudnessReference = 0.5f)
+        val dir = Files.createTempDirectory("dash-loud").toFile()
+        val wayIn = File(dir, "a.conf").apply { writeText(probeNames(PipeWireChain.wayInConfig(car))) }
+        val a = pipewire(wayIn)
+        try {
+            waitFor("the way in") { sound.nodeId(N.PROCESSED) != null }
+            fun set(params: List<Pair<String, Float>>) {
+                params.forEach { (k, v) -> setParam(N.SINK, k, v) }
+                Thread.sleep(200)
+            }
+            val down = PipeWireChain.Live(volume = 0.25f)              // 18 dB below the comfortable volume
+            val gains = PipeWireChain.loudnessGains(car, down)
+            for (hz in listOf(40, 100, 400, 1000, 3150, 10000)) {
+                val tone = toneFile(dir, hz)
+                set(PipeWireChain.liveParams(car, PipeWireChain.Live(volume = 0.5f)))
+                val flat = measure(tone)
+                set(PipeWireChain.liveParams(car, down))
+                val loud = measure(tone)
+                val expected = com.dash.android.audio.Loudness.response(gains, hz.toDouble())
+                println("loudness at $hz Hz: measured ${"%+.2f".format(loud - flat)} dB, designed ${"%+.2f".format(expected)} dB")
+                assertEquals(expected, loud - flat, 0.3, "loudness at $hz Hz")
+            }
+            val tone = toneFile(dir, 1000)
+            set(PipeWireChain.liveParams(car, PipeWireChain.Live(volume = 0.5f)))
+            val still = measure(tone)
+            set(PipeWireChain.liveParams(car, PipeWireChain.Live(volume = 0.5f, speedDb = 6f)))
+            val lifted = measure(tone)
+            println("speed volume +6 dB: measured ${"%+.2f".format(lifted - still)} dB")
+            assertEquals(6.0, lifted - still, 0.3, "speed volume")
+        } finally {
+            a.destroy(); a.waitFor()
+        }
+    }
 }
 
 /** Opt-in (-Dsound=1): the two services' unit files, as systemd itself reads them. Installs nothing. */
@@ -261,4 +408,5 @@ class PipeWireChainUnitsProbe {
             a.destroy(); dir.deleteRecursively()
         }
     }
+
 }

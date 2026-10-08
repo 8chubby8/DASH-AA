@@ -104,17 +104,33 @@ Settings › **Audio** is the machine's sound settings and the car's sound menu 
 the desktop's:
 - **Equaliser:** a ten-band equaliser, **Flat**, **Anti-distortion** (on by default: turns everything down
   by your biggest boost so the sound can't crackle), balance, fade (front doors against rear doors, when
-  both have speakers), and the crossover (where the subwoofer stops, and a low cut for the other speakers).
-  These work when Car sound is on.
+  both have speakers), the crossover (where the subwoofer stops, and a low cut for the other speakers), and
+  **Loudness** (below). These work when Car sound is on.
 - **Speakers:** **Car sound** at the top (below), then the volume, mute, a **start-up volume limit** so the
   car isn't blasted when DASH starts, and **Volume buttons**: whether the steering wheel's volume turns
   the whole machine or only Android Auto. With Car sound off, which device everything plays through.
+  With a module reporting the car's speed, **Speed volume** (Off, 1–10) turns the sound up as the car goes
+  faster: higher for a noisy car, lower for a quiet one. It never goes past full volume.
   Below, whether Android Auto's sound plays on the phone or through DASH-AA.
 - **Microphone:** which microphone, its volume, and **Test microphone**, a level meter that shows the
   microphone hears you. Nothing is recorded. Below, whether Android Auto uses the phone's microphone or DASH-AA's.
 - **Volumes:** Android Auto's volume and separate levels for its music, directions and system sounds,
   lowering music under directions, and a level for anything else that is playing.
 - **Calls:** below.
+- **Saved:** five slots, like a radio's memory buttons. **Hold** a slot to save the car sound there,
+  **press** it to load. **Undo last load** puts back what a load replaced. The slots are files in
+  `~/.local/share/dash-aa/files/sound/`, so you can back them up or share them.
+
+**Loudness** keeps music full when it's quiet. As sound gets quieter your ears lose the low notes first, and
+a little of the very top; loudness puts back exactly what they lose, from the international standard for
+how people hear (ISO 226). Turn it on (1–4; 4 is the full correction), play some music, turn the volume to
+where it sounds full and right, and press **Set** under *Comfortable volume*. It adds nothing at that
+volume or above, and more the further you turn down. It follows DASH's main volume, so set **Volume
+buttons** to *Machine* if you want the steering wheel's buttons to move it.
+
+**Time alignment** (Speakers, with Car sound on): sit in the driver's seat, measure from your head to the
+middle of each speaker, and enter each distance. DASH holds back the nearer speakers so the sound from all
+of them reaches you at once.
 
 **Car sound** sends everything through DASH, like a car's sound processor between head unit and
 amplifiers. You lay out the car's speakers: **Front**, **Rear**, **Surround** (the parcel shelf),

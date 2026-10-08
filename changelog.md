@@ -22,6 +22,103 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.4
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-08. Tests pass (69), including the opt-in probes on the G14's real PipeWire
+(1.6.9), which now **measure** loudness, speed volume and time alignment: tones and clicks in, recorded out,
+compared with the design. Roger tested it on the G14 and accepted it ("works well").
+
+**What and why.** The last of the three Audio stages. Roger asked for loudness before anything else: "I
+don't want some cheap naf piece of crap. I want it to be Hi-Fi level." We went through how loudness works
+(the equal-loudness contours, Fletcher–Munson to ISO 226) and the three schools — a fixed "LOUD" boost,
+correction that follows the volume (Audyssey Dynamic EQ, YPAO Volume), and correction that also measures
+the music (Dolby Volume). Roger chose the second, from a comfortable volume the user sets: anything more
+advanced, microphones included, belongs to a sound module, which DASH's design already allows. He then
+asked for everything at once: speed-dependent volume with an effect level, and per-speaker time alignment,
+pulled forward from "later". Testing it, he asked for **saved sound setups**, so a slip (a speaker moved to
+another device) can never lose hours of tuning.
+
+**Done:**
+- **Loudness** (Equaliser, its own section). **Off, 1–4**: a quarter, a half, three quarters or all of the
+  full correction. The correction is worked out from **ISO 226:2003**'s equal-loudness contours (formula and
+  table 1, `audio/Loudness.kt`): for each frequency, the level it needs to sound as loud, relative to 1 kHz,
+  as it did at the comfortable volume — taken as the 80-phon level music is mixed at. Nothing at the
+  comfortable volume or above; more the further down. Because the contours bunch together in the bass, the
+  correction is always smaller than the turn-down, so **no frequency ever plays louder than it did at the
+  comfortable volume**: loudness needs no headroom and asks nothing new of a speaker.
+  - It is made by a fixed bank of nine filters (six low shelves an octave apart from 25 Hz, bells at 2 and
+    5 kHz, a high shelf at 12 kHz), whose gains are fitted by least squares (Gauss–Newton) to the curve.
+    Fitted, it follows the full correction **to within 0.53 dB from 20 Hz to 12.5 kHz at every volume and
+    level**. Measured through PipeWire's own filters, the result matches the design to 0.02 dB (40 Hz:
+    designed +7.98, measured +7.96; 100 Hz +5.59/+5.59; 1 kHz 0/0; 10 kHz +1.24/+1.24).
+  - **Comfortable volume**, a stepper and **Set** (to the volume now). Turning loudness on for the first time
+    sets it to the volume then. Loudness follows **DASH's main volume**, read exactly in decibels (PipeWire's
+    volumes are cubic, so 60·log₁₀ v). When the volume buttons turn Android Auto's own volume, the tab says
+    loudness cannot see that one.
+  - A first fit was within 1.5 dB; retuning the bank (the dip at 1–6 kHz needs two bells, and the top shelf
+    belongs at 12 kHz) brought it to 0.53. A figure typed from memory into a test was wrong (ISO's 40-phon
+    100 Hz is 64.37 dB); the formula was right.
+  - Told to Roger as ISO 226:2023, then corrected: what is built is 2003, whose figures could be checked.
+    2023 differs slightly; moving to it is a change of table.
+- **Speed volume** (Speakers › Volume). **Off, 1–10**, for a quiet car or a noisy one (Roger). Nothing below
+  30 km/h, then +0.5 dB × level for each doubling of speed, at most +12 dB: at 5, about +5 dB at 70 mph.
+  It rises and falls 0.5 dB each 0.3 s (seven seconds for the full 12), never past what full volume would
+  give, and applies to calls as well as music. Offered **only while an installed module declares
+  `vehicle_speed`**; the speed counts only while such a module is active, so a module unplugged at speed
+  does not leave the sound up (`audio/VehicleSpeed.kt`). Measured: +6 dB asked, +6.00 heard.
+- **Time alignment** (Speakers, its own section). On, each output the layout uses has a **distance** from
+  the listener's head, 0–500 cm in 5 cm steps (100 by default), and shows how long it waits; the furthest
+  plays at once and the nearer ones wait for its sound (34 300 cm/s). Each side of a stereo position is set
+  on its own — the driver sits off-centre. Measured with clicks through a silent probe sink: 40 cm designed
+  as 1.17 ms, heard as 1.15 ms (55 samples: PipeWire takes whole samples, rounding down — 7 mm).
+- **Audio › Saved**, a new tab after Calls (Roger chose numbered slots, like a radio's memory buttons):
+  five slots, **hold to save, press to load**. A slot keeps the whole car sound — speakers with devices,
+  outputs, levels and distances, equaliser, balance, fade, crossover, loudness and its comfortable volume,
+  surround, speed volume, calls — but not the volume or whether Car sound is on. Each shows when it was
+  saved and what it holds; the one matching what plays now reads **In use**. **Undo last load** puts back
+  what a load replaced, and undoing again goes forward. Each slot is a file
+  (`~/.local/share/dash-aa/files/sound/slot1.json`…), to copy as a backup or share
+  (`audio/SoundMemories.kt`, `ui/audio/SavedContent.kt`).
+- **Changing a speaker's device keeps its tuning**: its level and distances, and its outputs when the new
+  device has the same ones. Before, it reset all three.
+- **How it is built** (`audio/linux/PipeWireChain.kt`). The way in gains loudness's nine filters each side
+  after the equaliser, and speed volume rides on anti-distortion's gain (and on a gain at the calls' way in,
+  which was a copy). Its shape goes to 5, so the first start after the update swaps it once, as switching off
+  and on would. The watch (every 0.3 s) follows DASH's volume and the speed and sends only the controls
+  that moved. The layout gains a delay after every output's mixer (shape 2: one restart on first start).
+  `SoundControl` gains `LOUDNESS`, `LOUDNESS_REFERENCE` (a processor that judges the level itself offers
+  loudness without asking for a comfortable volume), `SPEED_VOLUME` and `TIME_ALIGNMENT`; `SoundProcessor`
+  gains `speed(kmh)`.
+
+**Outstanding:**
+- **Speed volume is untested in a car**: it needs a module that reports `vehicle_speed`. The curve and the
+  gain are tested; the feel on the road is not.
+- **In the car**, with real speakers: loudness against road noise, and time alignment measured from the
+  driver's seat. With no desktop, with the 1.2.x session.
+- **ISO 226:2023** in place of 2003, if wanted: a table change.
+- A slot saved with a device that is later unplugged loads it as "Not connected", as any chosen device.
+- From 1.1.3 still: GNOME's sound settings list DASH's parts; the moment after a PipeWire restart; a sound
+  module going quiet if DASH goes silent.
+
+**For native:**
+- **Take as they are:** `audio/Loudness.kt` (ISO 226 and the fit — pure maths), `audio/VehicleSpeed.kt`,
+  `audio/SoundMemories.kt` (native's `filesDir`), `audio/CarSound.kt` (the new settings, `outputDelays()`,
+  `speedBoostDb()`, the new `SoundControl`s, `SoundProcessor.speed`), `ui/audio/SavedContent.kt`.
+- **Take, removing the Android Auto parts:** `ui/audio/AudioContent.kt` (loudness on the Equaliser tab;
+  speed volume and time alignment on Speakers; a device change keeping its tuning);
+  `ui/settings/SettingsTree.kt` and `content/SettingsContent.kt` (Audio › Saved); `DashApplication`'s
+  `soundMemories` and the speed feed (native's Application).
+- **Needs an Android equivalent:** native's `SoundProcessor` can offer loudness only if its equaliser can
+  carry the curve — Android's `Equalizer` effect has fixed bands, so it would fit `Loudness.target()` to
+  those bands, following `AudioManager`'s volume in decibels — and speed volume as a gain on its own output
+  (or the `Equalizer`'s overall level). Time alignment has no non-root Android path; native offers none,
+  and the tab hides it by the processor's word.
+- **Does not apply:** the PipeWire graph and its shapes.
+
+---
+
 ## Version 1.1.3
 
 **Mirrors upstream:** DASH 1.7.1

@@ -52,7 +52,7 @@ class PipeWireChainTest {
 
         val graph = args["filter.graph"]!!.jsonObject
         val nodes = graph["nodes"]!!.jsonArray.map { it.jsonObject }.associateBy { it.str("name") }
-        assertEquals(2 + 20 + 4 + 1 + 2 + 2 + 4, nodes.size)        // anti-distortion, 2 × 10 bands, 2 × 2 low cut, the crossover, the effect and its delay, the final copies
+        assertEquals(2 + 20 + 18 + 4 + 1 + 2 + 2 + 4, nodes.size)   // anti-distortion, 2 × 10 bands, 2 × 9 loudness, 2 × 2 low cut, the crossover, the effect and its delay, the final copies
         assertEquals("4.0", nodes.getValue("eqL0")["control"]!!.jsonObject.str("Gain"))
         assertEquals("-2.0", nodes.getValue("eqR9")["control"]!!.jsonObject.str("Gain"))
         assertEquals("60.0", nodes.getValue("hpR2")["control"]!!.jsonObject.str("Freq"))
@@ -149,6 +149,61 @@ class PipeWireChainTest {
         // Front, rear and centre two each, the shelf three (its effect too), the subwoofer one: ten, so two
         // mixers and their sum.
         assertTrue("out0_0" in nodes && "out0_1" in nodes && "out0" in nodes, "$nodes")
-        assertEquals(10, PipeWireChain.layoutParams(crowd).size)
+        assertEquals(10 + 1, PipeWireChain.layoutParams(crowd).size)   // and the output's time alignment delay
+    }
+
+    private fun graphOf(conf: String, sink: String) = parse(conf)["context.modules"]!!.jsonArray.map { it.jsonObject }
+        .filter { it.str("name") == "libpipewire-module-filter-chain" }.map { it["args"]!!.jsonObject }
+        .first { it["capture.props"]!!.jsonObject.str("node.name") == sink }["filter.graph"]!!.jsonObject
+
+    @Test fun `every live control names a filter the files made`() {
+        val music = graphOf(PipeWireChain.wayInConfig(car), PipeWireChain.SINK)["nodes"]!!.jsonArray.map { it.jsonObject.str("name") }.toSet()
+        val calls = graphOf(PipeWireChain.wayInConfig(car), PipeWireChain.CALLS)["nodes"]!!.jsonArray.map { it.jsonObject.str("name") }.toSet()
+        val live = PipeWireChain.Live(volume = 0.3f, speedDb = 4f)
+        PipeWireChain.wayInParams(car, live).forEach { (k, _) -> assertTrue(k.substringBefore(':') in music, k) }
+        PipeWireChain.callsInParams(car, live).forEach { (k, _) -> assertTrue(k.substringBefore(':') in calls, k) }
+        val layout = module(parse(PipeWireChain.layoutConfig(car)!!), "libpipewire-module-filter-chain")["filter.graph"]!!
+            .jsonObject["nodes"]!!.jsonArray.map { it.jsonObject.str("name") }.toSet()
+        PipeWireChain.layoutParams(car).forEach { (k, _) -> assertTrue(k.substringBefore(':') in layout, k) }
+    }
+
+    @Test fun `loudness follows the volume below the comfortable one`() {
+        val loud = car.copy(loudness = 4, loudnessReference = 0.5f)
+        val gains = { v: Float? -> PipeWireChain.liveParams(loud, PipeWireChain.Live(volume = v)).toMap().filterKeys { it.startsWith("ldL") } }
+        assertTrue(gains(0.5f).values.all { it == 0f }, "flat at the comfortable volume")
+        assertTrue(gains(0.8f).values.all { it == 0f }, "flat above it")
+        assertTrue(gains(null).values.all { it == 0f }, "flat when the volume is unknown")
+        assertTrue(PipeWireChain.liveParams(loud.copy(loudnessReference = null), PipeWireChain.Live(volume = 0.2f)).toMap()
+            .filterKeys { it.startsWith("ld") }.values.all { it == 0f }, "flat until a comfortable volume is set")
+        // Half the comfortable volume is 18 dB down (volumes are cubic): the bass shelves lift.
+        assertEquals(-18.06f, PipeWireChain.volumeDb(0.25f) - PipeWireChain.volumeDb(0.5f), 0.01f)
+        val down = gains(0.25f)
+        assertTrue(down.getValue("ldL0:Gain") > 0f && down.getValue("ldL2:Gain") > 0f, "$down")
+        assertEquals(gains(0.25f), PipeWireChain.liveParams(loud, PipeWireChain.Live(volume = 0.25f)).toMap()
+            .filterKeys { it.startsWith("ldR") }.mapKeys { it.key.replace("ldR", "ldL") })
+    }
+
+    @Test fun `speed volume lifts music and calls alike`() {
+        val live = PipeWireChain.Live(volume = 0.4f, speedDb = 6f)
+        val lift = 1.9953f
+        assertEquals(0.631f * lift, PipeWireChain.liveParams(car, live).toMap().getValue("preL:Gain 1"), 0.002f)
+        assertEquals(lift, PipeWireChain.liveCallParams(live).toMap().getValue("cR:Gain 1"), 0.001f)
+    }
+
+    @Test fun `time alignment delays the nearer speakers, and changes live`() {
+        val front = car.speakers.getValue(SpeakerPosition.FRONT).copy(distances = listOf(80, 120))
+        val rear = car.speakers.getValue(SpeakerPosition.REAR).copy(distances = listOf(150, 150))
+        val aligned = car.copy(timeAlignment = true, speakers = car.speakers + (SpeakerPosition.FRONT to front) + (SpeakerPosition.REAR to rear))
+        val first = { c: CarSound -> PipeWireChain.layoutConfig(c)!!.lineSequence().first() }
+        assertEquals(first(car), first(aligned), "distances change no shape")
+        val params = PipeWireChain.layoutParams(aligned).toMap()
+        assertEquals(70f / 34_300f, params.getValue("dl0:Delay (s)"), 1e-7f)       // front left, 70 cm nearer than the rear
+        assertEquals(30f / 34_300f, params.getValue("dl1:Delay (s)"), 1e-7f)       // front right
+        assertEquals(0f, params.getValue("dl2:Delay (s)"))                          // the rear, furthest
+        assertTrue(PipeWireChain.layoutParams(aligned.copy(timeAlignment = false)).filter { it.first.startsWith("dl") }.all { it.second == 0f })
+        val graph = module(parse(PipeWireChain.layoutConfig(aligned)!!), "libpipewire-module-filter-chain")["filter.graph"]!!.jsonObject
+        val outs = graph["outputs"]!!.jsonArray.strings()
+        assertTrue(outs.all { it.startsWith("dl") }, "$outs")
+        assertTrue(graph["links"]!!.jsonArray.map { it.jsonObject.str("output") }.none { it in outs })
     }
 }

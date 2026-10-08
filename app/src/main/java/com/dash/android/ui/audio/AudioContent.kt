@@ -73,6 +73,11 @@ import com.dash.android.ui.settings.content.FitPresetSegment
 import com.dash.android.audio.outputChoices
 import com.dash.android.audio.outputsLabel
 import com.dash.android.audio.usesLow
+import com.dash.android.audio.Loudness
+import com.dash.android.audio.VehicleSpeed
+import com.dash.android.audio.channelLabel
+import com.dash.android.audio.outputDelays
+import java.util.Locale
 import com.dash.android.ui.common.DashButton
 import com.dash.android.ui.common.SUBHEADING
 import com.dash.android.ui.common.TINY
@@ -138,6 +143,9 @@ fun AudioOutputContent() {
                     SurroundEffect(car, controlWidth) { t -> updateCar(t) }
                 }
             }
+            if (SoundControl.TIME_ALIGNMENT in processor.offers && car.speakers.isNotEmpty()) {
+                TimeAlignment(car, speakers, controlWidth) { t -> updateCar(t) }
+            }
             SettingsSectionHeader("Volume")
         } else {
             SettingBlock(
@@ -159,6 +167,20 @@ fun AudioOutputContent() {
                 }
             },
         )
+        // Offered only while a module reports the car's speed: capability-detected, never faked.
+        val modules by app.controller.database.modules.collectAsState()
+        if (car.enabled && processor.available && SoundControl.SPEED_VOLUME in processor.offers && VehicleSpeed.reported(modules)) {
+            SettingBlock(
+                name = "Speed volume",
+                help = "Turns the sound up as the car goes faster, to stay above road and wind noise, and back down " +
+                    "as it slows. Higher for a noisy car, lower for a quiet one. Nothing below about 20 mph; at 5, about " +
+                    "+5 dB at 70 mph. It never goes past full volume.",
+                control = {
+                    val label = if (car.speedVolume == 0) "Off" else "${car.speedVolume}"
+                    ListStepper(label, (0..CarSound.SPEED_LEVELS).toList(), car.speedVolume, controlWidth) { v -> updateCar { it.copy(speedVolume = v) } }
+                },
+            )
+        }
         SettingBlock(
             name = "Start-up volume limit",
             help = "When DASH starts, the volume comes down to this if it was left higher, so the car is " +
@@ -234,7 +256,11 @@ private fun SpeakerLayout(
             val rows = listOf(ChoiceRow("None", null, assignment == null) { onChange(null) }) +
                 devices.map { d ->
                     ChoiceRow(d.label, d.detail, d.key == assignment?.device) {
-                        onChange(SpeakerAssignment(d.key, d.label, defaultOutputs(position, d.channels), assignment?.level ?: 1f))
+                        // A new device keeps the position's tuning: its level and distances, and its outputs
+                        // when the new device has the same ones (Roger, 2026-10-08).
+                        val outputs = assignment?.outputs?.takeIf { it in outputChoices(position, d.channels) }
+                            ?: defaultOutputs(position, d.channels)
+                        onChange(SpeakerAssignment(d.key, d.label, outputs, assignment?.level ?: 1f, assignment?.distances.orEmpty()))
                     }
                 } +
                 listOfNotNull(assignment?.takeIf { device == null }?.let { ChoiceRow(it.label, "Not connected", true) {} })
@@ -291,6 +317,58 @@ private fun SurroundEffect(car: CarSound, controlWidth: Modifier, update: ((CarS
 }
 
 /**
+ * Time alignment (1.1.4): each speaker's distance from the listener's head, so the nearer ones can wait
+ * for the further ones and every speaker's sound arrives together — the sound then comes from in front,
+ * not from the door nearest you. One stepper for every output the layout uses, showing the delay it makes.
+ */
+@Composable
+private fun TimeAlignment(car: CarSound, devices: List<SoundDevice>, controlWidth: Modifier, update: ((CarSound) -> CarSound) -> Unit) {
+    SettingsSectionHeader("Time alignment")
+    SettingBlock(
+        name = "Time alignment",
+        help = "Sit where you listen — the driver's seat — and measure from your head to the middle of each " +
+            "speaker. DASH holds back the nearer speakers so the sound from all of them reaches you at once.",
+        control = {
+            PresetSegment(listOf("Off", "On"), if (car.timeAlignment) 1 else 0, controlWidth) { i -> update { it.copy(timeAlignment = i == 1) } }
+        },
+    )
+    if (!car.timeAlignment) return
+    val delays = car.outputDelays()
+    SpeakerPosition.entries.forEach { position ->
+        val a = car.speakers[position] ?: return@forEach
+        a.outputs.forEachIndexed { i, ch ->
+            val name = when {
+                a.outputs.size == 1 -> position.label
+                position.stereo -> "${position.label} ${if (i == 0) "left" else "right"}"
+                else -> "${position.label}, ${channelLabel(ch).lowercase(Locale.ROOT)}"
+            }
+            val cm = a.distance(i)
+            val ms = (delays[a.device to ch] ?: 0f) * 1000
+            SettingBlock(
+                name = name,
+                control = {
+                    Stepper(
+                        value = "$cm cm",
+                        sub = if (ms > 0f) "waits %.2f ms".format(Locale.ROOT, ms) else "furthest",
+                        modifier = controlWidth,
+                        onMinus = { update { c -> c.withDistance(position, i, cm - CarSound.DISTANCE_STEP) } },
+                        onPlus = { update { c -> c.withDistance(position, i, cm + CarSound.DISTANCE_STEP) } },
+                    )
+                },
+            )
+        }
+    }
+    if (channelsUnknown(car, devices)) Note("A speaker that is not plugged in keeps its distance until it is back.")
+}
+
+private fun channelsUnknown(car: CarSound, devices: List<SoundDevice>) = car.speakers.values.any { a -> devices.none { it.key == a.device } }
+
+private fun CarSound.withDistance(position: SpeakerPosition, i: Int, cm: Int): CarSound {
+    val a = speakers[position] ?: return this
+    return copy(speakers = speakers + (position to a.withDistance(i, cm.coerceIn(0, CarSound.DISTANCE_MAX))))
+}
+
+/**
  * Audio › Equaliser (1.1.3): how the car's sound is shaped on its way to the speakers — the equaliser,
  * balance, fade and crossover. Each control appears only when the speaker layout needs it.
  */
@@ -303,6 +381,9 @@ fun AudioSoundContent() {
     val processor by app.soundProcessor.state.collectAsState()
     val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
     val car = soundSettings.car
+    val (_, state) = rememberSound()
+    /** DASH's volume now — what loudness's comfortable volume is set from. */
+    val volumeNow = (state.outputs.firstOrNull { it.dash } ?: state.defaultOutput)?.volume
     fun updateCar(t: (CarSound) -> CarSound) = scope.launch { prefs.update { it.copy(car = t(it.car)) } }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
@@ -368,6 +449,45 @@ fun AudioSoundContent() {
                     )
                 },
             )
+        }
+        if (SoundControl.LOUDNESS in offers) {
+            SettingsSectionHeader("Loudness")
+            SettingBlock(
+                name = "Loudness",
+                help = "As sound gets quieter, your ears lose the low notes first, and a little of the very top. " +
+                    "Loudness puts back exactly what they lose, from the international standard for how people " +
+                    "hear (ISO 226): nothing at your comfortable volume, more the further you turn down. 4 is the " +
+                    "full correction; 1 to 3 are a quarter to three quarters of it.",
+                control = {
+                    val label = if (car.loudness == 0) "Off" else "${car.loudness}"
+                    ListStepper(label, (0..Loudness.LEVELS).toList(), car.loudness, controlWidth) { v ->
+                        // Turned on with no comfortable volume yet: the volume now, until the user sets one.
+                        updateCar { it.copy(loudness = v, loudnessReference = it.loudnessReference ?: volumeNow) }
+                    }
+                },
+            )
+            if (car.loudness > 0 && SoundControl.LOUDNESS_REFERENCE in offers) {
+                SettingBlock(
+                    name = "Comfortable volume",
+                    help = "The volume where music sounds full and right to you. Loudness adds nothing here or above.",
+                    control = { VolumeStepper(car.loudnessReference, false, controlWidth) { v -> updateCar { it.copy(loudnessReference = v) } } },
+                )
+                SettingBlock(
+                    name = "Set to the volume now",
+                    help = "Play some music, turn the volume to where it sounds full and right, and press Set.",
+                    control = {
+                        DashButton(
+                            volumeNow?.let { "Set (${(it * 100).roundToInt()}%)" } ?: "Set",
+                            onClick = { volumeNow?.let { v -> updateCar { it.copy(loudnessReference = v) } } },
+                            modifier = controlWidth,
+                        )
+                    },
+                )
+                if (soundSettings.volumeButtons == VolumeTarget.VIEWPORT) {
+                    Note("Loudness follows DASH's volume. The volume buttons are turning Android Auto's own, which " +
+                        "loudness cannot see — set Speakers › Volume buttons to Machine for loudness to follow them.")
+                }
+            }
         }
         val subCrossover = SoundControl.CROSSOVER in offers && car.usesLow
         if (subCrossover || SoundControl.LOW_CUT in offers) SettingsSectionHeader("Crossover")

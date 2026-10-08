@@ -11,8 +11,11 @@ import com.dash.android.audio.SoundSource
 import com.dash.android.audio.SpeakerPosition
 import com.dash.android.audio.callFeeds
 import com.dash.android.audio.defaultOutput
+import com.dash.android.audio.Loudness
 import com.dash.android.audio.feeds
+import com.dash.android.audio.outputDelays
 import com.dash.android.audio.preGain
+import com.dash.android.audio.speedBoostDb
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +36,9 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
+import kotlin.math.log10
+import kotlin.math.pow
 
 /**
  * **The car's sound through PipeWire** (DASH-AA 1.1.3) — DASH-AA's [SoundProcessor]: a car's DSP between
@@ -44,13 +50,19 @@ import java.util.concurrent.atomic.AtomicReference
  * needs root.
  *
  * ```
- *  every app ─▶ "DASH" ─ anti-distortion ─ equaliser ─┬─ low cut ──────▶ left, right ─┐  dash-aa-sound
- *   (the default)                                     └─ sub crossover ─▶ low ─────────┤  (never restarts)
- *  calls ─────▶ "DASH calls" ─────────── low cut and sub crossover ─▶ left, right, low ─┤
- *                                                                                      ▼
- *          the speaker layout: each output's mix of left, right and low, music and calls ─▶ each device
- *                                                                                         dash-aa-speakers
+ *  every app ─▶ "DASH" ─ anti-distortion, speed ─ equaliser ─ loudness ─┬─ low cut ─▶ left, right ─┐  dash-aa-sound
+ *   (the default)                                                       └─ sub crossover ─▶ low ───┤  (never restarts)
+ *  calls ─────▶ "DASH calls" ─ speed ──── low cut and sub crossover ─▶ left, right, low ────────────┤
+ *                                                                                                  ▼
+ *    the speaker layout: each output's mix of left, right and low, music and calls, then its delay ─▶ each device
+ *                                                                                                    dash-aa-speakers
  * ```
+ *
+ * **What follows the volume and the speed** (1.1.4). Loudness's filters and speed volume's gain change
+ * live, from the watch, as DASH's volume and the car's speed move: loudness is fitted to how far DASH's
+ * volume is below the comfortable one ([Loudness]); speed volume rises and falls gently, a little each
+ * watch, and never takes the sound past what full volume would be. Time alignment is a delay on each of
+ * the layout's outputs.
  *
  * **Why two.** Apps play into the first, and its shape never changes. Every control in it (the equaliser,
  * the cutoffs) changes live. The second holds the layout, so choosing which device plays which speakers
@@ -102,6 +114,13 @@ class PipeWireChain(
     /** Calls already sent to "DASH calls", by node id. */
     private val routedCalls = HashSet<String>()
 
+    /** The car's speed as last reported, km/h; null when nothing reports it. */
+    @Volatile private var speedKmh: Float? = null
+    /** Speed volume's rise as it is now, dB — moved toward where the speed says, a little each watch. */
+    @Volatile private var speedDb = 0f
+    /** Every running control as last set, "node/control" — so the watch sends only what has moved. */
+    private val sent = HashMap<String, Float>()
+
     override fun start() {
         if (started) return
         started = true
@@ -118,6 +137,13 @@ class PipeWireChain(
             applied = next
         }
     }
+
+    override fun speed(kmh: Float?) {
+        speedKmh = kmh
+    }
+
+    /** What the volume and the speed make of the sound now. */
+    private fun live() = Live(volume = sound.state.value.outputs.firstOrNull { it.dash }?.volume, speedDb = speedDb)
 
     private fun probe() {
         pipewire = PipeWireSound.which("pipewire")
@@ -149,7 +175,7 @@ class PipeWireChain(
             publish(running = isActive(SOUND_UNIT), ready = false)
             return
         }
-        val wayIn = wayInConfig(car)
+        val wayIn = wayInConfig(car, live())
         val wayInFile = File(configDir, SOUND_CONF)
         val wayInBefore = wayInFile.takeIf { it.exists() }?.useLines { it.firstOrNull() }
         writeIfChanged(wayInFile, wayIn)
@@ -171,6 +197,7 @@ class PipeWireChain(
         val before = if (turningOn) sound.state.value.defaultOutput?.takeIf { !it.dash } else null
         if (turningOn) {
             publish(running = false, ready = false, note = "Starting…")
+            synchronized(sent) { sent.clear() }
             if (layout != null) systemctl("enable", SPEAKERS_UNIT)
             systemctl("enable", "--now", SOUND_UNIT)   // the speakers follow it, once it is up
             if (awaitNode(SINK) == null) {
@@ -178,8 +205,8 @@ class PipeWireChain(
                 return
             }
         } else {
-            setParams(SINK, wayInParams(car))
-            setParams(CALLS, callsInParams(car))
+            setParams(SINK, wayInParams(car, live()))
+            setParams(CALLS, callsInParams(car, live()))
         }
 
         val reshaped = layout != null && !turningOn && (!isActive(SPEAKERS_UNIT) || layoutBefore != layout.lineSequence().first())
@@ -282,7 +309,27 @@ class PipeWireChain(
             sound.state.value.outputs.firstOrNull { it.dash }?.let { lastVolume = it.volume }
             reclaimDefault()
             routeCalls(car)
+            followVolumeAndSpeed(car)
         }
+    }
+
+    /**
+     * Loudness after DASH's volume, and speed volume after the speed: worked out every watch, and only
+     * what has moved is sent. Speed volume moves at most [SPEED_RAMP_DB] a watch, so it rises and falls as
+     * smoothly as a hand on the knob, and never past what full volume would give.
+     */
+    private fun followVolumeAndSpeed(car: CarSound) {
+        val volume = live().volume
+        val headroom = volume?.let { -volumeDb(it) } ?: 0f
+        val target = speedBoostDb(speedKmh, car.speedVolume).coerceAtMost(headroom).coerceAtLeast(0f)
+        speedDb = when {
+            abs(target - speedDb) <= SPEED_RAMP_DB -> target
+            target > speedDb -> speedDb + SPEED_RAMP_DB
+            else -> speedDb - SPEED_RAMP_DB
+        }
+        val now = Live(volume, speedDb)
+        setParams(SINK, liveParams(car, now), onlyChanged = true)
+        setParams(CALLS, liveCallParams(now), onlyChanged = true)
     }
 
     /**
@@ -318,6 +365,7 @@ class PipeWireChain(
         publish(running = false, ready = false, note = "The sound system restarted — restoring Car sound…")
         Log.i(TAG, "PipeWire is back — restoring Car sound")
         synchronized(routedCalls) { routedCalls.clear() }      // new nodes, new ids
+        synchronized(sent) { sent.clear() }
         val keys = car.speakers.values.map { it.device }.toSet()
         val muted = HashSet<String>()
         val until = System.currentTimeMillis() + RECOVER_MS
@@ -343,8 +391,8 @@ class PipeWireChain(
         }
         lastVolume?.let { wpctl("set-volume", dash, volume(it)) }
         wpctl("set-default", dash)
-        setParams(SINK, wayInParams(car))
-        setParams(CALLS, callsInParams(car))
+        setParams(SINK, wayInParams(car, live()))
+        setParams(CALLS, callsInParams(car, live()))
         setParams(LAYOUT, layoutParams(car))
         setParams(LAYOUT_CALLS, callParams(car, driverOnRight))
         sound.state.value.outputs.filter { it.key in keys }.forEach {
@@ -362,12 +410,21 @@ class PipeWireChain(
         }
     }
 
-    /** Change running controls: `pw-cli set-param <node> Props { params = [ "eqL0:Gain" 3.0 … ] }`. */
-    private fun setParams(node: String, params: List<Pair<String, Float>>) {
-        if (params.isEmpty()) return
+    /**
+     * Change running controls: `pw-cli set-param <node> Props { params = [ "eqL0:Gain" 3.0 … ] }`. With
+     * [onlyChanged], only those that differ from what was last set.
+     */
+    private fun setParams(node: String, params: List<Pair<String, Float>>, onlyChanged: Boolean = false) {
         val id = sound.nodeId(node) ?: return                // not up yet: it starts with the file's values
-        val body = params.joinToString(" ") { (k, v) -> "\"$k\" ${"%.5f".format(Locale.ROOT, v)}" }
-        run(listOf("pw-cli", "set-param", id, "Props", "{ params = [ $body ] }"))
+        val send = synchronized(sent) {
+            params.filter { (k, v) -> !onlyChanged || sent["$node/$k"]?.let { abs(it - v) < 1e-4f } != true }
+                .onEach { (k, v) -> sent["$node/$k"] = v }
+        }
+        if (send.isEmpty()) return
+        val body = send.joinToString(" ") { (k, v) -> "\"$k\" ${"%.5f".format(Locale.ROOT, v)}" }
+        if (!run(listOf("pw-cli", "set-param", id, "Props", "{ params = [ $body ] }"))) {
+            synchronized(sent) { send.forEach { (k, _) -> sent.remove("$node/$k") } }   // tried again next time
+        }
     }
 
     private fun isActive(unit: String) = systemctl("is-active", "--quiet", unit)
@@ -433,6 +490,9 @@ class PipeWireChain(
         |WantedBy=$SOUND_UNIT
         |""".trimMargin()
 
+    /** What changes with DASH's volume (0–1, null when unknown) and the car's speed (speed volume's rise, dB). */
+    data class Live(val volume: Float? = null, val speedDb: Float = 0f)
+
     companion object {
         private const val TAG = "DashSoundChain"
 
@@ -459,8 +519,28 @@ class PipeWireChain(
 
         private const val WATCH_MS = 300L
         /** Raised whenever the way in's graph changes shape; never otherwise. 1: the first 1.1.3 build; 2: calls and
-         *  anti-distortion; 3: the surround effect; 4: copies before the outputs, which 3 lacked and fell silent. */
-        private const val WAY_IN_SHAPE = 4
+         *  anti-distortion; 3: the surround effect; 4: copies before the outputs, which 3 lacked and fell silent;
+         *  5 (1.1.4): loudness, and speed volume's gain on calls. */
+        private const val WAY_IN_SHAPE = 5
+        /** The layout's shape, beside its signature. 2 (1.1.4): a delay on every output, for time alignment. */
+        private const val LAYOUT_SHAPE = 2
+        /** Time alignment's longest delay: 5 m of difference is 14.6 ms. */
+        private const val MAX_ALIGN_S = 0.02
+        /** How far speed volume moves in one watch: 0.5 dB each 0.3 s, so a full 12 dB takes seven seconds. */
+        private const val SPEED_RAMP_DB = 0.5f
+
+        /** DASH's volume as decibels: PipeWire's volumes are cubic, so 0.5 is a gain of 0.125, −18 dB. */
+        fun volumeDb(v: Float): Float = 60f * log10(v.coerceAtLeast(0.001f))
+
+        /** Loudness's filter gains for [live]'s volume: flat when off, unset, unknown or at or above the comfortable volume. */
+        internal fun loudnessGains(car: CarSound, live: Live): List<Float> {
+            val ref = car.loudnessReference
+            val v = live.volume
+            if (car.loudness == 0 || ref == null || v == null) return List(Loudness.BANK.size) { 0f }
+            return Loudness.gains((volumeDb(ref) - volumeDb(v)).toDouble(), car.loudness)
+        }
+
+        private fun speedGain(live: Live) = 10f.pow(live.speedDb / 20f)
         private const val RECOVER_MS = 12_000L
 
         private val MODULE_DIRS = listOf(
@@ -483,30 +563,35 @@ class PipeWireChain(
 
         // ---- The way in: fixed in shape, so it never has to restart -------------------------------------
 
-        internal fun wayInConfig(car: CarSound): String {
+        private val BQ = mapOf(Loudness.Kind.LOW_SHELF to "bq_lowshelf", Loudness.Kind.PEAKING to "bq_peaking", Loudness.Kind.HIGH_SHELF to "bq_highshelf")
+        private val LOUD_LAST = Loudness.BANK.size - 1
+
+        internal fun wayInConfig(car: CarSound, live: Live = Live()): String {
             val nodes = buildJsonArray {
                 for (side in listOf("L", "R")) {
-                    add(filter("pre$side", "mixer", "Gain 1" to car.preGain()))
+                    add(filter("pre$side", "mixer", "Gain 1" to car.preGain() * speedGain(live)))
                     CarSound.EQ_BANDS.forEachIndexed { i, hz ->
                         add(filter("eq$side$i", "bq_peaking", "Freq" to hz.toFloat(), "Q" to EQ_Q, "Gain" to car.eq.getOrElse(i) { 0 }.toFloat()))
+                    }
+                    val loud = loudnessGains(car, live)
+                    Loudness.BANK.forEachIndexed { k, band ->
+                        add(filter("ld$side$k", BQ.getValue(band.kind), "Freq" to band.freq.toFloat(), "Q" to band.q.toFloat(), "Gain" to loud[k]))
                     }
                 }
                 addAll(crossoverNodes(car))
                 add(diffNode())
                 // The surround effect's delay: up to a tenth of a second, set live.
-                add(buildJsonObject {
-                    put("type", "builtin"); put("name", "sdelay"); put("label", "delay")
-                    put("config", buildJsonObject { put("max-delay", 0.1) })
-                    put("control", buildJsonObject { put("Delay (s)", JsonPrimitive(car.surroundDelay / 1000f)) })
-                })
+                add(delayNode("sdelay", 0.1, car.surroundDelay / 1000f))
             }
             val last = CarSound.EQ_BANDS.size - 1
             val links = buildJsonArray {
                 for (side in listOf("L", "R")) {
                     add(link("pre$side:Out", "eq${side}0:In"))
                     for (i in 0 until last) add(link("eq$side$i:Out", "eq$side${i + 1}:In"))
+                    add(link("eq$side$last:Out", "ld${side}0:In"))
+                    for (k in 0 until LOUD_LAST) add(link("ld$side$k:Out", "ld$side${k + 1}:In"))
                 }
-                addAll(crossoverLinks("eqL$last:Out", "eqR$last:Out"))
+                addAll(crossoverLinks("ldL$LOUD_LAST:Out", "ldR$LOUD_LAST:Out"))
                 addAll(diffLinks())
                 add(link("diff:Out", "sdelay:In"))
             }
@@ -532,9 +617,10 @@ class PipeWireChain(
                 put("node.description", "DASH calls")
                 put("media.name", "DASH calls")
                 put("filter.graph", buildJsonObject {
-                    put("nodes", JsonArray(listOf(copy("cL"), copy("cR")) + crossoverNodes(car) + diffNode() + finalCopies()))
+                    put("nodes", JsonArray(listOf(filter("cL", "mixer", "Gain 1" to speedGain(live)), filter("cR", "mixer", "Gain 1" to speedGain(live))) +
+                        crossoverNodes(car) + diffNode() + finalCopies()))
                     put("links", JsonArray(crossoverLinks("cL:Out", "cR:Out") + diffLinks() + finalLinks("hpL2:Out", "hpR2:Out", "lp2:Out", "diff:Out")))
-                    put("inputs", strings("cL:In", "cR:In"))
+                    put("inputs", strings("cL:In 1", "cR:In 1"))
                     put("outputs", strings(*FINAL_OUT))
                 })
                 put("capture.props", buildJsonObject {
@@ -583,6 +669,12 @@ class PipeWireChain(
             link("lowSum:Out", "lp1:In"), link("lp1:Out", "lp2:In"),
         )
 
+        private fun delayNode(name: String, max: Double, seconds: Float) = buildJsonObject {
+            put("type", "builtin"); put("name", name); put("label", "delay")
+            put("config", buildJsonObject { put("max-delay", max) })
+            put("control", buildJsonObject { put("Delay (s)", JsonPrimitive(seconds)) })
+        }
+
         private fun copy(name: String) = buildJsonObject { put("type", "builtin"); put("name", name); put("label", "copy") }
 
         /** A way in's result, offered as a recording the layout takes. Lowest priority, so nothing picks it as a microphone. */
@@ -596,19 +688,32 @@ class PipeWireChain(
             put("priority.driver", 0)
         }
 
-        internal fun wayInParams(car: CarSound): List<Pair<String, Float>> = buildList {
+        internal fun wayInParams(car: CarSound, live: Live = Live()): List<Pair<String, Float>> = buildList {
             for (side in listOf("L", "R")) {
-                add("pre$side:Gain 1" to car.preGain())
                 CarSound.EQ_BANDS.indices.forEach { i -> add("eq$side$i:Gain" to car.eq.getOrElse(i) { 0 }.toFloat()) }
             }
             add("sdelay:Delay (s)" to car.surroundDelay / 1000f)
-            addAll(callsInParams(car))
+            addAll(crossoverParams(car))
+            addAll(liveParams(car, live))
         }
 
-        internal fun callsInParams(car: CarSound): List<Pair<String, Float>> = buildList {
+        internal fun callsInParams(car: CarSound, live: Live = Live()): List<Pair<String, Float>> = crossoverParams(car) + liveCallParams(live)
+
+        private fun crossoverParams(car: CarSound): List<Pair<String, Float>> = buildList {
             for (side in listOf("L", "R")) for (stage in 1..2) add("hp$side$stage:Freq" to car.lowCut.toFloat())
             for (stage in 1..2) add("lp$stage:Freq" to car.subCutoff.toFloat())
         }
+
+        /** The way in's controls that follow the volume and the speed: anti-distortion with speed volume, and loudness. */
+        internal fun liveParams(car: CarSound, live: Live): List<Pair<String, Float>> = buildList {
+            val loud = loudnessGains(car, live)
+            for (side in listOf("L", "R")) {
+                add("pre$side:Gain 1" to car.preGain() * speedGain(live))
+                loud.forEachIndexed { k, g -> add("ld$side$k:Gain" to g) }
+            }
+        }
+
+        internal fun liveCallParams(live: Live): List<Pair<String, Float>> = listOf("cL:Gain 1" to speedGain(live), "cR:Gain 1" to speedGain(live))
 
         // ---- The layout: restarted when its shape changes ------------------------------------------------
 
@@ -627,23 +732,28 @@ class PipeWireChain(
             val music = car.feeds().entries.toList()
             if (music.isEmpty()) return null
             val calls = car.callFeeds(driverOnRight).entries.toList()
-            return "# DASH-AA car sound: the speaker layout ${layoutSignature(car)}. Written by DASH-AA (Audio › Speakers); DASH rewrites it.\n" +
+            val delays = car.outputDelays()
+            return "# DASH-AA car sound: the speaker layout, shape $LAYOUT_SHAPE, ${layoutSignature(car)}. Written by DASH-AA (Audio › Speakers); DASH rewrites it.\n" +
                 json.encodeToString(JsonObject.serializer(), process(
-                    *mix(music, PROCESSED, LAYOUT, SPEAKERS, "DASH speakers (internal)"),
-                    *mix(calls, CALLS_PROCESSED, LAYOUT_CALLS, SPEAKERS_CALLS, "DASH call speakers (internal)"),
+                    *mix(music, delays, PROCESSED, LAYOUT, SPEAKERS, "DASH speakers (internal)"),
+                    *mix(calls, delays, CALLS_PROCESSED, LAYOUT_CALLS, SPEAKERS_CALLS, "DASH call speakers (internal)"),
                 )) + "\n"
         }
 
-        /** One mix: [from]'s left, right and low into a mixer for each output, then out to each device. */
+        /**
+         * One mix: [from]'s left, right and low into a mixer for each output, through its time alignment
+         * delay (from [delays]), then out to each device.
+         */
         private fun mix(
             feeds: List<Map.Entry<Pair<String, String>, List<SoundFeed>>>,
+            delays: Map<Pair<String, String>, Float>,
             from: String, intake: String, splitter: String, description: String,
         ): Array<JsonObject> {
             val nodes = mutableListOf<JsonElement>()
             for (n in listOf("inL", "inR", "inLow", "inDiff")) nodes += copy(n)
             val links = mutableListOf<JsonElement>()
             val outputs = mutableListOf<String>()
-            feeds.forEachIndexed { k, (_, parts) ->
+            feeds.forEachIndexed { k, (key, parts) ->
                 val chunks = parts.chunked(MIXER_INPUTS)
                 chunks.forEachIndexed { j, chunk ->
                     val name = mixerName(k, j, chunks.size)
@@ -654,7 +764,9 @@ class PipeWireChain(
                     nodes += filter("out$k", "mixer", *chunks.indices.map { "Gain ${it + 1}" to 1f }.toTypedArray())
                     chunks.indices.forEach { j -> links += link("${mixerName(k, j, chunks.size)}:Out", "out$k:In ${j + 1}") }
                 }
-                outputs += "out$k:Out"
+                nodes += delayNode("dl$k", MAX_ALIGN_S, delays[key] ?: 0f)
+                links += link("out$k:Out", "dl$k:In")
+                outputs += "dl$k:Out"
             }
             val aux = feeds.indices.map { "AUX$it" }
             val chain = module("libpipewire-module-filter-chain", buildJsonObject {
@@ -719,9 +831,13 @@ class PipeWireChain(
             return arrayOf(chain, combine)
         }
 
-        internal fun layoutParams(car: CarSound): List<Pair<String, Float>> = mixParams(car.feeds().values)
+        internal fun layoutParams(car: CarSound): List<Pair<String, Float>> = mixParams(car.feeds().values) + delayParams(car)
 
-        internal fun callParams(car: CarSound, driverOnRight: Boolean): List<Pair<String, Float>> = mixParams(car.callFeeds(driverOnRight).values)
+        internal fun callParams(car: CarSound, driverOnRight: Boolean): List<Pair<String, Float>> =
+            mixParams(car.callFeeds(driverOnRight).values) + delayParams(car)
+
+        private fun delayParams(car: CarSound): List<Pair<String, Float>> =
+            car.outputDelays().values.mapIndexed { k, d -> "dl$k:Delay (s)" to d }
 
         private fun mixParams(feeds: Collection<List<SoundFeed>>): List<Pair<String, Float>> = buildList {
             feeds.forEachIndexed { k, parts ->

@@ -3,6 +3,7 @@ package com.dash.android.audio
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
+import kotlin.math.log2
 import kotlin.math.pow
 
 /**
@@ -51,6 +52,23 @@ data class CarSound(
     val surroundMode: SurroundMode = SurroundMode.STEREO,
     /** How late the surround effect plays, in ms; 0 is no delay. Pro Logic used 15–20. */
     val surroundDelay: Int = 0,
+    /** Audio › Equaliser › Loudness (1.1.4): 0 off, 1–[Loudness.LEVELS] a quarter to all of the correction. */
+    val loudness: Int = 0,
+    /**
+     * The comfortable volume loudness works from: DASH's volume (0–1, as [SoundDevice.volume]) where the
+     * music sounds full and right. Null until the user sets it; loudness does nothing without it.
+     */
+    val loudnessReference: Float? = null,
+    /**
+     * Audio › Speakers › Speed volume (1.1.4): 0 off, 1–[SPEED_LEVELS] how much the volume rises with speed,
+     * for a quiet car or a noisy one. Offered only while a module reports `vehicle_speed`.
+     */
+    val speedVolume: Int = 0,
+    /**
+     * Audio › Speakers › Time alignment (1.1.4): each output delayed so every speaker's sound reaches the
+     * listener at the same moment, from the distances in [SpeakerAssignment.distances].
+     */
+    val timeAlignment: Boolean = false,
 ) {
     companion object {
         /** A ten-band graphic equaliser, an octave apart. */
@@ -63,6 +81,13 @@ data class CarSound(
         const val LOW_CUT_OFF = 0
         val LOW_CUTS = listOf(LOW_CUT_OFF) + (40..200 step 10).toList()
         val SURROUND_DELAYS = (0..30 step 5).toList()
+        const val SPEED_LEVELS = 10
+        /** Time alignment's distances, cm: a tape measure's worth, in steps of 5 cm (0.15 ms). */
+        const val DISTANCE_DEFAULT = 100
+        const val DISTANCE_STEP = 5
+        const val DISTANCE_MAX = 500
+        /** The speed of sound in a car on a mild day, cm per second. */
+        const val SOUND_CM_PER_S = 34_300f
     }
 }
 
@@ -111,7 +136,17 @@ data class SpeakerAssignment(
     val outputs: List<String>,
     /** The position's level, 0–1: its amplifier gain, set once to match the speakers to each other. */
     val level: Float = 1f,
-)
+    /**
+     * For time alignment (1.1.4): how far each of [outputs]' speakers is from the listener's head, cm, in
+     * the same order. One missing is [CarSound.DISTANCE_DEFAULT].
+     */
+    val distances: List<Int> = emptyList(),
+) {
+    fun distance(i: Int): Int = distances.getOrElse(i) { CarSound.DISTANCE_DEFAULT }
+
+    fun withDistance(i: Int, cm: Int): SpeakerAssignment =
+        copy(distances = List(maxOf(outputs.size, distances.size)) { k -> if (k == i) cm else distance(k) })
+}
 
 /** One signal the car's sound is made from, after the equaliser. */
 enum class SoundSource {
@@ -239,6 +274,38 @@ fun CarSound.preGain(): Float {
     return if (antiDistortion && boost > 0) 10f.pow(-boost / 20f) else 1f
 }
 
+/**
+ * Time alignment: how late each output plays, in seconds, keyed as [feeds] is. The furthest speaker plays
+ * at once and each nearer one waits for its sound to catch up, so all of them arrive together. All zero
+ * when time alignment is off. An output given to two positions takes the first position's distance.
+ */
+fun CarSound.outputDelays(): Map<Pair<String, String>, Float> {
+    val distance = LinkedHashMap<Pair<String, String>, Int>()
+    for (position in SpeakerPosition.entries) {
+        val a = speakers[position] ?: continue
+        a.outputs.forEachIndexed { i, ch -> distance.putIfAbsent(a.device to ch, a.distance(i)) }
+    }
+    val furthest = distance.values.maxOrNull() ?: 0
+    return feeds().keys.associateWith { key ->
+        if (!timeAlignment) 0f else (furthest - (distance[key] ?: furthest)) / CarSound.SOUND_CM_PER_S
+    }
+}
+
+/**
+ * **Speed volume** (1.1.4): how many dB the sound rises at [kmh] for [level]. Nothing below
+ * [SPEED_FROM_KMH], where road and wind noise are slight; then a steady rise for each doubling of speed —
+ * as noise grows — of [level] × [SPEED_DB_PER_LEVEL] dB, to at most [SPEED_MAX_DB]. Level 5 is about +5 dB
+ * at 70 mph; level 10 about +10. Nothing when the speed is not known.
+ */
+fun speedBoostDb(kmh: Float?, level: Int): Float {
+    if (kmh == null || level <= 0 || kmh <= SPEED_FROM_KMH) return 0f
+    return (level.coerceAtMost(CarSound.SPEED_LEVELS) * SPEED_DB_PER_LEVEL * log2(kmh / SPEED_FROM_KMH)).coerceAtMost(SPEED_MAX_DB)
+}
+
+const val SPEED_FROM_KMH = 30f
+const val SPEED_DB_PER_LEVEL = 0.5f
+const val SPEED_MAX_DB = 12f
+
 /** Whether any output takes the subwoofer's signal — no crossover is built when none does. */
 val CarSound.usesLow: Boolean get() = speakers[SpeakerPosition.SUBWOOFER]?.outputs?.isNotEmpty() == true
 
@@ -338,6 +405,12 @@ interface SoundProcessor {
      * Returns at once; the work is done off the caller's thread.
      */
     fun apply(sound: CarSound, driverOnRight: Boolean)
+
+    /**
+     * The car's speed, km/h, as a module reports it — null when nothing does (1.1.4, for speed volume). A
+     * processor that hears the speed itself, as a sound module may, can ignore it.
+     */
+    fun speed(kmh: Float?) {}
 }
 
 data class ProcessorState(
@@ -359,4 +432,15 @@ data class ProcessorState(
 )
 
 /** The controls a [SoundProcessor] may offer. */
-enum class SoundControl { LAYOUT, EQUALISER, ANTI_DISTORTION, BALANCE, FADE, CROSSOVER, LOW_CUT, CALL_ROUTING, SURROUND_EFFECT }
+enum class SoundControl {
+    LAYOUT, EQUALISER, ANTI_DISTORTION, BALANCE, FADE, CROSSOVER, LOW_CUT, CALL_ROUTING, SURROUND_EFFECT,
+    /** Loudness (1.1.4). */
+    LOUDNESS,
+    /**
+     * Loudness worked from the comfortable volume the user sets. A processor that judges the listening level
+     * itself — a sound module with its own microphones — offers [LOUDNESS] without it, and DASH asks for none.
+     */
+    LOUDNESS_REFERENCE,
+    SPEED_VOLUME,
+    TIME_ALIGNMENT,
+}

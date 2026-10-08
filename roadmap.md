@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 complete, 2026-10-08; next 1.1.4)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 and 1.1.4 complete, 2026-10-08; next 1.1.5)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -40,7 +40,7 @@ so DASH's settings have to *be* the machine's settings. The categories change to
 Appearance     Size & Scale, Transitions, Splash, Colours, Fonts, Presets, Ambient
 Layout         System Bar, Module Panel, Elements, Overlays
 Android Auto   Connection, Picture, Night & Driver side
-Audio          Equaliser, Speakers, Microphone, Volumes, Calls   (renamed 1.1.3)
+Audio          Equaliser, Speakers, Microphone, Volumes, Calls, Saved   (renamed 1.1.3; Saved 1.1.4)
 Connections    Wi-Fi, Bluetooth
 Display        Brightness, Screen blanking, Touchscreen, Rotation
 Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
@@ -149,8 +149,18 @@ names the stage that covers it.
     **`sound_ready`**, DASH's amplifier remote wire, tells modules when to stay quiet (added to
     `system_commands.md` with Roger's say, alongside seat belt warnings for every seat, `screen_on` and
     `engine_running`).
-- **1.1.4 — Audio: the rest.** **Loudness**, and **speed-dependent volume**, which appears only when a
-  module reports speed (capability-detected, never faked). Later, not now: per-speaker time alignment.
+- **1.1.4 — Audio: the rest.** **(complete — 2026-10-08)** All built at once, at Roger's asking.
+  - **Loudness** (Roger: "it's got to be good… Hi-Fi level"): correction that follows the volume, from
+    ISO 226:2003's equal-loudness contours, worked from a **comfortable volume** the user sets; Off and four
+    levels (a quarter to all of the correction). Fitted filters follow the standard to within about half a
+    decibel. Measuring the listening level with microphones, or from the music, is left to a sound module
+    (Roger) — a processor may offer loudness without asking for a comfortable volume.
+  - **Speed volume**, with an effect level (Off, 1–10) for a quiet car or a noisy one (Roger). Appears only
+    when a module reports `vehicle_speed` (capability-detected, never faked).
+  - **Time alignment**, pulled forward from later: a distance for each speaker, and the nearer ones wait.
+  - **Audio › Saved** (Roger, while testing): the car sound in five numbered slots, like a radio's memory
+    buttons — hold to save, press to load — with undo of the last load; and changing a speaker's device
+    keeps its tuning.
 - **1.1.5 — Display.** Rotation first: ask the display service to rotate the screen (GNOME's Mutter on the
   laptop; whatever runs the display on the 1.2.x PC), so the touchscreen turns with it. Where no display
   service is reachable, DASH rotates its own picture, and its own touch input, inside the window. Then
@@ -171,7 +181,8 @@ its **Apps** category (both are settings for whatever runs in the viewport). Con
 Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code.
 Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
-non-root Android path, so native's Sound tab is thinner. Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
+non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
+its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
 equivalents or do not apply.
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*

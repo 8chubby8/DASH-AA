@@ -5,6 +5,9 @@ import com.dash.android.aa.AndroidAutoHost
 import com.dash.android.audio.SoundPreferences
 import com.dash.android.audio.SoundProcessor
 import com.dash.android.audio.SoundReady
+import java.io.File
+import com.dash.android.audio.SoundMemories
+import com.dash.android.audio.VehicleSpeed
 import com.dash.android.aa.AaPreferences
 import com.dash.android.audio.SoundSettings
 import com.dash.android.audio.SoundSystem
@@ -74,6 +77,9 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
      */
     val soundProcessor: SoundProcessor = PipeWireChain(pipeWire)
 
+    /** Audio › Saved (1.1.4): the car sound in numbered slots, one for the whole app so every tab sees the same. */
+    val soundMemories by lazy { SoundMemories(File(filesDir, "sound")) }
+
     fun onCreate() {
         transport = TransportManager(this)
         controller = DashController(transport, this)
@@ -91,6 +97,11 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
             combine(car, AaPreferences(this@DashApplication).settings.map { !it.leftHandDrive }) { c, right -> c to right }
                 .distinctUntilChanged()
                 .collect { (c, right) -> soundProcessor.apply(c, right) }
+        }
+        // Speed volume (1.1.4): the car's speed, while a module reports it.
+        soundScope.launch {
+            VehicleSpeed.of(controller.systemState.values, controller.database.modules, controller.reconciliation.activity)
+                .collect { soundProcessor.speed(it) }
         }
         val ready = SoundReady(controller.systemState)
         ready.start(soundScope, sound.state, soundProcessor.state, car)
