@@ -1,5 +1,8 @@
 package com.dash.android.ui.settings.content
 
+import com.dash.android.ui.connections.BluetoothContent
+import com.dash.android.ui.connections.EthernetContent
+import com.dash.android.ui.connections.WifiContent
 import com.dash.android.ui.display.BlankingContent
 import com.dash.android.ui.display.BrightnessContent
 import com.dash.android.ui.display.ColourContent
@@ -51,6 +54,9 @@ fun SettingsContent(sub: SettingsSub) {
         "audio.mixer" -> AudioMixerContent()
         "audio.sound" -> AudioSoundContent()
         "audio.saved" -> AudioSavedContent()
+        "connections.wifi" -> WifiContent()
+        "connections.ethernet" -> EthernetContent()
+        "connections.bluetooth" -> BluetoothContent()
         "display.screens" -> ScreensContent()
         "display.rotation" -> RotationContent()
         "display.brightness" -> BrightnessContent()

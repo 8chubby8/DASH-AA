@@ -272,6 +272,9 @@ fun TouchscreenContent() {
                 InfoRows(listOf(t.name to (state.screens.firstOrNull { it.id == t.screenId }?.name ?: "The screen it is part of")))
             }
         }
+        // DASH's on-screen keyboard (1.1.6): its one setting lives with the touchscreen it is for.
+        SettingsSectionHeader("On-screen keyboard")
+        com.dash.android.ui.keyboard.KeyboardSettings()
         SettingsSectionHeader("Try it")
         TouchTest()
     }

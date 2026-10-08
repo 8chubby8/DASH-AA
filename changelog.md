@@ -22,6 +22,136 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.6
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-08. Tests pass (104), plus opt-in probes: `-Dconnections=1` reads the G14's
+real NetworkManager and BlueZ (read only — nothing joined, paired or applied), and `-Dscreenshots=1` draws
+every Connections tab, the keyboard and the pairing prompt against pretend networks (two Wi-Fi adapters, a
+cable, a phone and modules). Roger tried it on the G14: "it all seems to work. i think its a bit clunky,
+but itll do the job" — polish comes later, with the rest of the settings.
+
+**What and why.** Connections, the fourth 1.1.x category, and two items from the no-desktop checklist that
+would otherwise stop the touchscreen PC: **joining Wi-Fi** and **pairing Bluetooth**, both of which only a
+desktop did until now. With no desktop nothing answers a phone asking "does this code match?", so calls
+and Bluetooth modules could never be set up. Decided with Roger before building:
+- **Ethernet is its own tab** (Wi-Fi · Ethernet · Bluetooth). Roger's car: a GL.iNet Mudi V2 SIM router
+  (always on, battery-backed) on a cable through a USB hub's Ethernet port for the internet, Wi-Fi modules
+  on the router's 2.4 GHz, and the laptop's own Wi-Fi left free to host 5 GHz for wireless Android Auto
+  (1.4.x — direct phone-to-DASH, as the protocol is designed, never through the router). The router could
+  not share its internet over USB.
+- **Every car its own way** (Roger: "Maybe they don't want wireless Android auto… Maybe they don't need
+  internet. Or maybe they want 2 WiFi adaptors for different things"). So each Wi-Fi adapter is given a
+  **job** — Join networks, DASH network, or Off — and DASH assumes nothing else.
+- **The on-screen keyboard** is needed, QWERTY, and **only while the car is stopped**, as a setting on
+  by default. With no module reporting the speed or the handbrake it is always allowed (Roger: "if it
+  doesn't have any of those signals then it will default to being allowed all the time").
+- **Phones' Bluetooth music is refused by DASH itself**, on by default (built as recommended; Roger: "just
+  build what you think we need").
+- **The DASH network's settings show only once an adapter has that job** (Roger, after trying it).
+- **One card hosting and joining at once** ("split card"): left for now (Roger) — see Outstanding.
+
+**Done:**
+- **The seams** (shared): `connections/NetworkSystem.kt` — adapters and their jobs, networks nearby and
+  saved, the internet check, addresses, a phone's internet over Bluetooth; `connections/BluetoothSystem.kt`
+  — the radio, name, visibility, devices by kind (`DeviceKind`: a **module** by the `D.A.S.H` marker of
+  module-sdk.md §12, otherwise by the device's own class of device), and `PairingRequest` (confirm a code,
+  type a PIN or passkey, show a code, allow). `connections/ConnectionsPreferences.kt` — DASH's own choices:
+  jobs by hardware address, the DASH network (name, a generated 12-character password, band), the keyboard
+  lock, the music guard.
+- **NetworkManager** (`connections/linux/NetworkManagerNetwork.kt`) through `nmcli`, as the seat user —
+  the requests GNOME's and KDE's network settings make; polkit lets the person at the seat make them with
+  no password. Watched with `nmcli monitor`, not polled. Joining, forgetting, order (autoconnect priority,
+  tens apart), joins-by-itself, metered, fixed or automatic address (reapplied in place where it can be).
+  **The DASH network** is one NetworkManager connection, `DASH network`: an access point with WPA2-AES (the
+  security every module radio speaks), its address shared, so devices on it get an address from DASH (and
+  DASH's internet if it has any); 2.4 GHz by default (ESP32s hear nothing else), 5 GHz on channel 36 (no
+  radar wait). Jobs are carried out by `apply()`, only when they or the adapters change.
+- **BlueZ, and DASH as its pairing agent** (`connections/linux/BlueZBluetooth.kt`) over the system message
+  bus with **dbus-java** (MIT, pure Java, new): BlueZ has to *call* DASH to ask the pairing questions,
+  which the command-line tools cannot do. Registered as `KeyboardDisplay` and made the default agent while
+  DASH runs (on GNOME it takes over from GNOME's while DASH is open). Questions wait 30 s for the person,
+  then are refused. Devices paired through DASH are **trusted**, so they reconnect by themselves. Changes
+  followed live (InterfacesAdded/Removed, PropertiesChanged; re-registered if BlueZ restarts). BlueZ's
+  errors in plain words.
+- **No Bluetooth music from phones** (`connections/linux/BluetoothMusic.kt`): a WirePlumber drop-in of the
+  seat user's own (`~/.config/wireplumber/wireplumber.conf.d/51-dash-aa-no-bluetooth-music.conf`) offering
+  WirePlumber's default Bluetooth roles less the two that receive music (`a2dp_sink`, `bap_sink`). The phone
+  never sees a speaker, so the 1.0.6 crash cannot happen however its *Media audio* switch is set. Calls,
+  Bluetooth headphones and internet over Bluetooth are untouched. WirePlumber restarts only when the
+  setting changes (about a second of silence; on the first start of 1.1.6, once).
+- **Connections › Wi-Fi** (`ui/connections/WifiContent.kt`): Wi-Fi on/off; each adapter's job; the
+  network it is on, with the **address modules connect to** and Automatic/Fixed (one tap on Fixed keeps the
+  address it has now); networks nearby (tap to join, a password field for a secured one, "Another
+  network…" for a hidden one); saved networks in order (join now, move up and down, joins by itself,
+  metered, forget); and, when an adapter hosts it, the DASH network's name, password and band.
+- **Connections › Ethernet** (`EthernetContent.kt`): each cable port — status, speed, router, the address
+  modules connect to, Automatic/Fixed. A USB hub's port appears when plugged in.
+- **Connections › Bluetooth** (`BluetoothContent.kt`): on/off, the name phones see, visible for three
+  minutes, *Music from phones*, paired devices grouped as phones, modules, sound, keyboards and controllers
+  (connect, disconnect, forget; a phone's **Internet from this phone** — its Bluetooth tethering, the
+  backup with no router; a module points to its transport), and search-and-pair.
+- **The pairing prompt** (`PairingPrompt.kt`), over everything, since a phone can start pairing at any
+  moment. A PIN opens the keyboard on its numbers, and the card moves above the keyboard.
+- **DASH's on-screen keyboard** (`ui/keyboard/DashKeyboard.kt`): UK QWERTY, two symbol pages holding every
+  printable character (and £, €), shift once for a capital and twice for caps lock, backspace that repeats
+  when held, show/hide for secrets, the text shown on the keyboard itself (its box may be underneath). Any
+  `KeyboardField` brings it up; a real keyboard keeps working. **`ui/keyboard/CarStill.kt`** decides
+  "stopped": a reported speed under 1 km/h, or with no speed the handbrake on; **a speed outranks the
+  handbrake** (a car can roll with it on); neither reported → unknown → allowed. Its setting is on
+  **Display › Touchscreen**, beside the touchscreen it is for.
+- **Transport Manager's Wi-Fi and Bluetooth buttons** open Connections instead of the desktop's settings.
+  The desktop's settings stay as a fallback button where NetworkManager or BlueZ is missing.
+- **Android Auto is told DASH covers it** while the keyboard or the pairing prompt is up, so a tap on them
+  never reaches the phone.
+- Licence list: dbus-java and SLF4J (both MIT).
+
+**What broke on the way, and was fixed:**
+- **The installed app would have had no Bluetooth at all.** The bundled Java runtime is cut down to the
+  parts DASH uses, and dbus-java needs three more: `jdk.net` and `jdk.security.auth` (to tell the system
+  bus who DASH is) and `java.xml`. Found by running the D-Bus call against the bundle's exact module list
+  before Roger saw it; added to `app/build.gradle.kts`.
+- Connection details first read with `nmcli -g`, which leaves a blank line for each empty field and so
+  broke the split between connections; read keyed (`-f`) instead.
+- The pairing prompt's PIN box and buttons sat under the keyboard.
+- **Not DASH's, found while building:** Roger's "connection error" every five minutes since connecting the
+  phone was GNOME's old *Rogers Phone Network* (Bluetooth tethering) retrying four times every five minutes
+  with tethering off on the phone. Its automatic retry was switched off (`connection.autoconnect no`);
+  Connections › Bluetooth › the phone › *Internet from this phone* switches it back.
+
+**Outstanding:**
+- **One Wi-Fi card cannot join and host at once** through NetworkManager. The G14's card can in hardware
+  (same channel only), given a second, virtual adapter that needs admin rights to create — possible as a
+  one-time install rule, like the USB phone rule. Left for now (Roger); a second USB Wi-Fi adapter does
+  it today. Limits when built: the hosted network follows the joined one's channel (and drops when it
+  moves), the radio's airtime is shared, and many 5 GHz channels (52–144) cannot be hosted on.
+- **Not tested with no desktop** (the 1.1.x rule): on GNOME only.
+- **Wi-Fi modules cannot be kept off a chosen network**: the Wi-Fi transport listens on every network, and
+  limiting it means changing `WifiTcpTransport.kt`, still identical to native's.
+- System › This Machine does not yet report NetworkManager and BlueZ.
+- **1.2.x:** the automatic login must give DASH an *active seat session*, or NetworkManager's and BlueZ's
+  policy will refuse its changes. To check when the PC is built.
+- Wi-Fi passwords go to `nmcli` on its command line for the moment it runs (seen only by this machine's own
+  processes); NetworkManager keeps the saved ones readable by root only.
+- The keyboard opens whenever a field gets focus, so on the laptop it also appears when typing with the
+  real keyboard (Close hides it).
+- Polish (Roger): the tabs work but are "a bit clunky".
+
+**For native:**
+- **Take as they are:** `connections/NetworkSystem.kt`, `connections/BluetoothSystem.kt`,
+  `connections/ConnectionsPreferences.kt`, `ui/connections/` (all four files), `ui/keyboard/` (the keyboard
+  and `CarStill`, for a head unit with no keyboard app), and the keyboard setting in `DisplayTabs.kt`.
+- **Needs an Android equivalent:** a `NetworkSystem` from `ConnectivityManager` and `WifiManager` (joining
+  through Android's Wi-Fi panel or suggestion API; no jobs — adapters reported as Android's, the DASH network
+  as absent, since Android's hotspot is the system's), and a `BluetoothSystem` from `BluetoothAdapter`
+  (bonded devices, discovery, `createBond()`; Android shows its own pairing dialog, so no `PairingRequest`
+  is raised). The tabs leave out what those report absent.
+- **Does not apply:** `connections/linux/` (NetworkManager, BlueZ over D-Bus, the WirePlumber music guard
+  — Android does not crash on Bluetooth music beside an app's), and the jlink module list.
+
+---
+
 ## Version 1.1.5
 
 **Mirrors upstream:** DASH 1.7.1

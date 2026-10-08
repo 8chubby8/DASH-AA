@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.5 complete, 2026-10-08; next 1.1.6)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; next 1.1.7)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -41,7 +41,7 @@ Appearance     Size & Scale, Transitions, Splash, Colours, Fonts, Presets, Ambie
 Layout         System Bar, Module Panel, Elements, Overlays
 Android Auto   Connection, Picture, Night & Driver side
 Audio          Equaliser, Speakers, Microphone, Volumes, Calls, Saved   (renamed 1.1.3; Saved 1.1.4)
-Connections    Wi-Fi, Bluetooth
+Connections    Wi-Fi, Ethernet, Bluetooth   (1.1.6; Ethernet its own tab, Roger 2026-10-08)
 Display        Screens, Rotation, Brightness, Colour, Screen Blanking, Touchscreen   (1.1.5)
 Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
 Modules        Module Manager, Transport Manager, Serial Monitor, Signal Monitor, Activity Log
@@ -84,12 +84,12 @@ names the stage that covers it.
 
 | The desktop does this now | With no desktop | Stage |
 |---|---|---|
-| Joins Wi-Fi networks | DASH talks to NetworkManager itself | 1.1.6 |
-| Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | 1.1.6 |
+| Joins Wi-Fi networks | DASH talks to NetworkManager itself | **done** — 1.1.6 |
+| Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | **done** — 1.1.6 (DASH is BlueZ's agent) |
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
 | Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.5 (and 1.2.x) |
 | Blanks the screen and sleeps | DASH does it | 1.1.5, 1.1.7 |
-| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | 1.1.6 / 1.1.9, with the touchscreen work |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); the Terminal's keys at 1.1.9 |
 | Picks files (the splash image) | DASH's own file picker | 1.1.8 |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
@@ -185,8 +185,20 @@ names the stage that covers it.
   a friend's Infiniti has one screen for the infotainment and one for the heating; "even a third screen
   for the dash cluster and maybe even a fourth and fifth screen for media entertainment in the rear").
   1.1.5 does the machine side (which screens, where, mirrored); roles decide what each shows. See *Later*.
-- **1.1.6 — Connections.** Wi-Fi through NetworkManager and Bluetooth through BlueZ, with "open the
-  desktop's settings" kept as the fallback.
+- **1.1.6 — Connections.** **(complete — 2026-10-08)** Wi-Fi and Ethernet through NetworkManager,
+  Bluetooth through BlueZ, all as the seat user with no desktop needed; the desktop's settings stay only
+  as a fallback where those are missing. Decided with Roger:
+  - **Every car its own way:** each Wi-Fi adapter is given a **job** — Join networks, **DASH network**
+    (the car's own Wi-Fi, for modules and later wireless Android Auto) or Off. One adapter does one job;
+    two adapters do two. Nothing assumes internet, Wi-Fi modules or wireless Android Auto.
+  - **Ethernet is its own tab** — Roger's car takes its internet from a SIM router on a cable, leaving the
+    laptop's Wi-Fi free to host 5 GHz for wireless Android Auto (1.4.x, direct, not through the router).
+    Every connection shows the address modules connect to, and it can be fixed with one tap.
+  - **DASH is the Bluetooth pairing agent** while it runs, with its own pairing prompt; phones can give
+    their internet over Bluetooth (tethering) as the backup with no router.
+  - **Phones' Bluetooth music is refused** by DASH (on by default) — the 1.0.6 crash, guarded for good.
+  - **DASH's on-screen keyboard**, QWERTY, only while the car is stopped (on by default; always allowed
+    when no module reports speed or handbrake).
 - **1.1.7 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
   a module that reports ignition.
 - **1.1.8 — System.** Date & Time, Updates, and Developer › Logs.
@@ -198,7 +210,8 @@ names the stage that covers it.
 **For native:** the categories are the same on both editions. Only what sits behind the platform-specific
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
 its **Apps** category (both are settings for whatever runs in the viewport). Connections, Display and
-Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code,
+Power are its existing Android deep links (from 1.1.6, Connections' tabs work over an Android
+`NetworkSystem` and `BluetoothSystem` instead, showing what Android reports). Display › Rotation is native's `requestedOrientation` code,
 and its Brightness and Blanking rules are shared; Screens, Colour and Touchscreen are Linux's.
 Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
@@ -246,6 +259,11 @@ without a cable. Deferred by Roger's first ruling (wired first).
   bench), **Rear** (media for the back seats; one phone gives one Android Auto picture), **Off**. DASH
   becomes one window per screen from the one app. A newly plugged screen is asked which role it takes and
   remembered (1.1.5 already asks Extend · Mirror · Off). Each touchscreen follows its own screen.
+- **One Wi-Fi card that joins and hosts at once** ("split card", raised 2026-10-08; left for now by Roger).
+  The G14's card can do both on one channel, given a virtual second adapter made once at install (it needs
+  admin rights, like the USB phone rule). Limits: the hosted network follows the joined one's channel and
+  drops when it moves; airtime is shared; channels 52–144 cannot be hosted on. A second USB adapter does it
+  today.
 - **Sound modules** (Roger, 2026-10-07; not yet designed). Roger's own: a 5-way active crossover that
   also does fade, balance, speed-dependent volume and loudness. A sound module tells DASH what it can
   do; each function it offers is taken off DASH's PipeWire chain (never done twice), and what it does not

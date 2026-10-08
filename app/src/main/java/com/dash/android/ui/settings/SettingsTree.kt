@@ -96,9 +96,12 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
         )
     ),
     SettingsCategory(
+        // 1.1.6: through NetworkManager and BlueZ, the machine's own, with no desktop needed. Ethernet is
+        // its own tab (Roger, 2026-10-08): a SIM router on a cable is how his car gets its internet.
         "connections", "Connections", listOf(
-            wip("connections.wifi", "Wi-Fi", "1.1.6"),
-            wip("connections.bluetooth", "Bluetooth", "1.1.6"),
+            SettingsSub("connections.wifi", "Wi-Fi", SettingsStatus.LIVE),
+            SettingsSub("connections.ethernet", "Ethernet", SettingsStatus.LIVE),
+            SettingsSub("connections.bluetooth", "Bluetooth", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(

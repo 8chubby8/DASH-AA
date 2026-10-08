@@ -34,6 +34,7 @@ class UiScreenshots {
         if (System.getProperty("screenshots") == null) return
         val out = File("build/screenshots").apply { mkdirs() }
         val app = DashApplication(createTempDirectory("dash-aa-ui").toFile())
+        app.network = com.dash.android.connections.PretendNetwork(); app.bluetooth = com.dash.android.connections.PretendBluetooth(); app.bluetoothMusic = {}
         app.onCreate()
         val prefs = DashPreferences(app)
         runBlocking {

@@ -58,6 +58,7 @@ class DisplayScreenshots {
         val out = File("build/screenshots").apply { mkdirs() }
         val home = createTempDirectory("dash-aa-turned").toFile()
         val app = DashApplication(home)
+        app.network = com.dash.android.connections.PretendNetwork(); app.bluetooth = com.dash.android.connections.PretendBluetooth(); app.bluetoothMusic = {}
         app.display = LinuxDisplay(File(home, "display"), { emptyList() })
         app.onCreate()
         for ((name, turns) in listOf("portrait" to 1, "landscape-reversed" to 2)) {
@@ -80,6 +81,7 @@ class DisplayScreenshots {
         val out = File("build/screenshots").apply { mkdirs() }
         val home = createTempDirectory("dash-aa-display").toFile()
         val app = DashApplication(home)
+        app.network = com.dash.android.connections.PretendNetwork(); app.bluetooth = com.dash.android.connections.PretendBluetooth(); app.bluetoothMusic = {}
         app.display = LinuxDisplay(File(home, "display"), { listOf(Pretend()) })
         app.onCreate()
         Thread.sleep(1500)

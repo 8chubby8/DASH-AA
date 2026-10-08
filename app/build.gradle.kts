@@ -59,6 +59,12 @@ dependencies {
     implementation("com.fazecast:jSerialComm:2.11.4")
     implementation("net.java.dev.jna:jna:5.19.1")
 
+    // The system message bus (D-Bus), for BlueZ (1.1.6): DASH answers pairing requests as BlueZ's agent,
+    // which means BlueZ calling DASH — something the command-line tools cannot do. Pure Java, MIT.
+    implementation("com.github.hypfvieh:dbus-java-core:5.2.2")
+    implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.2.2")
+    implementation("org.slf4j:slf4j-nop:2.0.17")
+
     testImplementation(kotlin("test"))
 }
 
@@ -115,7 +121,7 @@ compose.desktop {
             targetFormats(TargetFormat.AppImage)
             packageName = "dash-aa"
             packageVersion = dashVersionName
-            modules("java.naming", "jdk.unsupported")
+            modules("java.naming", "jdk.unsupported", "jdk.net", "java.xml", "jdk.security.auth")
         }
     }
 }
@@ -123,7 +129,7 @@ compose.desktop {
 tasks.test {
     useJUnitPlatform()
     // The screenshot harness is opt-in; forward its switches from the Gradle command line.
-    listOf("screenshots", "clicks", "sound", "display", "kwin").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
+    listOf("screenshots", "clicks", "sound", "display", "kwin", "connections").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
     outputs.upToDateWhen { listOf("screenshots", "sound", "display", "kwin").all { System.getProperty(it) == null } }
     testLogging { events("passed", "failed"); showStandardStreams = true; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }

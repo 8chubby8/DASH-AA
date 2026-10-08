@@ -92,7 +92,7 @@ import com.dash.android.ui.systembar.EditRuler
 import com.dash.android.ui.systembar.SystemBar
 import com.dash.android.ui.systembar.SystemBarConfig
 import com.dash.android.ui.viewport.AndroidAutoViewport
-import com.dash.android.system.DesktopSettings
+import androidx.compose.runtime.key
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -140,6 +140,13 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
     // Where to reopen settings after a focused task (bar edit mode) takes over the screen — so Save/
     // Cancel returns to the tab the user left, not the home screen.
     var settingsReturnTarget by remember { mutableStateOf<String?>(null) }
+    // DASH-AA 1.1.6: bumped to reopen the settings shell on [settingsReturnTarget] while it is already open —
+    // Transport Manager's Wi-Fi and Bluetooth buttons lead to Connections, DASH's own, not the desktop's.
+    var settingsJump by remember { mutableStateOf(0) }
+    // DASH's keyboard and the Bluetooth pairing question, over everything (1.1.6).
+    val keyboardUp by com.dash.android.ui.keyboard.DashKeyboard.target.collectAsState()
+    val pairingUp by dashApp.bluetooth.request.collectAsState()
+    val overlayUp = keyboardUp != null || pairingUp != null
     var editMode by remember { mutableStateOf(false) }
     var editConfig by remember { mutableStateOf<SystemBarConfig?>(null) }
     var elementWidths by remember { mutableStateOf(mapOf<String, Int>()) }
@@ -209,9 +216,10 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
             lastDashAt = controller.lastDashAt,
             wire = transport.wire,
             send = transport::send,
-            // DASH-AA: the desktop's own Wi-Fi and Bluetooth panels — pairing an SPP module is done there.
-            onOpenWifiSettings = { DesktopSettings.open("wifi") },
-            onOpenBluetoothSettings = { DesktopSettings.open("bluetooth") },
+            // DASH-AA: Connections' own Wi-Fi and Bluetooth tabs (1.1.6) — pairing an SPP module is done
+            // there, by DASH, with no desktop needed.
+            onOpenWifiSettings = { settingsReturnTarget = "connections.wifi"; settingsJump++; showSettings = true },
+            onOpenBluetoothSettings = { settingsReturnTarget = "connections.bluetooth"; settingsJump++; showSettings = true },
         ),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -533,7 +541,7 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
             if (!editMode) {
                 val viewportW = screenWidth - settingsStartInset - settingsEndInset
                 val viewportH = maxHeight - settingsTopInset - settingsBottomInset
-                LaunchedEffect(showSettings, showSplash, expansion.expanded, panelEdge, panelThickness, tabThickness, viewportW, viewportH) {
+                LaunchedEffect(showSettings, showSplash, overlayUp, expansion.expanded, panelEdge, panelThickness, tabThickness, viewportW, viewportH) {
                     val extra = if (expansion.expanded && !panelRetracted) (panelThickness + tabThickness - assemblyThickness) else 0.dp
                     val areas = if (extra <= 0.dp || viewportW <= 0.dp || viewportH <= 0.dp) emptyList() else {
                         val fx = (extra / viewportW).coerceIn(0f, 1f)
@@ -545,7 +553,7 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
                             PanelEdge.RIGHT -> java.awt.geom.Rectangle2D.Float(1f - fx, 0f, fx, 1f)
                         })
                     }
-                    dashApp.androidAuto.updateCovered(fully = showSettings || showSplash, areas = areas)
+                    dashApp.androidAuto.updateCovered(fully = showSettings || showSplash || overlayUp, areas = areas)
                 }
                 AndroidAutoViewport(
                     host = dashApp.androidAuto,
@@ -599,10 +607,12 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
                         contentAlignment = if (barIsTop) Alignment.TopStart else Alignment.BottomStart
                     ) {
                         Box(modifier = Modifier.fillMaxWidth().height(fullHeight)) {
-                            SettingsShell(
-                                initialSubId = settingsReturnTarget,
-                                onClose = { showSettings = false; settingsReturnTarget = null },
-                            )
+                            key(settingsJump) {
+                                SettingsShell(
+                                    initialSubId = settingsReturnTarget,
+                                    onClose = { showSettings = false; settingsReturnTarget = null },
+                                )
+                            }
                         }
                     }
 
@@ -935,6 +945,11 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
             // The Serial Monitor and Signal Monitor are settings tabs since 1.5.12 (Modules › Serial
             // Monitor / Signal Monitor), rendered inside the shell — no standalone routes any more.
             // They reach the transport layer and the sourceless core through the two desks above.
+
+            // DASH-AA 1.1.6: the Bluetooth pairing question, then the keyboard (which a PIN is typed with) over it.
+            com.dash.android.ui.connections.PairingPrompt()
+            com.dash.android.ui.keyboard.KeyboardOverlay(Modifier.align(Alignment.BottomCenter))
+            LaunchedEffect(showSettings) { if (!showSettings && pairingUp == null) com.dash.android.ui.keyboard.DashKeyboard.close() }
 
             // Splash overlay — sits above everything, including the settings panel. "None" is a real
             // choice (roadmap 1.5.15, Roger): DASH has no opinion on whether you want a splash, so

@@ -15,6 +15,12 @@ import com.dash.android.audio.VolumeButtons
 import com.dash.android.audio.limitStartupVolume
 import com.dash.android.audio.linux.PipeWireChain
 import com.dash.android.audio.linux.PipeWireSound
+import com.dash.android.connections.BluetoothSystem
+import com.dash.android.connections.ConnectionsPreferences
+import com.dash.android.connections.NetworkSystem
+import com.dash.android.connections.linux.BlueZBluetooth
+import com.dash.android.connections.linux.BluetoothMusic
+import com.dash.android.connections.linux.NetworkManagerNetwork
 import com.dash.android.display.DisplaySystem
 import com.dash.android.display.DisplayPreferences
 import com.dash.android.display.DisplayRules
@@ -95,6 +101,18 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     var display: DisplaySystem = LinuxDisplay(File(filesDir, "display"))
         internal set  // tests set a pretend display program before onCreate
 
+    /**
+     * **The networks and Bluetooth** (DASH-AA 1.1.6) — NetworkManager and BlueZ. Started here, not in a
+     * tab: each Wi-Fi adapter's job and the DASH network hold from the moment DASH starts, and DASH is
+     * the Bluetooth pairing agent for as long as it runs, whether or not settings are open.
+     */
+    var network: NetworkSystem = NetworkManagerNetwork()
+        internal set  // tests set pretend ones before onCreate
+    var bluetooth: BluetoothSystem = BlueZBluetooth()
+        internal set
+    /** Phones' Bluetooth music refused or allowed — WirePlumber's own setting, changed here only. */
+    internal var bluetoothMusic: (Boolean) -> Unit = BluetoothMusic::set
+
     fun onCreate() {
         transport = TransportManager(this)
         controller = DashController(transport, this)
@@ -135,6 +153,14 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
         soundScope.launch {
             VehicleSpeed.of(controller.systemState.values, controller.database.modules, controller.reconciliation.activity)
                 .collect { soundProcessor.speed(it) }
+        }
+        // Connections (1.1.6): DASH's choices carried out whenever they change.
+        network.start()
+        bluetooth.start()
+        val connections = ConnectionsPreferences(this).settings
+        soundScope.launch { connections.distinctUntilChanged().collect { network.apply(it) } }
+        soundScope.launch(Dispatchers.IO) {
+            connections.map { it.noBluetoothMusic }.distinctUntilChanged().collect { bluetoothMusic(it) }
         }
         val ready = SoundReady(controller.systemState)
         ready.start(soundScope, sound.state, soundProcessor.state, car)

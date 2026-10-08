@@ -46,9 +46,10 @@ driving Android Auto.
 the car's sound system (1.1.2–1.1.4); **Display** sets up the screens through GNOME, KDE's KWin or a
 wlroots display program — screens, rotation (Android Auto goes tall with the screen), brightness by day and
 night, colour and night light, blanking, touchscreens (1.1.5). Changes to the screens are temporary on a
-desktop: closing DASH puts them back.
+desktop: closing DASH puts them back. **Connections** is the machine's network and Bluetooth settings
+(1.1.6): Wi-Fi, Ethernet, the DASH network, and pairing, with DASH's own on-screen keyboard.
 
-**Next: the rest of 1.1.x** — Connections, Power, System, Terminal. After that, a lightweight Linux
+**Next: the rest of 1.1.x** — Power, System, Terminal. After that, a lightweight Linux
 distribution with DASH-AA built in, so a touchscreen PC boots straight into DASH. See `roadmap.md`.
 
 ---
@@ -160,7 +161,8 @@ Car sound also needs PipeWire 1.0 or newer and systemd's user manager; without t
 
 **Phone calls go over Bluetooth, not USB.** That's how Android Auto works in every car: the phone uses the
 head unit as a hands-free kit and only projects the call screen. So, once, **pair the phone with the
-computer** in your desktop's Bluetooth settings. DASH-AA then gives Android Auto the computer's Bluetooth
+computer** — from DASH's Settings › Connections › Bluetooth (search, tap the phone, check the code), or
+from the phone with the computer set *Visible* there. DASH-AA then gives Android Auto the computer's Bluetooth
 address. During a call, it joins the phone's voice to the speakers and the microphone to the phone.
 Android Auto › Connection › *Calls* says whether it's ready. **Settings › Audio › Calls** has:
 - the call volume (up to 300%, independent of music)
@@ -168,9 +170,11 @@ Android Auto › Connection › *Calls* says whether it's ready. **Settings › 
 - with Car sound on, **Calls play through** all speakers, the front only or the driver's side, and
   **Subwoofer in calls** — only the choices your speakers make sense of.
 
-**Then, on the phone, give the computer calls only:** Settings › Connected devices › the computer's gear ›
-turn **Media audio off** and leave **Phone calls on**. Android Auto's music already comes over USB. If the
-phone also sends it over Bluetooth, WirePlumber can crash and all sound stops.
+**Bluetooth music from the phone is refused** (Connections › Bluetooth › *Music from phones*, on by
+default). Android Auto's music already comes over USB; if the phone also sends it over Bluetooth,
+WirePlumber can crash and all sound stops. DASH tells WirePlumber not to offer the computer as a Bluetooth
+speaker, so the phone's *Media audio* switch no longer matters. Changing the setting pauses sound for a
+second.
 
 **When the layout changes shape** (bar height or position, panel size, edge or visibility), Android Auto
 restarts so it fills the new shape exactly, which takes a few seconds. An *expanded* panel never restarts
@@ -189,11 +193,13 @@ it: the panel draws over the viewport, as it does over an app on the Android edi
 
 - **USB:** plug in. Native-USB boards appear as `/dev/ttyACM*` and bridge-chip boards (the classic ESP32
   DevKitC) as `/dev/ttyUSB*`. DASH-AA finds both.
-- **WiFi:** DASH-AA listens on port **3274**. Set the module's `DASH_HOST` to the computer's address,
-  which Settings › Modules › Transport Manager shows. In the car, a Wi-Fi hotspot on the computer makes it
-  the module network.
-- **Bluetooth:** pair the module once in your desktop's Bluetooth settings (the Transport Manager's link
-  opens them). Its name must contain `D.A.S.H`.
+- **WiFi:** DASH-AA listens on port **3274**. Set the module's `DASH_HOST` to the address Settings ›
+  Connections › Ethernet or Wi-Fi shows under *Modules connect to*; set it **Fixed** there so it never
+  changes. In the car, modules can join a router DASH is also on, or the **DASH network**: give a Wi-Fi
+  adapter that job in Connections › Wi-Fi, and the car has its own Wi-Fi (2.4 GHz by default, which every
+  module hears). One adapter does one job — join a network or host one; two jobs need two adapters.
+- **Bluetooth:** pair the module once in Settings › Connections › Bluetooth: search, tap it, type its PIN
+  (often 1234 or 0000). DASH answers the pairing itself; no desktop needed. Its name must contain `D.A.S.H`.
 
 ## On the bench, with no hardware
 
