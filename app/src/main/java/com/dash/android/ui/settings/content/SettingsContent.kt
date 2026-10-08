@@ -1,5 +1,10 @@
 package com.dash.android.ui.settings.content
 
+import com.dash.android.ui.display.BlankingContent
+import com.dash.android.ui.display.BrightnessContent
+import com.dash.android.ui.display.ColourContent
+import com.dash.android.ui.display.ScreensContent
+import com.dash.android.ui.display.TouchscreenContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -46,6 +51,12 @@ fun SettingsContent(sub: SettingsSub) {
         "audio.mixer" -> AudioMixerContent()
         "audio.sound" -> AudioSoundContent()
         "audio.saved" -> AudioSavedContent()
+        "display.screens" -> ScreensContent()
+        "display.rotation" -> RotationContent()
+        "display.brightness" -> BrightnessContent()
+        "display.colour" -> ColourContent()
+        "display.blanking" -> BlankingContent()
+        "display.touchscreen" -> TouchscreenContent()
         "modules.management" -> ModulesContent()
         "modules.transport" -> TransportManagerContent()
         "modules.serial" -> SerialMonitorContent()

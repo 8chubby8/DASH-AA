@@ -42,7 +42,13 @@ what is built here.
 **Built, not yet tested on real hardware:** multi-touch from a touchscreen, and the steering-wheel module
 driving Android Auto.
 
-**Next: 1.1.x — the settings panel, reorganised for the Linux base.** After that, a lightweight Linux
+**Settings, reorganised for the Linux base (1.1.x, in progress):** Audio is the machine's sound settings and
+the car's sound system (1.1.2–1.1.4); **Display** sets up the screens through GNOME, KDE's KWin or a
+wlroots display program — screens, rotation (Android Auto goes tall with the screen), brightness by day and
+night, colour and night light, blanking, touchscreens (1.1.5). Changes to the screens are temporary on a
+desktop: closing DASH puts them back.
+
+**Next: the rest of 1.1.x** — Connections, Power, System, Terminal. After that, a lightweight Linux
 distribution with DASH-AA built in, so a touchscreen PC boots straight into DASH. See `roadmap.md`.
 
 ---
@@ -79,6 +85,7 @@ app/build/compose/binaries/main/app/dash-aa/bin/dash-aa     # or "DASH-AA" from 
 | **Ctrl+Q** | quit |
 | `DASH_WINDOWED=1` | start in a window (for the bench) |
 | `DASH_SCALE=1.5` | override the display scale (the in-car screen is yours to size) |
+| `DASH_DISPLAY=window` | ignore the desktop's display program: Rotation turns DASH's own picture instead (for trying it) |
 | `DASH_HOME=…` | keep data somewhere other than `~/.local/share/dash-aa` |
 | `DASH_VERBOSE=1` | debug logging |
 

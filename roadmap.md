@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 and 1.1.4 complete, 2026-10-08; next 1.1.5)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.5 complete, 2026-10-08; next 1.1.6)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -42,7 +42,7 @@ Layout         System Bar, Module Panel, Elements, Overlays
 Android Auto   Connection, Picture, Night & Driver side
 Audio          Equaliser, Speakers, Microphone, Volumes, Calls, Saved   (renamed 1.1.3; Saved 1.1.4)
 Connections    Wi-Fi, Bluetooth
-Display        Brightness, Screen blanking, Touchscreen, Rotation
+Display        Screens, Rotation, Brightness, Colour, Screen Blanking, Touchscreen   (1.1.5)
 Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
 Modules        Module Manager, Transport Manager, Serial Monitor, Signal Monitor, Activity Log
 Vehicle        (v3)
@@ -161,10 +161,30 @@ names the stage that covers it.
   - **Audio › Saved** (Roger, while testing): the car sound in five numbered slots, like a radio's memory
     buttons — hold to save, press to load — with undo of the last load; and changing a speaker's device
     keeps its tuning.
-- **1.1.5 — Display.** Rotation first: ask the display service to rotate the screen (GNOME's Mutter on the
-  laptop; whatever runs the display on the 1.2.x PC), so the touchscreen turns with it. Where no display
-  service is reachable, DASH rotates its own picture, and its own touch input, inside the window. Then
-  brightness and screen blanking.
+- **1.1.5 — Display.** **(complete — 2026-10-08)** Everything a desktop's display settings have, since with no
+  desktop DASH's are the only ones (Roger, 2026-10-08: "what we build has got to replace what is in KDE"),
+  all in one stage at his asking. Six tabs: **Screens · Rotation · Brightness · Colour · Screen Blanking ·
+  Touchscreen**.
+  - **Through the display program, whichever it is** (Roger: the final distribution will probably run
+    KWin, the laptop runs GNOME, so "it has to work with both"): GNOME's Mutter, KDE's KWin
+    (`kscreen-doctor`) or a wlroots one (labwc, sway, cage — `wlr-randr`), detected at start; what the one
+    running cannot do does not appear. With none, **DASH turns its own picture** inside its window.
+  - **Screens:** each screen on or off, the main one, mirrored or its own, which side of the main one,
+    resolution, refresh rate, adaptive sync, fit-to-edges (overscan) and scale. **A screen plugged in for
+    the first time is asked about** (Extend · Mirror · Off) and remembered by its own identity, so it is
+    set up the same way whenever it is plugged in.
+  - **Rotation:** native's tab and tiles; Auto, on a machine with no tilt sensor, is the screen as DASH
+    found it. A touchscreen read directly turns with the screen.
+  - **Brightness by day and by night** — night while a module reports `headlights_on`, like a car's dimmer.
+    **Colour:** HDR and colour range where a screen has them, and night light (off, on, with the
+    headlights) with its warmth. **Blanking:** after 1–30 minutes untouched, dimming first; any touch wakes
+    it. **Touchscreen:** which screen each drives, and a place to try it.
+  - **Every risky change asks to be kept** (15 s, then it goes back by itself). On the laptop nothing is
+    permanent: when DASH closes, the screens go back the way the desktop had them.
+- **Several screens, each with a job** — **screen roles**, planned for a later version (Roger, 2026-10-08:
+  a friend's Infiniti has one screen for the infotainment and one for the heating; "even a third screen
+  for the dash cluster and maybe even a fourth and fifth screen for media entertainment in the rear").
+  1.1.5 does the machine side (which screens, where, mirrored); roles decide what each shows. See *Later*.
 - **1.1.6 — Connections.** Wi-Fi through NetworkManager and Bluetooth through BlueZ, with "open the
   desktop's settings" kept as the fallback.
 - **1.1.7 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
@@ -178,7 +198,8 @@ names the stage that covers it.
 **For native:** the categories are the same on both editions. Only what sits behind the platform-specific
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
 its **Apps** category (both are settings for whatever runs in the viewport). Connections, Display and
-Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code.
+Power are its existing Android deep links. Display › Rotation is native's `requestedOrientation` code,
+and its Brightness and Blanking rules are shared; Screens, Colour and Touchscreen are Linux's.
 Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
 non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
@@ -218,6 +239,13 @@ The machine as the phone's Wi-Fi hotspot plus the Bluetooth start-up handshake, 
 without a cable. Deferred by Roger's first ruling (wired first).
 
 #### Later, unordered
+- **Screen roles** (Roger, 2026-10-08; to be designed with him, and interface.md updated, before building).
+  Each screen given a job rather than just desktop space: **DASH** (bar, panel, viewport, settings),
+  **Mirror**, **a module's screen** (one module's panel full screen — a climate module on its own screen,
+  as in the Infiniti), **Cluster** (speed, revs, directions), **Terminal** (a monitor plugged in at the
+  bench), **Rear** (media for the back seats; one phone gives one Android Auto picture), **Off**. DASH
+  becomes one window per screen from the one app. A newly plugged screen is asked which role it takes and
+  remembered (1.1.5 already asks Extend · Mirror · Off). Each touchscreen follows its own screen.
 - **Sound modules** (Roger, 2026-10-07; not yet designed). Roger's own: a 5-way active crossover that
   also does fade, balance, speed-dependent volume and loudness. A sound module tells DASH what it can
   do; each function it offers is taken off DASH's PipeWire chain (never done twice), and what it does not

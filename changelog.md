@@ -22,6 +22,114 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.5
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-08. Tests pass (91), plus opt-in probes: `-Ddisplay=1` reads the G14's real
+GNOME and has Mutter *check* (never make) DASH's setup and a portrait one; `-Dkwin=1` drives a headless KWin
+(written, not yet run — see Outstanding); `-Dscreenshots=1` draws every Display tab against two pretend
+screens. Roger tested Rotation on the G14 in the car's way of working: turned to portrait, **Android Auto
+came back tall and filled the viewport** ("it looked great"), and the top of the picture landed on the
+panel's left edge, as the touchscreen mapping assumes.
+
+**What and why.** Display, the third 1.1.x category. It began as rotation, brightness and blanking. Roger
+widened it while it was being built: with no desktop, DASH's display settings are the machine's only ones,
+so "what we build has got to replace what is in KDE" — resolution, refresh rate, HDR, everything — all in
+1.1.5. The final distribution will probably run KWin, the laptop runs GNOME, so it "has to work with both".
+Several screens came up along the way (a friend's Infiniti has one screen for the infotainment and one for
+the heating); the machine side is built now, and **screen roles** are planned for later (roadmap, *Later*).
+
+**Done:**
+- **The seam** (`display/DisplaySystem.kt`, shared). The Display tabs talk only to `DisplaySystem`: the
+  screens (`Screen`: on/off, main, place, size, scale, quarter turns, modes, mirroring, and — null when
+  not offered — adaptive sync, overscan, HDR, colour range, brightness), `DisplayFeatures`, touchscreens,
+  and a plain-words failure. `transformFor`/`orientationOf` map native's four orientations to a display
+  program's turns, for a landscape panel or a portrait one.
+- **Three display programs, one DASH** (`display/linux/`). `LinuxDisplay` asks each in turn and keeps the
+  first that answers: **Mutter** (`MutterBackend`, GNOME's `org.gnome.Mutter.DisplayConfig` through
+  `busctl`, its JSON read with kotlinx; every change *checked* by Mutter first, then made *temporary*),
+  **KWin** (`KWinBackend`, `kscreen-doctor` and its JSON) and **wlroots** (`WlrootsBackend`, `wlr-randr`).
+  Values are each program's own documented words (Mutter's DisplayConfig XML: colour mode 1 is BT.2100,
+  RGB range 1/2/3 auto/full/limited, adaptive sync is a mode's `+vrr` twin). No root anywhere: each is a
+  request the seat user may make, the same ones the desktops' own settings make.
+- **DASH's memory of the screens.** What the tabs keep is remembered per screen by its own identity (maker,
+  model, serial — `display/screens.json`), not the socket, and applied at every start and whenever a
+  remembered screen is plugged in. A screen's place is kept as which side of the main screen it is on;
+  after any size change the screens are packed edge to edge from the main one, so no display program is
+  asked for a gap or overlap. The screens as DASH found them are written to `display/found.json` on the
+  first change (a crash cannot lose them) and **put back when DASH closes**. On the laptop GNOME's own saved
+  layout is never touched; with no desktop, DASH's memory is the machine's display settings.
+- **Display › Screens** (`ui/display/ScreensContent.kt`): a picture of how the screens sit (tap one to set
+  it up); per screen: use it (off/on), make it main, its own picture or the main one's (mirror), which side,
+  resolution, refresh rate, adaptive sync, fit-to-edges (overscan — on/off on GNOME, a percentage on KWin)
+  and scale. **A screen plugged in for the first time is asked about** — Extend · Mirror · Off — once.
+- **Display › Rotation** is native's tab (`RotationContent.kt`, its tiles and glyphs, native's two
+  preferences, `DashOrientation.kt` identical through an `ActivityInfo` shim). The whole screen turns
+  through the display program, so other programs and the touchscreen turn with it. Auto, with no tilt
+  sensor, is the screen as DASH found it. With **no display program**, DASH turns **its own picture**
+  inside its window (`ui/rotation/TurnedWindow.kt`) — laid out in the turned shape, so Android Auto
+  renegotiates a portrait picture there too; `DASH_DISPLAY=window` tries it on GNOME.
+- **"Keep this?"** (`ui/display/DisplayCommon.kt`, `DisplayTrial`). Rotation, resolution, refresh, mirroring,
+  a screen off, HDR and colour range apply at once and go back by themselves after 15 s unless kept. The
+  countdown lives outside the tabs, so the window reflowing or settings closing cannot strand it. A change
+  being tried is never remembered. This differs from native's Rotation tab, which applies with no
+  confirmation: on Linux a wrong turn can leave the touchscreen pointing elsewhere with nothing to tap.
+- **Display › Brightness** — each screen DASH can set (GNOME's own backlight control, KWin's, or logind's
+  `SetBrightness` on the built-in panel with no display program to ask), **by day and by night**: night is
+  while a module reports `headlights_on`, like a car's dimmer. **Display › Colour** — HDR and colour range
+  where a screen has them (the G14's panel offers no HDR, by Mutter's word), and **night light**: off, on,
+  or with the headlights, with its warmth (GNOME's own night light, KWin's, or `gammastep` on wlroots;
+  GNOME's settings are put back when DASH closes). **Display › Screen Blanking** — never, or 1–30 minutes
+  with nobody touching DASH, dimming for the last half-minute; any touch, key or mouse movement wakes it.
+  While DASH runs, GNOME's own blanking is held off (`gnome-session-inhibit`). The rules are
+  `display/DisplayRules.kt` (shared), settings `display/DisplayPreferences.kt`.
+- **Display › Touchscreen** — every touchscreen (`EvdevTouch.touchscreens()`, by USB id), which screen its
+  touches land on (GNOME's per-device setting, KWin's `InputDevice.outputName`), and a box to try it.
+- **The touchscreen turns with the screen.** DASH reads it directly from the kernel, in the panel's fixed
+  corners, so `EvdevTouch.panelToScreen` turns each touch by the main screen's turn, and again by DASH's own
+  turn inside the viewport. Confirmed on the G14: Portrait puts the top of the picture on the panel's left
+  edge, which is the turn the mapping makes.
+- **Android Auto in portrait, proven.** The portrait video modes (720×1280, 1080×1920) go beyond aasdk's
+  list; their first real test, on the Pixel 8 Pro, filled the viewport edge to edge.
+
+**What broke on the way, and was fixed:**
+- Keep saved Rotation's two preferences one after the other, and the half-saved pair between flicked the
+  screen; the app's listener now settles for 300 ms.
+- Colour range and night light wrapped their words in the narrow control column; they take the full width.
+- The first build asked about a new screen only if it arrived after DASH started; a screen already plugged
+  in at first start is now asked about too.
+
+**Outstanding:**
+- **KWin is untested on a real KWin.** It could not be installed on the G14 (the CachyOS mirror served
+  broken `kwin` and `layer-shell-qt` packages). Roger's home PC runs KDE: run DASH there (it finds KWin when
+  GNOME does not answer) or `./gradlew test --tests '*KWinProbe*' -Dkwin=1`. Also untested: wlroots.
+- **Not tested by Roger yet:** Screens, Brightness, Colour, Blanking and Touchscreen on the G14 (checked by
+  the live probe and headless drawings only), and anything with a second screen.
+- **Touchscreen calibration** is not built: only KWin allows it without root, and there is no touchscreen
+  here. Nothing touchscreen-side has met a real touchscreen.
+- **Scale is in two places**: Screens has the machine's scale, Appearance › Size & Scale DASH's own. DASH
+  takes up a new machine scale at its next start. One control or two is Roger's call.
+- **A new screen is asked about only in Display › Screens**: a prompt over DASH needs a notification
+  surface (v2 Notifications) or the screen-roles design.
+- With several screens, DASH stays on the screen it started on when another is made main (screen roles).
+- Night light "always on" on GNOME sets GNOME's schedule to the whole day; to watch on the laptop.
+
+**For native:**
+- **Take as they are:** `display/DisplaySystem.kt`, `display/DisplayPreferences.kt`,
+  `display/DisplayRules.kt` (brightness by day and night, night light, blanking — `UserActivity.touch()`
+  from the activity's `onUserInteraction`), `ui/display/DisplayCommon.kt` (the keep countdown), and
+  `RotationContent.kt` — native's own tab with the countdown, if Roger wants it on Android too.
+- **Needs an Android equivalent:** an Android `DisplaySystem`: `rotate` is native's
+  `requestedOrientation` code; brightness is the window's `screenBrightness` (or `Settings.System` with
+  permission); blanking is `FLAG_KEEP_SCREEN_ON` off and the system's timeout; one screen, no arrangement,
+  no colour range — reported absent, and the tabs leave them out. Night light only where the device
+  offers it.
+- **Does not apply:** `display/linux/` (the three display programs, logind's backlight),
+  `ui/rotation/TurnedWindow.kt`, the Screens and Touchscreen tabs, the `ActivityInfo` shim.
+
+---
+
 ## Version 1.1.4
 
 **Mirrors upstream:** DASH 1.7.1

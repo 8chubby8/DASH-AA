@@ -125,6 +125,10 @@ class AndroidAutoHost(
     /** The viewport and the monitor in screen coordinates, for mapping the touchscreen. */
     @Volatile private var viewportOnScreen: java.awt.Rectangle? = null
     @Volatile private var monitorOnScreen: java.awt.Rectangle? = null
+    /** How the display service has turned the screen (1.1.5): anticlockwise quarter turns, and mirroring. */
+    @Volatile var screenTurn: Pair<Int, Boolean> = 0 to false
+    /** How far DASH has turned its own picture inside its window (1.1.5, no display program): anticlockwise quarter turns. */
+    @Volatile var contentTurn: Int = 0
     /** Areas of the viewport currently covered by DASH chrome (settings, an expanded panel), as
      *  fractions of the viewport — the touchscreen reader must not reach through them. */
     @Volatile private var covered: List<java.awt.geom.Rectangle2D.Float> = emptyList()
@@ -238,13 +242,17 @@ class AndroidAutoHost(
         }
     }
 
-    private fun onScreenTouch(kind: EvdevTouch.Kind, slot: Long, sx: Float, sy: Float) {
+    private fun onScreenTouch(kind: EvdevTouch.Kind, slot: Long, panelX: Float, panelY: Float) {
         val monitor = monitorOnScreen ?: return
         val vp = viewportOnScreen ?: return
+        com.dash.android.display.UserActivity.touch()
+        val (turns, mirrored) = screenTurn
+        val (sx, sy) = EvdevTouch.panelToScreen(panelX, panelY, turns, mirrored)
         val px = monitor.x + sx * monitor.width
         val py = monitor.y + sy * monitor.height
-        val vx = (px - vp.x) / vp.width
-        val vy = (py - vp.y) / vp.height
+        // Where it lands in the viewport's box on screen — and, if DASH has turned its own picture, where
+        // that is in the viewport as drawn, turned the same way.
+        val (vx, vy) = EvdevTouch.panelToScreen((px - vp.x) / vp.width, (py - vp.y) / vp.height, contentTurn, false)
         val key = EVDEV_KEY + slot
         when (kind) {
             EvdevTouch.Kind.DOWN -> {

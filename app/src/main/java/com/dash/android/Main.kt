@@ -18,6 +18,11 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.dash.android.system.DesktopScale
 import com.dash.android.ui.screen.MainScreen
+import com.dash.android.ui.rotation.TurnedWindow
+import com.dash.android.display.transformFor
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 /**
  * DASH-AA's entry point — where upstream has `MainActivity` and the launcher intent filters.
@@ -37,6 +42,15 @@ fun main() {
     val app = DashApplication()
     app.onCreate()
     Log.i("DASH", "DASH-AA ${BuildConfig.VERSION_NAME} (mirrors DASH ${BuildConfig.UPSTREAM_VERSION}) — data in ${app.filesDir.parentFile}")
+
+    // Screen blanking (1.1.5) counts from the last touch, key or mouse movement anywhere in DASH.
+    runCatching {
+        java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(
+            { com.dash.android.display.UserActivity.touch() },
+            java.awt.AWTEvent.MOUSE_EVENT_MASK or java.awt.AWTEvent.MOUSE_MOTION_EVENT_MASK or
+                java.awt.AWTEvent.MOUSE_WHEEL_EVENT_MASK or java.awt.AWTEvent.KEY_EVENT_MASK,
+        )
+    }
 
     val windowed = System.getenv("DASH_WINDOWED") != null
     val scale = DesktopScale.detect()
@@ -69,7 +83,12 @@ fun main() {
                 LocalContext provides app,
                 LocalDensity provides Density(base.density * scale, base.fontScale),
             ) {
-                MainScreen(isColdBoot = true, window = window)
+                // With no display program to turn the screen, DASH turns its own picture (1.1.5).
+                val display by app.display.state.collectAsState()
+                val natural = window.width < window.height
+                val turns = display.ownOrientation?.let { transformFor(it, natural) } ?: 0
+                LaunchedEffect(turns) { app.androidAuto.contentTurn = turns }
+                TurnedWindow(turns) { MainScreen(isColdBoot = true, window = window) }
             }
         }
     }

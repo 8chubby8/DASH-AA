@@ -103,11 +103,15 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     ),
     SettingsCategory(
         // Rotation is back (Roger, 2026-10-07): on Linux it is part of the display settings.
+        // 1.1.5 (Roger, 2026-10-08): everything a desktop's display settings have, since with no desktop
+        // DASH's are the only ones — Screens and Colour join, all live.
         "display", "Display", listOf(
-            wip("display.brightness", "Brightness", "1.1.5"),
-            wip("display.blanking", "Screen Blanking", "1.1.5"),
-            wip("display.touchscreen", "Touchscreen", "1.1.5"),
-            wip("display.rotation", "Rotation", "1.1.5"),
+            SettingsSub("display.screens", "Screens", SettingsStatus.LIVE),
+            SettingsSub("display.rotation", "Rotation", SettingsStatus.LIVE),
+            SettingsSub("display.brightness", "Brightness", SettingsStatus.LIVE),
+            SettingsSub("display.colour", "Colour", SettingsStatus.LIVE),
+            SettingsSub("display.blanking", "Screen Blanking", SettingsStatus.LIVE),
+            SettingsSub("display.touchscreen", "Touchscreen", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(

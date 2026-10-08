@@ -23,14 +23,15 @@ import java.io.File
  *
  * **Where a touch lands.** The touchscreen is assumed to cover the monitor DASH-AA is shown on, which is
  * what an in-car touch display is. Its raw range is normalised to that monitor and handed to [onTouch]
- * as fractions of the screen; the host maps the fractions into the viewport.
+ * as fractions of the *panel*; the host turns them with the screen ([panelToScreen], 1.1.5) and maps
+ * them into the viewport.
  */
 class EvdevTouch(
     private val onTouch: (kind: Kind, slotKey: Long, screenX: Float, screenY: Float) -> Unit,
 ) {
     enum class Kind { DOWN, MOVE, UP }
 
-    data class Device(val path: String, val name: String)
+    data class Device(val path: String, val name: String, val usbId: String? = null)
 
     @Volatile var device: Device? = null
         private set
@@ -136,6 +137,23 @@ class EvdevTouch(
         private const val INPUT_PROP_DIRECT = 1
         private const val MAX_SLOTS = 10
 
+        /**
+         * A touch at ([px], [py]) — fractions of the panel's own fixed corners, as the kernel reports
+         * them — as fractions of the screen as it is now shown, when the display service has turned the
+         * picture [quarterTurns] anticlockwise (Mutter's transform, Wayland's), first mirroring it if
+         * [mirrored] (1.1.5). The same turn the display service gives the touchscreen for every other
+         * program; DASH reads the device directly, so it makes the turn itself.
+         */
+        fun panelToScreen(px: Float, py: Float, quarterTurns: Int, mirrored: Boolean): Pair<Float, Float> {
+            val x = if (mirrored) 1f - px else px
+            return when (quarterTurns and 3) {
+                1 -> (1f - py) to x
+                2 -> (1f - x) to (1f - py)
+                3 -> py to (1f - x)
+                else -> x to py
+            }
+        }
+
         private fun u16(b: ByteArray, o: Int) = (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8)
         private fun s32(b: ByteArray, o: Int) =
             (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8) or
@@ -145,14 +163,18 @@ class EvdevTouch(
          * A touchscreen, from `/proc/bus/input/devices`: a device marked *direct* (drawn-on, unlike a
          * touchpad) that reports multi-touch positions.
          */
-        fun findTouchscreen(): Device? {
-            val text = runCatching { File("/proc/bus/input/devices").readText() }.getOrNull() ?: return null
-            return text.split("\n\n").firstNotNullOfOrNull { block ->
-                val name = Regex("""N: Name="(.*)"""").find(block)?.groupValues?.get(1) ?: return@firstNotNullOfOrNull null
-                val handler = Regex("""H: Handlers=.*?(event\d+)""").find(block)?.groupValues?.get(1) ?: return@firstNotNullOfOrNull null
+        fun findTouchscreen(): Device? = touchscreens().firstOrNull()
+
+        /** Every touchscreen (1.1.5: Display › Touchscreen lists them all). */
+        fun touchscreens(text: String? = runCatching { File("/proc/bus/input/devices").readText() }.getOrNull()): List<Device> {
+            if (text == null) return emptyList()
+            return text.split("\n\n").mapNotNull { block ->
+                val name = Regex("""N: Name="(.*)"""").find(block)?.groupValues?.get(1) ?: return@mapNotNull null
+                val handler = Regex("""H: Handlers=.*?(event\d+)""").find(block)?.groupValues?.get(1) ?: return@mapNotNull null
                 val prop = bits(Regex("""B: PROP=([0-9a-f ]+)""").find(block)?.groupValues?.get(1))
                 val abs = bits(Regex("""B: ABS=([0-9a-f ]+)""").find(block)?.groupValues?.get(1))
-                if (INPUT_PROP_DIRECT in prop && ABS_MT_POSITION_X in abs) Device("/dev/input/$handler", name) else null
+                val usb = Regex("""Vendor=([0-9a-f]{4}) Product=([0-9a-f]{4})""").find(block)?.let { "${it.groupValues[1]}:${it.groupValues[2]}" }
+                if (INPUT_PROP_DIRECT in prop && ABS_MT_POSITION_X in abs) Device("/dev/input/$handler", name, usb) else null
             }
         }
 

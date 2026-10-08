@@ -15,12 +15,19 @@ import com.dash.android.audio.VolumeButtons
 import com.dash.android.audio.limitStartupVolume
 import com.dash.android.audio.linux.PipeWireChain
 import com.dash.android.audio.linux.PipeWireSound
+import com.dash.android.display.DisplaySystem
+import com.dash.android.display.DisplayPreferences
+import com.dash.android.display.DisplayRules
+import com.dash.android.display.linux.LinuxDisplay
+import com.dash.android.prefs.DashPreferences
+import com.dash.android.ui.rotation.DashOrientation
 import com.dash.android.transport.DashController
 import com.dash.android.transport.TransportManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -80,6 +87,14 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     /** Audio › Saved (1.1.4): the car sound in numbered slots, one for the whole app so every tab sees the same. */
     val soundMemories by lazy { SoundMemories(File(filesDir, "sound")) }
 
+    /**
+     * **The screens** (DASH-AA 1.1.5) — through whichever display program is running. DASH's setup and
+     * Rotation's choice are applied here rather than in a tab, so they hold from the moment DASH starts,
+     * and the way DASH found the screens is put back when it closes.
+     */
+    var display: DisplaySystem = LinuxDisplay(File(filesDir, "display"))
+        internal set  // tests set a pretend display program before onCreate
+
     fun onCreate() {
         transport = TransportManager(this)
         controller = DashController(transport, this)
@@ -90,6 +105,24 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
         sound.start()
         soundProcessor.start()
         val soundScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        display.start()
+        soundScope.launch {
+            // Native's two preferences, unchanged: Auto (on a machine with no tilt sensor, the screen as
+            // DASH found it) or a fixed orientation. Native hands them to requestedOrientation.
+            val prefs = DashPreferences(this@DashApplication)
+            // Settled briefly: the two are saved one after the other, and the pair between means nothing.
+            combine(prefs.autoRotate, prefs.lockedOrientation) { auto, locked -> if (auto) null else DashOrientation.from(locked) }
+                .debounce(300)
+                .distinctUntilChanged()
+                .collect { display.rotate(it) }
+        }
+        soundScope.launch {
+            // A touchscreen read directly turns with the screen.
+            display.state.collect { s -> s.main?.let { androidAuto.screenTurn = it.quarterTurns to it.flipped } }
+        }
+        // Brightness by day and night, night light, and blanking (1.1.5).
+        DisplayRules(controller.systemState, display, DisplayPreferences(this).settings, soundScope).start()
+        Runtime.getRuntime().addShutdownHook(Thread { display.restore() })
         VolumeButtons(controller.systemState, sound, SoundPreferences(this).settings, androidAuto, soundScope).start()
         val car = SoundPreferences(this).settings.map { it.car }.distinctUntilChanged()
         soundScope.launch {
