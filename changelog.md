@@ -137,6 +137,13 @@ and Bluetooth modules could never be set up. Decided with Roger before building:
 - The keyboard opens whenever a field gets focus, so on the laptop it also appears when typing with the
   real keyboard (Close hides it).
 - Polish (Roger): the tabs work but are "a bit clunky".
+- The music guard refuses Bluetooth music **always**; the rule is only *while Android Auto is active*.
+  Following Android Auto (allowed with no phone projecting) is planned with the polish — roadmap,
+  *Later*, *Sound sources*.
+
+**Bible (Roger, 2026-10-08, after release):** CLAUDE.md's hard-won rules now read **no Bluetooth music from
+the phone while Android Auto is active**, refused by DASH itself, in place of "the phone must have *Media
+audio* off". Sound sources (Bluetooth music, line in, USB stick or SD card) added to the roadmap.
 
 **For native:**
 - **Take as they are:** `connections/NetworkSystem.kt`, `connections/BluetoothSystem.kt`,

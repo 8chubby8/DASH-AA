@@ -366,8 +366,10 @@ design. If something in them seems wrong or incomplete, raise it — do not work
   (hands-free only); during a call PipeWire's echo canceller is started, the phone's two call streams are
   moved through it, and the call volume is applied to the voice stream before it.
 - **Hard-won rules** (each in the changelog): never open a sound device on the session thread; never let a
-  stalled sound system stop acknowledgements to the phone; the phone must have *Media audio* off for the
-  laptop (Bluetooth music crashes WirePlumber); give every PipeWire stream its own identity.
+  stalled sound system stop acknowledgements to the phone; **no Bluetooth music from the phone while
+  Android Auto is active** (the two together crash WirePlumber) — DASH refuses it itself (Connections ›
+  Bluetooth › *Music from phones*, 1.1.6), never relying on the phone's *Media audio* switch; give every
+  PipeWire stream its own identity.
 - **Build system:** Gradle. `./gradlew test` runs the fake-phone and parser tests; `./gradlew
   createDistributable` builds the self-contained app (`app/build/compose/binaries/main/app/dash-aa/`).
 - **Data:** `~/.local/share/dash-aa` (override with `DASH_HOME`).

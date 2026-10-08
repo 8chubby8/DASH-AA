@@ -264,6 +264,12 @@ without a cable. Deferred by Roger's first ruling (wired first).
   admin rights, like the USB phone rule). Limits: the hosted network follows the joined one's channel and
   drops when it moves; airtime is shared; channels 52–144 cannot be hosted on. A second USB adapter does it
   today.
+- **Sound sources** (Roger, 2026-10-08): DASH as the car's source selector, like a head unit's — Android
+  Auto, **Bluetooth music**, **line in** (analogue, and digital such as optical), and **a USB stick or SD
+  card** played by DASH itself. Each one a PipeWire input into DASH's sound chain, chosen from Audio. The
+  rule stands (CLAUDE.md): **no Bluetooth music while Android Auto is active**. The first step, small and
+  due with the 1.1.x polish: the 1.1.6 music guard follows Android Auto — Bluetooth music allowed while
+  no phone is projecting, refused the moment one starts — where today it refuses always.
 - **Sound modules** (Roger, 2026-10-07; not yet designed). Roger's own: a 5-way active crossover that
   also does fade, balance, speed-dependent volume and loudness. A sound module tells DASH what it can
   do; each function it offers is taken off DASH's PipeWire chain (never done twice), and what it does not
