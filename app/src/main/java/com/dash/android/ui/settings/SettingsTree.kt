@@ -118,11 +118,17 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
         )
     ),
     SettingsCategory(
+        // 1.1.7 (Roger, 2026-10-09): everything a desktop's power settings have — sleep, the lid, profiles,
+        // the battery — on any machine: a laptop, a mini PC on the car's supply, a tablet. Leave DASH joins
+        // Shut Down & Restart, beside Restart DASH for a machine with no desktop to leave to.
         "power", "Power", listOf(
-            // Waits for a module that reports ignition — not a version, so it says so.
-            wip("power.ignition", "Ignition Behaviour", "a module that reports ignition"),
-            wip("power.actions", "Sleep, Shut Down, Restart", "1.1.7"),
-            wip("power.leave", "Leave DASH", "1.1.7"),
+            SettingsSub("power.actions", "Shut Down & Restart", SettingsStatus.LIVE),
+            // The car's own power (Roger, 2026-10-09) — Ignition Behaviour grown into the stages and outputs.
+            SettingsSub("power.car", "Car", SettingsStatus.LIVE),
+            SettingsSub("power.outputs", "Outputs", SettingsStatus.LIVE),
+            SettingsSub("power.sleep", "Sleep & Wake", SettingsStatus.LIVE),
+            SettingsSub("power.performance", "Performance", SettingsStatus.LIVE),
+            SettingsSub("power.battery", "Battery", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(

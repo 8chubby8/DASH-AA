@@ -144,6 +144,8 @@ class AndroidAutoHost(
     @Volatile private var debugHold = false
     @Volatile private var parked = false
     @Volatile private var reconnectNow = false
+    /** Between the machine saying it will sleep and it waking (1.1.7) — no phone is looked for. */
+    @Volatile private var asleep = false
     @Volatile private var activeGeometry: VideoGeometry? = null
     @Volatile private var activeConnectionSettings: AaSettings? = null
 
@@ -289,6 +291,28 @@ class AndroidAutoHost(
         session?.requestShutdown()
     }
 
+    /**
+     * The machine is about to sleep (1.1.7): end the projection the way the phone expects — asked, then
+     * closed if it does not answer — so its streams, the microphone and the call audio are all shut before
+     * the USB link goes. Waits at most [SLEEP_CLOSE_MS]; the machine allows only a few seconds.
+     */
+    fun machineSleeping() {
+        asleep = true
+        reconnectNow = true
+        val s = session ?: return
+        s.requestShutdown()
+        val until = System.currentTimeMillis() + SLEEP_CLOSE_MS
+        while (session === s && System.currentTimeMillis() < until) Thread.sleep(50)
+        if (session === s) s.close("the machine went to sleep")
+    }
+
+    /** The machine has woken: look for the phone afresh — its USB link is new, even if the cable never moved. */
+    fun machineWoke() {
+        asleep = false
+        parked = false
+        reconnectNow = true
+    }
+
     fun requestRestart(why: String) {
         val s = session ?: return
         if (restartRequested) return
@@ -319,6 +343,7 @@ class AndroidAutoHost(
                 if (backoff > 0) { sleepUntilReconnect(backoff); backoff = 0 }
                 reconnectNow = false
                 if (debugHold) { Thread.sleep(POLL_MS); continue }
+                if (asleep) { Thread.sleep(200); continue }
                 if (!settings.enabled) { _status.value = AaStatus.Disabled; Thread.sleep(POLL_MS); continue }
                 if (!viewportSettled()) { Thread.sleep(200); continue }
 
@@ -484,6 +509,7 @@ class AndroidAutoHost(
     private companion object {
         const val TAG = "DashAndroidAuto"
         const val POLL_MS = 1000L
+        const val SLEEP_CLOSE_MS = 2000L
         const val SETTLE_MS = 1200L
         const val SWITCH_SETTLE_MS = 1500L
         const val SWITCH_COOLDOWN_MS = 4000L

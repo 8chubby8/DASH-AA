@@ -43,6 +43,8 @@ object SystemCommands {
             "door_boot_open", "door_boot_glass_open", "door_bonnet_open", "door_fuel_flap_open",
             "charge_port_open"
         )
+        // Doors & Access — the car locked (DASH-AA 1.1.7, Roger 2026-10-09)
+        storeAndEvent("doors_locked")
         // Windows
         storeAndEvent("window_driver_up", "window_passenger_up")
         // Lights
@@ -59,6 +61,8 @@ object SystemCommands {
             "vehicle_speed", "steering_angle", "engine_rpm", "fuel_level", "coolant_temp",
             "ambient_temp", "ambient_light"
         )
+        // Vehicle State — the car's own battery, for protecting it (DASH-AA 1.1.7)
+        storeOnly("battery_voltage")
         // Safety
         storeAndEvent("seatbelt_driver_fastened", "seatbelt_passenger_fastened")
         // Safety — a warning for every seat; the module decides when (DASH-AA 1.1.3, Roger 2026-10-08)
@@ -69,6 +73,10 @@ object SystemCommands {
         )
         // Head Unit — DASH raises these itself, and a module may too (DASH-AA 1.1.3)
         storeAndEvent("sound_ready", "screen_on")
+        // Head Unit — the car's power (DASH-AA 1.1.7, Roger 2026-10-09): a power module's word, DASH's stage,
+        // and the switched outputs DASH raises for a relay module to carry out
+        storeAndEvent("head_unit_awake", "power_state")
+        storeAndEvent(*Array(8) { "power_output_${it + 1}" })
         // EV / Charging
         storeAndEvent("charge_connected")
         storeOnly("charge_level")

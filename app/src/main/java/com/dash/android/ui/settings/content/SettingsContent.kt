@@ -8,6 +8,12 @@ import com.dash.android.ui.display.BrightnessContent
 import com.dash.android.ui.display.ColourContent
 import com.dash.android.ui.display.ScreensContent
 import com.dash.android.ui.display.TouchscreenContent
+import com.dash.android.ui.power.CarPowerContent
+import com.dash.android.ui.power.PowerActionsContent
+import com.dash.android.ui.power.PowerOutputsContent
+import com.dash.android.ui.power.PowerBatteryContent
+import com.dash.android.ui.power.PowerPerformanceContent
+import com.dash.android.ui.power.PowerSleepContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -63,6 +69,12 @@ fun SettingsContent(sub: SettingsSub) {
         "display.colour" -> ColourContent()
         "display.blanking" -> BlankingContent()
         "display.touchscreen" -> TouchscreenContent()
+        "power.actions" -> PowerActionsContent()
+        "power.car" -> CarPowerContent()
+        "power.outputs" -> PowerOutputsContent()
+        "power.sleep" -> PowerSleepContent()
+        "power.performance" -> PowerPerformanceContent()
+        "power.battery" -> PowerBatteryContent()
         "modules.management" -> ModulesContent()
         "modules.transport" -> TransportManagerContent()
         "modules.serial" -> SerialMonitorContent()

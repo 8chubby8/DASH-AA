@@ -22,6 +22,131 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.7
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-09. Tests pass (118), plus opt-in probes: `-Dpower=1` reads the G14's real
+logind, UPower and power profiles (read only — nothing slept, switched or limited), and `-Dscreenshots=1`
+draws every Power tab on a pretend laptop and a pretend mini PC on the car's supply. The ESP32 Power
+Tester was flashed to a classic ESP32 and answered DISCOVER, INSTALL and ACTIVATE by hand over its port.
+Roger looked it over on the G14: "i think things will become more clear as i start building modules".
+
+**What and why.** Power, the fifth 1.1.x category, in two halves.
+
+**The machine's power** — replacing what a desktop's power settings do (Roger: "sleep states and screen
+sleeps… power profiles too, so processor speeds"), on any machine: the G14 today, an N100 mini PC or a
+Surface equally (Roger: "this is currently on a g14 laptop, but we could be running on an n100 pc or a
+microsoft surface equally"). Everything is capability-detected; a mini PC with no battery, no lid and no
+profiles service shows none of them.
+
+**The car's power** — Roger, 2026-10-09: "these are not just computer power profiles but if profiles of
+power for the car itself as well". A factory head unit's stages run from what modules report, switched
+outputs for amplifiers and the like, and the car's battery protected. Planned for 1.1.8 at first; Roger
+kept it in this version.
+
+Decided with Roger before building:
+- **Leave DASH appears only with a desktop to go back to**; Restart DASH is always there.
+- **No fine processor control** (clock limits, boost): those are root's. The three profiles do it.
+- **Hibernate appears only where the machine already has it set up**; `install.sh` does not offer to.
+- **Sleeping the machine is the user's choice, Never included.**
+- **The car's stages, the outputs, the new signals and the tricks** (crank drop-out, stop-start, battery
+  protection, a guaranteed shutdown, waking being the module's hardware job) as proposed — "Like
+  everything as you've just described it".
+- **The tester is a real ESP32 module**, not a pretend one in the tests (Roger: "Don't build a dummy
+  module… build an esp32 tester module that can plug into USB").
+
+**Done — the machine:**
+- **The seam** (shared): `power/PowerSystem.kt` — actions (sleep, hibernate, restart, shut down), how the
+  machine sleeps, profiles, the battery and its charge limit, the charger, the lid, the desktop.
+  `power/PowerPreferences.kt` — DASH's own choices. `power/PowerRules.kt` — sleep when left alone (**never
+  while a phone is projecting**), a profile on the charger and one on the battery (applied when the plug
+  changes, never fighting a change made by hand), the lid (Sleep is the machine's own way; Screen off and
+  Nothing take the lid from it), and getting ready for sleep.
+- **Linux** (`power/linux/LinuxPower.kt`) over the system bus as the seat user: **logind** (sleep,
+  hibernate, restart, shut down, `PrepareForSleep`, the lid), **UPower** (battery, charger, charge limit
+  through `EnableChargeThreshold`), and the **power-profiles service** under either of its names
+  (power-profiles-daemon, or tuned-ppd). Holds — the lid, and a few seconds before sleep — are kept by
+  `systemd-inhibit` running `cat` on DASH's pipe: ending it lets go at once, and if DASH dies the pipe
+  closes and the hold goes with it (checked: killing it releases the hold immediately).
+- **Before sleep**, in order: the outputs off, `sound_ready` false (the amplifiers), Android Auto closed
+  the way the phone expects (asked, then closed after 2 s). **On waking:** `sound_ready` back, the phone
+  looked for afresh (its USB link is new), the screens counted as just touched.
+- **Restart DASH** (`power/linux/Relaunch.kt`): a small shell on its own session waits for this DASH to be
+  gone, then starts the same command again.
+- **Tabs** (`ui/power/PowerTabs.kt`): **Shut Down & Restart** (anything that cannot be undone asks first),
+  **Sleep & Wake** (sleep after Never–2 h, the lid, how this machine sleeps in plain words, why it cannot
+  hibernate), **Performance** (now, on the charger, on the battery), **Battery** (charge, charging or time
+  left, the charge limit and why it matters for a battery living in a car).
+
+**Done — the car:**
+- **`power/CarPower.kt`** (shared): `CarStages` — **Waking** (awake, ignition off, screen dark), **Ready**
+  (ignition on: screen on, the splash), **Parked** (ignition off: screen dark, DASH running), **Stopping**,
+  **Off**. The screen comes on at Accessory or On; an ignition drop shorter than the grace (3 s default)
+  is a crank, not off; DASH leaves (sleep, shut down or stay on) when the doors lock or after Never–60
+  minutes with the ignition off, the clock restarting when someone unlocks or opens a door; a car battery
+  below the chosen level for 30 s with the ignition off shuts DASH down, never while the ignition is on;
+  Workshop *Keep awake*; `head_unit_awake` from a power module outranks the rest, but its "no" waits 20 s
+  after waking, while the store still holds what it said before the sleep. With no car module DASH is
+  always Ready, as before. With the ignition off a touch lights the screen for a minute. `CarOutputs` —
+  eight outputs, each on with DASH awake, the ignition, the engine, or the ignition and `sound_ready`, with
+  a delay on and a delay off; all off, last first, before sleep or shut down.
+- **Signals** (`core/SystemCommands.kt`, `docs/system_commands.md`): `doors_locked`, `battery_voltage`,
+  `head_unit_awake`, `power_state`, `power_output_1`…`_8`. DASH now raises `screen_on` too (blanking and the
+  car's stages). The ignition turning the screen on plays the splash (`MainScreen`).
+- **Tabs** (`ui/power/CarTabs.kt`): **Power › Car** (what the car says now, the screen, leaving the car, the
+  car's battery, Workshop) and **Power › Outputs** (eight outputs, named, timed, shown on or off live).
+  Ignition Behaviour, the old placeholder, grew into these.
+- **The ESP32 Power Tester** (`arduino/PowerTester/`, on the DashModule library): a pretend car that plays
+  a day — unlock, door, accessory, a crank, a drive, ignition off, door, lock — and shows DASH's stage on
+  the board's LED. Two modules on one board (module-sdk.md §4a), a SYSTEM and a LISTENER, sharing the cable
+  through a small `Face` class in the sketch. BOOT: tap for the next step, hold 1 s for the automatic day,
+  hold 3 s for a flat battery. `POWER_MODULE 1` sends `head_unit_awake` too.
+
+**What broke on the way, and was fixed:**
+- The profile service answers under two names, and each name is also its interface; the first version
+  asked the old name with the new interface.
+- The car's stages first started in Parked when a car module was first heard; they start in Waking now.
+- A power module's `head_unit_awake` false, left in the store from before a sleep, would have sent DASH
+  straight back to sleep on waking — hence the 20 s.
+- Power › Car said "Ready — the ignition on" with no car module at all.
+
+**Outstanding:**
+- **Not yet tried for real:** a sleep with a phone projecting, the lid's Screen off, the charge limit,
+  Restart DASH, and the Power Tester's whole day against a running DASH. Roger will see more as he builds
+  modules.
+- **interface.md's *Power and Wake Behaviour*** still reads ignition on → screen on, ignition off →
+  screen off. The stages replace it; it is Bible, and changes on Roger's word.
+- **The power button stays the machine's**: its input device is root's and the `input` group's, and
+  joining that group would let any program read every keyboard. Shown only if a machine lets DASH read it.
+- **No sleep-type choice** (s2idle or deep): changing it is root's. The tab says which the machine uses.
+- **No on-screen power button** on the system bar — interface.md's territory; perhaps a first Element.
+- **KDE's own idle sleep** is not held off while DASH runs (GNOME's is, since 1.1.5). To check on the KWin
+  bench before 1.2.x.
+- **The DashModule library** cannot share one port between two modules; the tester does it in its sketch.
+  It belongs in the library, which is native's. Its `dash_signals.h` does not yet know `battery_voltage`'s
+  default rate (1 Hz, 0.1 V).
+- **What a sleeping DASH's outputs do** (a dashcam's parking mode) is the relay module's decision; a
+  sleeping DASH sends nothing.
+- Not tested with no desktop (the 1.1.x rule): on GNOME only.
+
+**For native:**
+- **Take as they are:** `power/PowerSystem.kt`, `power/PowerPreferences.kt`, `power/PowerRules.kt`,
+  `power/CarPower.kt`, `ui/power/` (both files), the new signals in `core/SystemCommands.kt`, `screen_on`
+  in `display/DisplayRules.kt`, `sound_ready`'s `wake()` in `audio/SoundReady.kt`, and the splash on
+  ignition in `MainScreen.kt`. The car's stages and outputs are entirely DASH's — the head unit tablet
+  needs them as much as the laptop does.
+- **Needs an Android equivalent:** a `PowerSystem` from `BatteryManager` (the battery) and little else —
+  Android sleeps and wakes itself, and shutting down needs a privilege an app does not have, so the actions
+  are reported absent and the tabs leave them out. The car's Ready and Parked map to the screen through
+  native's `DisplaySystem` (keep-screen-on, window brightness). Leave DASH is the Android home screen;
+  Restart DASH recreates the activity.
+- **Does not apply:** `power/linux/` (logind, UPower, power profiles, `systemd-inhibit`, the relaunch) and
+  the Android Auto host's sleep hooks.
+- **The tester** works with native unchanged — it is an ordinary USB module.
+
+---
+
 ## Version 1.1.6
 
 **Mirrors upstream:** DASH 1.7.1

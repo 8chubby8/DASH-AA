@@ -15,16 +15,18 @@ import kotlinx.coroutines.launch
  * True when DASH's sound is up and as the user left it; false before it stops, while it starts, restarts,
  * changes its speaker layout or is being restored. With Car sound on, the [SoundProcessor] says; with it
  * off, the sound system simply being there is enough. [quiet] lowers it as DASH closes, before the sound
- * goes, and waits a moment for it to reach the modules.
+ * goes, and waits a moment for it to reach the modules — and before the machine sleeps (1.1.7), when
+ * [wake] raises it again on waking, if the sound is still as it was.
  */
 class SoundReady(private val state: SystemState) {
+    @Volatile private var up = false
 
     fun start(scope: CoroutineScope, sound: Flow<SoundState>, processor: Flow<ProcessorState>, car: Flow<CarSound>) {
         raise(false)
         scope.launch {
             combine(sound, processor, car) { s, p, c -> if (c.enabled && p.available) p.ready else s.available }
                 .distinctUntilChanged()
-                .collect { raise(it) }
+                .collect { up = it; raise(it) }
         }
     }
 
@@ -32,6 +34,8 @@ class SoundReady(private val state: SystemState) {
         raise(false)
         Thread.sleep(QUIET_MS)
     }
+
+    fun wake() = raise(up)
 
     private fun raise(ready: Boolean) {
         val value = ready.toString()

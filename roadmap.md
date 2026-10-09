@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; next 1.1.7)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; next 1.1.8)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -43,7 +43,7 @@ Android Auto   Connection, Picture, Night & Driver side
 Audio          Equaliser, Speakers, Microphone, Volumes, Calls, Saved   (renamed 1.1.3; Saved 1.1.4)
 Connections    Wi-Fi, Ethernet, Bluetooth   (1.1.6; Ethernet its own tab, Roger 2026-10-08)
 Display        Screens, Rotation, Brightness, Colour, Screen Blanking, Touchscreen   (1.1.5)
-Power          Ignition behaviour, Sleep / Shut down / Restart, Leave DASH
+Power          Shut Down & Restart, Car, Outputs, Sleep & Wake, Performance, Battery   (1.1.7)
 Modules        Module Manager, Transport Manager, Serial Monitor, Signal Monitor, Activity Log
 Vehicle        (v3)
 Notifications  (v2)
@@ -88,14 +88,14 @@ names the stage that covers it.
 | Pairs Bluetooth devices: answers "does this code match?" | DASH is the pairing helper, or the phone (calls) and Bluetooth modules cannot pair | **done** — 1.1.6 (DASH is BlueZ's agent) |
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
 | Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.5 (and 1.2.x) |
-| Blanks the screen and sleeps | DASH does it | 1.1.5, 1.1.7 |
+| Blanks the screen and sleeps | DASH does it | **done** — 1.1.5, 1.1.7 |
 | Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); the Terminal's keys at 1.1.9 |
 | Picks files (the splash image) | DASH's own file picker | 1.1.8 |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
-| Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | 1.1.7 |
+| Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | **done** — 1.1.7: Leave DASH only with a desktop to go back to; Restart DASH always |
 | A way back to a full desktop, when one is installed | Developer › **Switch to Desktop** (Roger, 2026-10-07): DASH closes, the desktop starts, logging out of it brings DASH back — no reboot, no root | 1.2.x |
-| Shuts down and restarts | DASH, through logind | 1.1.7 |
+| Shuts down and restarts | DASH, through logind | **done** — 1.1.7 |
 | Updates the system | DASH updates itself without root; system updates need a decision | 1.1.8 |
 
 **Stages:**
@@ -199,8 +199,19 @@ names the stage that covers it.
   - **Phones' Bluetooth music is refused** by DASH (on by default) — the 1.0.6 crash, guarded for good.
   - **DASH's on-screen keyboard**, QWERTY, only while the car is stopped (on by default; always allowed
     when no module reports speed or handbrake).
-- **1.1.7 — Power.** Sleep, shut down, restart and leave DASH, through logind. Ignition behaviour waits for
-  a module that reports ignition.
+- **1.1.7 — Power.** **(complete — 2026-10-09)** Two halves, on any machine (Roger: a G14, "an n100 pc or
+  a microsoft surface equally"), everything capability-detected:
+  - **The machine's power**, replacing a desktop's: Shut Down & Restart (and Leave DASH with a desktop,
+    Restart DASH always), Sleep & Wake (sleep when left alone — never while a phone projects — and the
+    lid), Performance (the profile now, on the charger, on the battery) and Battery (the charge limit).
+    Through logind, UPower and the power-profiles service, as the seat user. Android Auto and the
+    amplifiers are made ready before every sleep and come back after it.
+  - **The car's power** (Roger: "not just computer power profiles but… profiles of power for the car
+    itself"; pulled in from 1.3.x): the stages Waking · Ready · Parked · Stopping · Off from the ignition,
+    the locks and a power module's word, announced as `power_state`; eight switched outputs
+    (`power_output_1…8`) for amplifiers, dashcams and lights, each timed; the car's battery protected
+    (`battery_voltage`); the crank drop-out ridden out. New signals in `system_commands.md`. An **ESP32
+    Power Tester** (`arduino/PowerTester/`) plays a day in the car over USB.
 - **1.1.8 — System.** Date & Time, Updates, and Developer › Logs.
 - **1.1.9 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
   from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
@@ -217,7 +228,7 @@ Audio's device choice and Mixer have no Android equivalent (Android routes sound
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
 non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
 its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
-equivalents or do not apply.
+equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7).
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
@@ -244,8 +255,9 @@ updated, and how it shuts down in a car.
   module panel by touch, the evdev mapping checked against the real panel.
 - **Deferred until Roger raises it:** the steering-wheel module driving Android Auto through the bridge
   (built at 1.0.1, unit-tested, not yet met the real module).
-- Power: sleep on `ignition_state` off, wake on on (upstream's power and wake behaviour), the screen-on
-  splash.
+- ~~Power: sleep on `ignition_state` off, wake on on, the screen-on splash~~ — built at 1.1.7 (the car's
+  stages). Left for the car: the module that wakes the machine in hardware, which only a real module can
+  do (system_commands.md, *The car's power*).
 
 #### 1.4.x — Wireless Android Auto
 The machine as the phone's Wi-Fi hotspot plus the Bluetooth start-up handshake, so the phone projects

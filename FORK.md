@@ -73,11 +73,11 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 
 | File | Why |
 |---|---|
-| `DashApplication.kt` | No Android `Application`: it *is* the Context, made in `Main.kt`. Also owns the Android Auto host and, from 1.1.2, the machine's sound (`PipeWireSound`, with the start-up volume limit), and from 1.1.3 the car's sound (`PipeWireChain`, handed every change to the settings), and from 1.1.4 the car's speed for it and the saved sound slots, and from 1.1.5 the screens (`LinuxDisplay`; Rotation's preferences applied here, the screens put back on closing) and the display rules, and from 1.1.6 the networks and Bluetooth (`NetworkManagerNetwork`, `BlueZBluetooth` — DASH the pairing agent for the life of the process — the adapters' jobs applied, and the Bluetooth-music guard). Native's reasoning (the bus lives for the process) kept in spirit. |
+| `DashApplication.kt` | No Android `Application`: it *is* the Context, made in `Main.kt`. Also owns the Android Auto host and, from 1.1.2, the machine's sound (`PipeWireSound`, with the start-up volume limit), and from 1.1.3 the car's sound (`PipeWireChain`, handed every change to the settings), and from 1.1.4 the car's speed for it and the saved sound slots, and from 1.1.5 the screens (`LinuxDisplay`; Rotation's preferences applied here, the screens put back on closing) and the display rules, and from 1.1.6 the networks and Bluetooth (`NetworkManagerNetwork`, `BlueZBluetooth` — DASH the pairing agent for the life of the process — the adapters' jobs applied, and the Bluetooth-music guard). From 1.1.7 the machine's power (`LinuxPower`), the power rules and the car's power (`CarPower`), with what runs before sleep and after waking, and Leave and Restart DASH. Native's reasoning (the bus lives for the process) kept in spirit. |
 | `transport/usb/UsbSerialTransport.kt` | Linux implementation under native's class name: tty devices instead of Android's USB host API. Native's profile (115200 8N1, DTR/RTS high), per-device assembler and re-sweep kept. |
 | `transport/bluetooth/BluetoothSppTransport.kt` | Linux implementation under native's class name: BlueZ bonded devices, SDP, RFCOMM (`linux/BlueZ.kt`). `D.A.S.H` name marker, connect-out model and re-sweep kept. |
 | `system/DeviceReport.kt` | Android probes replaced by the Linux capabilities DASH-AA depends on (from 1.1.2, PipeWire as *Sound*). |
-| `ui/screen/MainScreen.kt` | No activity (permissions, screen-on splash, `requestedOrientation` removed); **the viewport added** in the settings-blind rectangle; Transport Manager's Wi-Fi/Bluetooth links open Connections (1.1.6; the desktop's panels before); the pairing prompt and DASH's keyboard drawn over everything, Android Auto told it is covered while they are up. |
+| `ui/screen/MainScreen.kt` | No activity (permissions, screen-on splash, `requestedOrientation` removed); **the viewport added** in the settings-blind rectangle; Transport Manager's Wi-Fi/Bluetooth links open Connections (1.1.6; the desktop's panels before); the pairing prompt and DASH's keyboard drawn over everything, Android Auto told it is covered while they are up; the splash plays again when the ignition turns the screen on (1.1.7 — native's own screen-on splash, now driven by `CarPower`). |
 | `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05). From 1.1.1, the tree reorganised for Linux — see *DASH changes* below. |
 | `ui/settings/content/DensityScaleContent.kt` | Android half (app density, Android font) dropped. |
 | `ui/settings/content/LocationContent.kt` | "Use device location" (Android permission) dropped. |
@@ -111,6 +111,9 @@ shim, a permission, a tab.
 | 1.1.6 | `connections/NetworkSystem.kt`, `connections/BluetoothSystem.kt`, `connections/ConnectionsPreferences.kt` (new) | The seams the Connections tabs talk through (adapters and their jobs, networks, addresses, a phone's internet; Bluetooth devices by kind, pairing requests) and DASH's own choices (jobs, the DASH network, the keyboard lock, the music guard). Take them. Native writes an Android `NetworkSystem` (`ConnectivityManager`/`WifiManager`; no jobs, no DASH network) and `BluetoothSystem` (`BluetoothAdapter`, `createBond()`; Android's own pairing dialog, so no `PairingRequest`). |
 | 1.1.6 | `ui/connections/` (Wi-Fi, Ethernet, Bluetooth, the pairing prompt, common), `ui/keyboard/DashKeyboard.kt`, `ui/keyboard/CarStill.kt` (new) | Take them as they are; the tabs leave out what native's systems report absent. The keyboard is for a head unit with no keyboard app; `CarStill` (stopped by speed, or by handbrake with no speed; unknown is allowed) is pure rules. |
 | 1.1.6 | `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt`, `ui/display/DisplayTabs.kt`, `content/LicenceContent.kt` | Connections becomes Wi-Fi · Ethernet · Bluetooth, live; the keyboard's setting on Display › Touchscreen. LicenceContent's list is DASH-AA's own (dbus-java and SLF4J added); native keeps its own list. |
+| 1.1.7 | `power/PowerSystem.kt`, `power/PowerPreferences.kt`, `power/PowerRules.kt`, `power/CarPower.kt` (new) | The seam the Power tabs talk through (actions, how the machine sleeps, profiles, battery and charge limit, lid, desktop), DASH's power choices, the machine's rules (sleep when left alone, never while a phone projects; a profile on the charger and on the battery; the lid; ready for sleep), and the car's power (the stages from the ignition, the locks, `head_unit_awake` and `battery_voltage`, announced as `power_state`; the eight switched outputs). Take them all. Native writes an Android `PowerSystem` (`BatteryManager`; actions absent). |
+| 1.1.7 | `ui/power/PowerTabs.kt`, `ui/power/CarTabs.kt` (new) | Shut Down & Restart, Sleep & Wake, Performance, Battery, Car, Outputs. Take them; they leave out what native's `PowerSystem` reports absent. |
+| 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
 
@@ -132,8 +135,11 @@ PipeWire user services — DASH-AA's `SoundProcessor`, 1.1.3; loudness, speed vo
 shared-ready, nothing of Linux in it), `display/linux/` (the screens through Mutter, KWin or wlroots, DASH's
 memory of them, logind's backlight — DASH-AA's `DisplaySystem`, 1.1.5), `ui/display/ScreensContent.kt`
 (Display › Screens), `ui/rotation/TurnedWindow.kt` (DASH turning its own picture with no display
-program), and the whole of `aa/` — the Android Auto head unit, calls, echo cancelling and call
-volume included.
+program), `power/linux/` (the machine's power through logind, UPower and the power-profiles service,
+held with `systemd-inhibit`; Restart DASH — DASH-AA's `PowerSystem`, 1.1.7), `arduino/PowerTester/` (the
+ESP32 car power tester, 1.1.7 — an ordinary USB module, so native can use it unchanged), and the whole of
+`aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
+the projection before the machine sleeps and looks for the phone afresh on waking.
 
 ---
 

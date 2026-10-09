@@ -45,6 +45,7 @@ overridden only if the module needs different behaviour.
 | door_boot_glass_open | boolean | true / false | store + event |
 | door_bonnet_open | boolean | true / false | store + event |
 | door_fuel_flap_open | boolean | true / false | store + event |
+| doors_locked | boolean | true / false | store + event |
 | charge_port_open | boolean | true / false | store + event |
 
 ---
@@ -96,6 +97,7 @@ overridden only if the module needs different behaviour.
 | coolant_temp | continuous | degrees C | store only | 0.5hz | 1 °C |
 | ambient_temp | continuous | degrees C | store only | 0.1hz | 0.5 °C |
 | ambient_light | continuous | lux | store only | 1hz | 10 lux |
+| battery_voltage | continuous | volts | store only | 1hz | 0.1 V |
 
 ---
 
@@ -128,6 +130,9 @@ overridden only if the module needs different behaviour.
 |--------|------|--------|-----------|
 | sound_ready | boolean | true / false | store + event |
 | screen_on | boolean | true / false | store + event |
+| head_unit_awake | boolean | true / false | store + event |
+| power_state | multi-state | waking / ready / parked / stopping / off | store + event |
+| power_output_1 … power_output_8 | boolean | true / false | store + event |
 
 > **Added 2026-10-08 (DASH-AA 1.1.3) — Roger's call.** Signals about the head unit itself rather than
 > the vehicle. Like every system message they are sourceless (transport.md): DASH generates them
@@ -144,6 +149,33 @@ overridden only if the module needs different behaviour.
 >
 > **`engine_running`** (Vehicle State) is the engine itself, which `ignition_state` cannot say: the
 > ignition can be on with the engine stopped.
+
+> **Added 2026-10-09 (DASH-AA 1.1.7) — Roger's call. The car's power.** DASH runs a factory head
+> unit's stages from what modules report, every choice the user's (Power › Car):
+>
+> - **`power_state`** — DASH's stage, raised by DASH. **waking:** awake with the ignition off (a module
+>   woke the machine as the doors unlocked) — screen dark. **ready:** the ignition on — screen on, the
+>   splash. **parked:** the ignition gone off — screen dark, DASH still running. **stopping:** about to
+>   sleep or shut down — every output is switched off first; a module saves what it must. **off:** the
+>   last word as DASH shuts down. With no module reporting the ignition or `head_unit_awake`, it is
+>   always **ready**.
+> - **`power_output_1` … `power_output_8`** — switched outputs, raised by DASH for a relay module to
+>   carry out: an amplifier's remote wire, a dashcam, lights. Each is named and timed by the user (on
+>   with DASH awake, the ignition, the engine, or the ignition and `sound_ready`; a delay on and a delay
+>   off). Before `stopping` completes, every output goes off, the last first. **A sleeping DASH sends
+>   nothing**, so what an output does once DASH is gone (a dashcam's parking mode) is the module's own
+>   decision.
+> - **`head_unit_awake`** — a dedicated power module's own decision, sent by the module: **true** holds
+>   DASH awake, **false** tells it to leave now (sleep or shut down, as the user chose). It outranks
+>   DASH's own rules.
+> - **`doors_locked`** (Doors & Access) — locking the car is when DASH leaves, if the user chooses.
+> - **`battery_voltage`** (Vehicle State) — the car's own battery. If it stays below the user's level for
+>   30 seconds with the ignition off, DASH shuts down so the car still starts.
+>
+> **A sleeping machine cannot hear a system message.** Waking it — the doors unlocking — is the
+> module's job in hardware: pressing the machine's power button for it (a relay or opto-isolator on the
+> power-switch pins), acting as a USB keyboard and pressing a key, Wake-on-LAN, or switching the
+> machine's supply on with its firmware set to start when power returns.
 
 ---
 

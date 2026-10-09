@@ -136,6 +136,8 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
     LaunchedEffect(Unit) { weather = weatherProvider.current() }
 
     var showSplash by remember { mutableStateOf(isColdBoot) }
+    // The ignition turning the screen on plays the splash, as a cold boot does (DASH-AA 1.1.7).
+    LaunchedEffect(Unit) { dashApp.carPower.splash.collect { showSplash = true } }
     var showSettings by remember { mutableStateOf(false) }
     // Where to reopen settings after a focused task (bar edit mode) takes over the screen — so Save/
     // Cancel returns to the tab the user left, not the home screen.

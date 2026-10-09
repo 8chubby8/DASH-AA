@@ -1,6 +1,7 @@
 package com.dash.android.display
 
 import com.dash.android.core.SystemState
+import com.dash.android.power.raise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -79,7 +80,7 @@ class DisplayRules(
             when {
                 idle < 1500 && (blanked || dimmedFrom.isNotEmpty()) -> wake(s)
                 after <= 0 -> Unit
-                idle >= after && !blanked -> { blanked = true; display.setScreensOn(false) }
+                idle >= after && !blanked -> { blanked = true; display.setScreensOn(false); state.raise("screen_on", "false") }
                 s.dimFirst && idle >= after - DIM_MS && !blanked && dimmedFrom.isEmpty() -> dim()
             }
         }
@@ -92,7 +93,7 @@ class DisplayRules(
     }
 
     private suspend fun wake(s: DisplaySettings) {
-        if (blanked) display.setScreensOn(true)
+        if (blanked) { display.setScreensOn(true); state.raise("screen_on", "true") }
         blanked = false
         val night = headlights.first()
         dimmedFrom.forEach { (id, was) ->

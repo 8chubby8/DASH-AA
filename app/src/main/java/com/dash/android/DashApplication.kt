@@ -25,6 +25,13 @@ import com.dash.android.display.DisplaySystem
 import com.dash.android.display.DisplayPreferences
 import com.dash.android.display.DisplayRules
 import com.dash.android.display.linux.LinuxDisplay
+import com.dash.android.power.CarPower
+import com.dash.android.power.PowerPreferences
+import com.dash.android.power.PowerRules
+import com.dash.android.power.PowerSystem
+import com.dash.android.power.linux.LinuxPower
+import com.dash.android.power.linux.Relaunch
+import kotlin.system.exitProcess
 import com.dash.android.prefs.DashPreferences
 import com.dash.android.ui.rotation.DashOrientation
 import com.dash.android.transport.DashController
@@ -113,6 +120,24 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     /** Phones' Bluetooth music refused or allowed — WirePlumber's own setting, changed here only. */
     internal var bluetoothMusic: (Boolean) -> Unit = BluetoothMusic::set
 
+    /**
+     * **The machine's power** (DASH-AA 1.1.7) — logind, UPower and the power profiles. Started here, not in
+     * a tab: sleeping when left alone, the profile on the charger and on the battery, the lid, and getting
+     * Android Auto and the amplifiers ready for sleep all hold whether or not settings are open.
+     */
+    var power: PowerSystem = LinuxPower()
+        internal set  // tests set a pretend one before onCreate
+
+    /** **The car's power** (1.1.7): its stages and switched outputs, from what modules report. */
+    lateinit var carPower: CarPower
+        private set
+
+    /** Leave DASH, back to the desktop it runs inside — the shutdown hooks put the screens back on the way. */
+    fun leave(): Unit = exitProcess(0)
+
+    /** Close DASH and start it again (Power, with no desktop to leave to). False when it cannot be restarted. */
+    fun restart(): Boolean = Relaunch.schedule().also { if (it) exitProcess(0) }
+
     fun onCreate() {
         transport = TransportManager(this)
         controller = DashController(transport, this)
@@ -166,6 +191,19 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
         ready.start(soundScope, sound.state, soundProcessor.state, car)
         // Closing DASH: the amplifiers are told first, while the transports are still up.
         Runtime.getRuntime().addShutdownHook(Thread { ready.quiet() })
+        // Power (1.1.7): before the machine sleeps, the amplifiers are told and the phone let go, in that
+        // order, so nothing pops or hangs; on waking both come back.
+        power.start()
+        val powerSettings = PowerPreferences(this).settings
+        carPower = CarPower(controller.systemState, power, display, powerSettings, soundScope).also { it.start() }
+        // Outputs off first (the amplifiers), then the sound, then the phone.
+        PowerRules(
+            power, display, powerSettings, soundScope,
+            busy = { androidAuto.status.value is com.dash.android.aa.AaStatus.Projecting },
+            prepare = { carPower.stopping(); ready.quiet(); androidAuto.machineSleeping() },
+            woke = { carPower.woke(); ready.wake(); androidAuto.machineWoke() },
+        ).start()
+        Runtime.getRuntime().addShutdownHook(Thread { carPower.off() })
         Thread({
             runBlocking {
                 val limit = runCatching { SoundPreferences(this@DashApplication).settings.first().startupLimit }
