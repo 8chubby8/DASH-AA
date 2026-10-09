@@ -65,8 +65,8 @@ Roger's rulings in getting here:
   inside System, as a fourth level; on screen it belonged on the main tree (Roger, 2026-10-07).
 - **Modules › Activity Log stays in Modules.** It is the record of what modules did and why; DASH's own
   logs are Developer › Logs.
-- **The Bible is not yet updated.** The tree in `docs/interface.md` (2026-07-20 addendum) is still native's.
-  It is changed when Roger says so.
+- **The Bible is updated** (Roger, 2026-10-09): `docs/interface.md` records this tree as an addendum after
+  the 2026-07-20 one, which is kept for the record.
 
 **No desktop, as standard (Roger, 2026-10-07):** "the idea is to have no desktop as standard. the
 'desktop' will be dash. so we need to make sure everything we are going to need is going to be

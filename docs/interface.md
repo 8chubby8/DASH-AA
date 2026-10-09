@@ -48,6 +48,50 @@ DASH is designed for continuous power from the vehicle battery. The normal opera
 
 **Splash screen** plays on both cold boot and screen wake from ignition. It is user-definable in Appearance settings — custom image, colour, or the default DASH branding. Duration is user-configurable.
 
+> **The car's power — 2026-10-09 (DASH-AA 1.1.7). A suggestion, not yet settled.** *(Roger: "make sure
+> its known it is more a suggestion at the moment. full testing is still needed in a car with real
+> modules and electrics. things could still change.")* Built and bench-tested against an ESP32 tester
+> only; nothing below has met a real car. The cycle above is kept for the record; this is how DASH-AA
+> runs it today, written with the *message* names of the locked SDK (`BROADCAST` of `ignition_state`)
+> rather than the old `SYSTEM:ignition:on` form.
+>
+> **The stages**, announced by DASH to every module as `power_state` (system_commands.md, *The car's
+> power*):
+>
+> | Stage | Begins when | DASH |
+> |---|---|---|
+> | **Waking** | DASH is awake with the ignition off — a module woke the machine as the doors unlocked | screen dark; phone and modules connect quietly |
+> | **Ready** | the ignition reaches the user's choice of Accessory or On | screen on, splash plays |
+> | **Parked** | the ignition goes off | screen dark; DASH keeps running; a touch lights the screen for a minute |
+> | **Stopping** | DASH is about to sleep or shut down | every switched output off, the last first — before anything else |
+> | **Off** | the last word as DASH shuts down | — |
+>
+> **Leaving the car is the user's choice** (Power › Car): **sleep**, **shut down**, or **stay on** —
+> when the doors lock, and/or after a chosen time with the ignition off (unlocking or opening a door
+> starts that time again). Stay on keeps the original "continuous power" cycle above exactly.
+>
+> **The rules that make it safe in a car:**
+> - **The crank.** Many cars cut the ignition while the starter turns; a drop shorter than the user's
+>   grace (3 s by default) is not the ignition going off.
+> - **The engine is not the ignition.** Stop-start engines stop at the lights; the stages follow the
+>   ignition only.
+> - **The car's battery.** Below the user's voltage for 30 s with the ignition off, DASH shuts down,
+>   whatever else is chosen — never while the ignition is on.
+> - **A power module's word outranks the rules.** `head_unit_awake` true holds DASH awake; false sends it
+>   away now.
+> - **Workshop:** *Keep awake* ignores the ignition and locks (the battery protection still stands).
+> - **With no module reporting the ignition, DASH is simply Ready** — the screen on, nothing switching.
+>
+> **Switched outputs** — eight, `power_output_1` … `_8`, raised by DASH for a relay module to carry
+> out: amplifiers' remote wires, a dashcam, lights. Each is named by the user, on with DASH awake, the
+> ignition, the engine, or the ignition and `sound_ready`, with its own delay on and delay off.
+>
+> **Waking is the module's job, in hardware.** A sleeping machine hears no system message, so the
+> "pre-boot on unlock" this cycle depends on is done by the module physically waking it.
+>
+> **Still to prove in the car:** the whole of it — with real modules, real ignition and lock signals,
+> the car's own electrics and a real power module. Any of it may change when it is.
+
 ---
 
 ## Display Density and UI Scale
@@ -869,6 +913,35 @@ DASH Settings
 > **The splash boundary.** A splash **fade** is a transition, so its fade-in and fade-out live here — *not* in the Splash tab. The Splash tab (roadmap 1.5.6) owns the splash's **image/colour selection and its dwell duration** (how long it holds fully visible between the fades). This split is the governing rule applied cleanly: the fades are motion, the dwell and the artwork are not. *(Splash gained a genuine fade-**in** at 1.5.5; before this it only faded out.)*
 >
 > **Under the hood.** The single global `LocalTransitionMillis` from 1.5.2 is **superseded** by a `LocalDashTransitions` holder provided at the composition root, which resolves each `TransitionId` to its stored speed (`DashPreferences.transitions` / `setTransition` / `setAllTransitions`). The parked transition control in the legacy settings bridge is **removed** — this version is its rehome. It lives with the rest of the content vocabulary in `ui/settings/content/` (`MotionContent`), built on the existing scaffold (`PresetSegment`, `SettingBlock`, `LivePreviewCard`), each row carrying a small live demo that replays at the chosen speed so the change is felt, not just read.
+
+> **The DASH-AA tree — 2026-10-07 to 2026-10-09 (DASH-AA 1.1.1–1.1.7).** With DASH-AA leading, the settings panel was reorganised around a Linux machine that may have **no desktop at all** (Roger: "the 'desktop' will be dash"), so DASH's settings have to *be* the machine's settings. The reconciled tree above is kept for the record; this is the tree DASH-AA builds, and the one native follows (its Apps category in the Android Auto slot). Recorded per the additive-docs rule.
+>
+> ```
+> DASH Settings
+> ├── Appearance    — Size & Scale, Transitions, Splash Screen, Colours, Fonts, Presets, Ambient Mode
+> ├── Layout        — System Bar, Module Panel, Elements, Overlays
+> ├── Android Auto  — Connection, Picture, Night & Driver Side          (native: Apps)
+> ├── Audio         — Equaliser, Speakers, Microphone, Volumes, Calls, Saved
+> ├── Connections   — Wi-Fi, Ethernet, Bluetooth
+> ├── Display       — Screens, Rotation, Brightness, Colour, Screen Blanking, Touchscreen
+> ├── Power         — Shut Down & Restart, Car, Outputs, Sleep & Wake, Performance, Battery
+> ├── Modules       — Module Manager, Transport Manager, Serial Monitor, Signal Monitor, Activity Log
+> ├── Vehicle       — (v3)
+> ├── Notifications — (v2)
+> ├── System        — Location, Date & Time, This Machine, Updates, About, Licence
+> └── Developer     — Terminal, Logs, Switch to Desktop
+> ```
+>
+> **What changed from the reconciled tree, and why** (each Roger's ruling):
+> - **Many top-level categories.** Connections, Display and Power are categories of their own rather than one "Machine" category, and rather than System's Android deep-links: on Linux they are the machine's real settings.
+> - **Android Auto** is the viewport tenant's category — native's **Apps** fills the same slot. Its sound controls live in Audio.
+> - **Audio is the machine's sound settings and the car's sound menu in one** — devices and volumes, and DASH's own sound chain (equaliser, balance, fade, loudness, time alignment, saved sound).
+> - **Transports and the module tools move into Modules**, beside Module Manager; the Activity Log stays there.
+> - **Developer is its own category, last**, holding the machine and DASH itself (Terminal, Logs, Switch to Desktop) — first placed inside System, it belonged on the main tree.
+> - **Rotation is back**, in Display (reversing 2026-10-05): on Linux it is part of the display settings.
+> - **Power** covers the machine's power and the car's — the latter a suggestion until tested in a car (see *Power and Wake Behaviour*). Leave DASH sits in Shut Down & Restart, shown only with a desktop to go back to.
+> - **Appearance and Layout stay separate** for now; Roger will find a better way to link them. Group headings in the category rail were tried and rejected.
+> - **App Launcher** and native's notification suppression are not in DASH-AA's tree (Android-only); native keeps them.
 
 ### Developer Tab
 

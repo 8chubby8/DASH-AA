@@ -115,8 +115,6 @@ Decided with Roger before building:
 - **Not yet tried for real:** a sleep with a phone projecting, the lid's Screen off, the charge limit,
   Restart DASH, and the Power Tester's whole day against a running DASH. Roger will see more as he builds
   modules.
-- **interface.md's *Power and Wake Behaviour*** still reads ignition on → screen on, ignition off →
-  screen off. The stages replace it; it is Bible, and changes on Roger's word.
 - **The power button stays the machine's**: its input device is root's and the `input` group's, and
   joining that group would let any program read every keyboard. Shown only if a machine lets DASH read it.
 - **No sleep-type choice** (s2idle or deep): changing it is root's. The tab says which the machine uses.
@@ -129,6 +127,12 @@ Decided with Roger before building:
 - **What a sleeping DASH's outputs do** (a dashcam's parking mode) is the relay module's decision; a
   sleeping DASH sends nothing.
 - Not tested with no desktop (the 1.1.x rule): on GNOME only.
+
+**Bible (Roger, 2026-10-09, after release):** `docs/interface.md` gains two addenda, the originals kept.
+*Power and Wake Behaviour* records the car's stages, leaving the car, the safety rules and the outputs —
+**marked a suggestion** (Roger: "full testing is still needed in a car with real modules and electrics.
+things could still change"). And the settings tree DASH-AA builds (1.1.1–1.1.7) is recorded after the
+2026-07-20 reconciliation, with the reasons for each change. hardware.md was left as it is (Roger).
 
 **For native:**
 - **Take as they are:** `power/PowerSystem.kt`, `power/PowerPreferences.kt`, `power/PowerRules.kt`,
