@@ -96,7 +96,7 @@ names the stage that covers it.
 | Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | **done** — 1.1.7: Leave DASH only with a desktop to go back to; Restart DASH always |
 | A way back to a full desktop, when one is installed | Developer › **Switch to Desktop** (Roger, 2026-10-07): DASH closes, the desktop starts, logging out of it brings DASH back — no reboot, no root | 1.2.x |
 | Shuts down and restarts | DASH, through logind | **done** — 1.1.7 |
-| Updates the system | DASH updates itself without root; system updates need a decision | 1.1.8 |
+| Updates the system | System › Updates installs a whole tested release into the spare system slot, and can roll back (decided 2026-10-15) | 1.2.1 |
 
 **Stages:**
 
@@ -212,7 +212,8 @@ names the stage that covers it.
     (`power_output_1…8`) for amplifiers, dashcams and lights, each timed; the car's battery protected
     (`battery_voltage`); the crank drop-out ridden out. New signals in `system_commands.md`. An **ESP32
     Power Tester** (`arduino/PowerTester/`) plays a day in the car over USB.
-- **1.1.8 — System.** Date & Time, Updates, and Developer › Logs.
+- **1.1.8 — System.** Date & Time, and Developer › Logs. (Updates moved to 1.2.1, Roger 2026-10-20: the
+  update screen only makes sense once DASH-AA Linux has the system slots behind it.)
 - **1.1.9 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
   from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
   on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
@@ -227,7 +228,7 @@ and its Brightness and Blanking rules are shared; Screens, Colour and Touchscree
 Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
 non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
-its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions and System's Updates and Logs need Android-side
+its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions, System's Logs and 1.2.1's Updates need Android-side
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7).
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
@@ -246,9 +247,45 @@ from the Linux side. Power on and DASH-AA is the screen: no desktop, no login pr
 - **No root at runtime** — DASH-AA runs as an ordinary user, as it does on the laptop.
 - **Updatable** without rebuilding the image, so DASH-AA versions keep flowing from this repository.
 
-**To decide before building** (Roger, with the touchscreen PC in hand): the PC's hardware (CPU, graphics,
-storage, Wi-Fi/Bluetooth, the touchscreen's connection), the base distribution, how it is installed and
-updated, and how it shuts down in a car.
+**The machine (Roger, 2026-10-20):** a **Microsoft Surface Pro 3** — the touchscreen PC this era is for. One
+codebase still, no Surface-only build: capability detection decides what any machine offers. On a
+Surface the installer keeps the linux-surface kernel (fixes for its Wi-Fi, Bluetooth and touch); every
+other machine keeps Arch's own. It has one USB port, so a hub is part of the setup.
+
+**Decided with Roger (2026-10-15):**
+- **Base: Arch, frozen.** Chosen so the packages are the same versions as on the G14 — on the condition
+  that it never updates itself. Each release is pinned to a tested date in the Arch Linux Archive. A
+  release is a DASH version plus that dated set of packages, tested on the G14, installed all at once.
+  No over-the-air updates.
+- **Disk: system slots A and B, and a user partition.** A and B are each more than big enough, with
+  generous room to spare; the user partition takes the rest of the disk. Everything that is the user's
+  lives there: DASH's settings, Wi-Fi passwords, Bluetooth pairings, the fixed address, splash images,
+  music, anything of their own — so an update or roll back never touches it.
+- **Updates: System › Updates.** The same signed update file from a USB stick or a GitHub release. It
+  shows the version, a summary and the size; nothing downloads or installs until the user presses.
+  **DASH never checks for updates by itself** — users may be happy where they are.
+- **Roll back, any time later:** instant to the previous slot; any older release by installing it from
+  GitHub or USB (Updates lists them all). Settings are copied just before each update; on a roll back
+  DASH asks whether to keep the current settings or go back to that copy. A release says when it changes
+  the settings format.
+- **Display program: labwc** (can change later if it proves wrong). Still to check: that it can put a
+  window on a chosen screen (for screen roles), and that DASH runs in labwc nested inside GNOME on the G14.
+- **The code stays Kotlin.** A Qt rewrite was discussed and declined: it would end sharing with native and
+  break the "same panel renderer" rule. Watch JetBrains' direct-Wayland toolkit for multi-touch and screen
+  placement later; first measure what Java costs on the Surface.
+
+**The stages (Roger, 2026-10-20):**
+- **1.2.1 — Updates, then the install.** System › Updates and roll back first, then DASH-AA Linux
+  installed on the Surface — straight to the full A/B install, no plain-image stage first. The install,
+  updates and roll back are proven in a virtual machine on the G14 before the Surface, so the Surface only
+  has to prove its hardware (Wi-Fi, Bluetooth, touch, speed). The early draft in `distro/` (uncommitted,
+  written before these decisions — one partition, ext4) is the starting point and is redone to match.
+- **Looking at problems on the Surface:** Claude Code over SSH from the G14 (works even when DASH will
+  not start), and Claude Code on the Surface itself, run from the 1.1.9 Terminal as the ordinary user and
+  kept on the user partition so updates do not remove it.
+
+**For native:** the Linux image, the slots and the installer are Linux's own and do not apply to Android
+(Android updates itself). System › Updates is the Linux side; native's equivalent is its own app update.
 
 #### 1.3.x — In the car
 - **Deferred until Roger raises it:** the full touchscreen pass — multi-touch into Android Auto, the
