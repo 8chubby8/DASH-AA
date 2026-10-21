@@ -101,6 +101,49 @@ overridden only if the module needs different behaviour.
 
 ---
 
+## Location
+
+| Signal | Type | Values | Behaviour | Default rate | Default threshold |
+|--------|------|--------|-----------|---------------|--------------------|
+| location_source | multi-state | none / gps / network / manual | store + event | — (event-driven) | — |
+| location_fix | multi-state | none / 2d / 3d | store + event | — (event-driven) | — |
+| location_position | string | `lat,lon` in decimal degrees (e.g. `51.5072,-0.1276`) | store only | 1hz | 5 m |
+| location_speed | continuous | km/h | store only | 1hz | 1 km/h |
+| location_heading | continuous | degrees 0-359, from true north | store only | 1hz | 5 degrees |
+| location_altitude | continuous | metres above sea level | store only | 0.2hz | 5 m |
+| location_accuracy | continuous | metres | store only | 0.2hz | 5 m |
+| location_satellites | continuous | number in use | store only | 0.2hz | 1 |
+
+> **Added 2026-10-21 (DASH-AA 1.1.11) — Roger's call.** Where the head unit is, how fast it is moving
+> and which way. Like every system message they are sourceless (transport.md): DASH raises them from
+> whatever location source it has — a GPS receiver plugged into the machine, the internet, or the
+> place the user pinned in System › Location — and a module may report them as well (an ESP32 with a
+> GPS chip, over any transport). DASH then uses that module as a source.
+>
+> - **`location_source`** says where the reading comes from: **gps** (a live fix), **network** (looked
+>   up from the internet connection — a rough position and nothing else), **manual** (the user's pinned
+>   place), or **none**.
+> - **`location_fix`** is the GPS's own quality: **none**, **2d** (position only), **3d** (position and
+>   altitude). With no GPS it is **none**.
+> - **`location_position`** is one signal, not two, so a latitude can never be paired with a longitude
+>   from another moment. Decimal degrees, a full stop for the decimal point, south and west negative.
+> - **`location_speed` is not `vehicle_speed`.** `vehicle_speed` is what the car reports;
+>   `location_speed` is speed over the ground, measured by the location source. DASH never merges them
+>   — a module that wants one number decides which to trust.
+> - **`location_heading`** is the direction of travel, not the way the car is pointing. It is only
+>   known while moving.
+> - **The rates are once a second** because a GPS receiver updates once a second.
+>
+> **`unknown` — a value that is not known right now.** Any Location signal may carry the value
+> `unknown`: the heading while parked, the altitude from a network position, everything but the source
+> and fix with no source at all. It is not zero, and it is not the last value — a module decides for
+> itself what to show. (A rule for these signals for now; others may take it up on Roger's say.)
+>
+> **Left for later:** `trip_distance`, a distance travelled worked out from the position — when a trip
+> starts and resets, and whether DASH or a module keeps it, are still to be decided.
+
+---
+
 ## Safety
 
 | Signal | Type | Values | Behaviour |
