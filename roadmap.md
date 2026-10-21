@@ -89,7 +89,7 @@ names the stage that covers it.
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
 | Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.5 (and 1.2.x) |
 | Blanks the screen and sleeps | DASH does it | **done** — 1.1.5, 1.1.7 |
-| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); 1.1.10 the Terminal's keys, and only when no real keyboard is plugged in |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); 1.1.10 the Terminal's keys, and DASH's keyboard only when no real keyboard is plugged in, for the Terminal and every box |
 | Picks files (the splash image) | DASH's own file picker | 1.2.x, once DASH-AA Linux runs in a VM (Roger, 2026-10-21) |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |

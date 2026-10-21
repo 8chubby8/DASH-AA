@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.dash.android.DashApplication
 import com.dash.android.connections.ConnectionsPreferences
 import com.dash.android.connections.ConnectionsSettings
+import com.dash.android.system.linux.Keyboards
 import com.dash.android.ui.common.BODY
 import com.dash.android.ui.common.BODY_LINE
 import com.dash.android.ui.common.MAINBODY
@@ -70,8 +72,14 @@ import kotlinx.coroutines.launch
  * **Only while the car is still**, by default ([CarStill], [ConnectionsSettings.keyboardOnlyWhenStill]).
  * With no module reporting the speed or the handbrake, it is always there.
  *
+ * **Only when no real keyboard is plugged in** (1.1.10, Roger: yes to the Terminal's rule for every box).
+ * With one, a box is typed into with it and nothing comes up; the box shows a small "Keyboard" to bring DASH's
+ * keyboard up by hand (a mouse's USB receiver can claim to be a keyboard). [KeyboardOverlay] watches
+ * what is plugged in ([Keyboards]).
+ *
  * **For native:** Android has keyboards of its own, so native does not need this; it is shared code all
- * the same, for a head unit with none installed.
+ * the same, for a head unit with none installed. There, "is a real keyboard plugged in?" is Android's
+ * `Configuration.keyboard`, in place of [Keyboards].
  */
 object DashKeyboard {
     /** What is being typed into: its name, its text, whether it is a secret, and what Done does. */
@@ -79,7 +87,11 @@ object DashKeyboard {
 
     val target = MutableStateFlow<Target?>(null)
 
-    fun open(t: Target) { target.value = t }
+    /** A real keyboard is plugged in, so a box needs nothing on the screen to be typed into. */
+    val realKeyboard = MutableStateFlow(false)
+
+    /** Brings the keyboard up for [t] — unless a real keyboard is plugged in and this is not [byHand]. */
+    fun open(t: Target, byHand: Boolean = false) { if (byHand || !realKeyboard.value) target.value = t }
     fun close() { target.value = null }
 }
 
@@ -100,7 +112,9 @@ fun KeyboardField(
     val theme = LocalDashTheme.current
     var shown by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    val open = { DashKeyboard.open(DashKeyboard.Target(label, text, secret, digits) { onDone(); DashKeyboard.close() }) }
+    val real by DashKeyboard.realKeyboard.collectAsState()
+    val target = { DashKeyboard.Target(label, text, secret, digits) { onDone(); DashKeyboard.close() } }
+    val open = { DashKeyboard.open(target()) }
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
@@ -128,6 +142,17 @@ fun KeyboardField(
                 keyboardActions = KeyboardActions(onDone = { onDone() }),
                 // Tapped (or reached by Tab), the box takes the real keyboard's typing and brings up DASH's.
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged { if (it.isFocused) open() },
+            )
+        }
+        // A real keyboard is plugged in, so DASH's stays down — this brings it up anyway.
+        if (real) {
+            Spacer(Modifier.padding(start = 8.dp))
+            Text(
+                "Keyboard",
+                color = theme.textColourSecondary,
+                fontSize = BODY,
+                fontFamily = theme.font,
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { DashKeyboard.open(target(), byHand = true) }.padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
         if (secret) {
@@ -184,6 +209,14 @@ fun KeyboardOverlay(modifier: Modifier = Modifier) {
         CarStill.of(app.controller.systemState.values, app.controller.database.modules, app.controller.reconciliation.activity)
     }.collectAsState(initial = null)
     val locked = settings.keyboardOnlyWhenStill && still == false
+    // What is plugged in, watched for as long as DASH runs. A keyboard plugged in puts DASH's away.
+    LaunchedEffect(Unit) {
+        Keyboards.watch().collect { found ->
+            val real = found.isNotEmpty()
+            if (real && !DashKeyboard.realKeyboard.value) DashKeyboard.close()
+            DashKeyboard.realKeyboard.value = real
+        }
+    }
 
     AnimatedVisibility(
         visible = t != null,

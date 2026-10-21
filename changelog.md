@@ -28,7 +28,7 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 **Status:** Complete — 2026-10-21 (Roger: "Get the terminal done"). Roger's first try on the G14 found a crash,
 fixed the same day (below). Tests pass
-(143): the keyboard question against the G14's own devices, and a real shell end to end — it answers, knows
+(146): the keyboard question against the G14's own devices, and a real shell end to end — it answers, knows
 its size and is told when it changes, Ctrl+C stops what is running, it is not root, `exit` ends it and
 START AGAIN hangs it up. `-Dscreenshots=1` types into the tab as a real keyboard does (keys down, characters
 typed, Ctrl+C) and draws it with and without DASH's keyboard. Roger's own shell (fish, with its greeting and
@@ -85,13 +85,17 @@ drawing closes the window. What falls outside now waits for the next frame, and 
 terminal costs one frame and a line in the log, never DASH. A test draws a shell bigger than its space (it
 fails without the fix with Roger's exact error).
 
+**Added the same day — every box follows the rule** (Roger: yes to the Terminal's rule for the rest of DASH).
+DASH's keyboard comes up for a box (Wi-Fi passwords, names, addresses, the pairing PIN, search) only when no
+real keyboard is plugged in; with one, the box is typed into with it and nothing covers the screen or Android
+Auto. A small "Keyboard" on the box brings DASH's up by hand. A keyboard plugged in while DASH's is up puts it
+away. `DashKeyboard.open` decides, so everything that asks whether the keyboard is up (Android Auto told it is
+covered, the pairing prompt) stays right. `DashKeyboardTest` holds the rule.
+
 **Outstanding:**
 - Mouse reporting to programs (clicks in `mc` or `htop`) is not offered: a tap on the terminal is DASH's.
 - One shell, no tabs inside the Terminal.
 - A USB receiver for a mouse alone can say it has a keyboard; SHOW KEYBOARD covers it.
-- The keyboard detection is only for the Terminal. The box keyboard (Wi-Fi passwords, search) still comes up
-  whether or not a real keyboard is plugged in, as at 1.1.6 — the same rule could be applied there if Roger
-  wants it.
 
 **For native:** take `terminal/TerminalSession.kt`, `TerminalPreferences.kt`, `ui/terminal/` and the KeyPad
 change. The device is Linux's: native gives the session its own connector — a process over Android's own
