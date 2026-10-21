@@ -50,12 +50,12 @@ import kotlin.math.pow
  * needs root.
  *
  * ```
- *  every app ─▶ "DASH" ─ anti-distortion, speed ─ equaliser ─ loudness ─┬─ low cut ─▶ left, right ─┐  dash-aa-sound
+ *  every app ─▶ "DASH" ─ anti-distortion, speed ─ equaliser ─ loudness ─┬─ low cut ─▶ left, right ─┐  dash-sound
  *   (the default)                                                       └─ sub crossover ─▶ low ───┤  (never restarts)
  *  calls ─────▶ "DASH calls" ─ speed ──── low cut and sub crossover ─▶ left, right, low ────────────┤
  *                                                                                                  ▼
  *    the speaker layout: each output's mix of left, right and low, music and calls, then its delay ─▶ each device
- *                                                                                                    dash-aa-speakers
+ *                                                                                                    dash-speakers
  * ```
  *
  * **What follows the volume and the speed** (1.1.4). Loudness's filters and speed volume's gain change
@@ -340,7 +340,7 @@ class PipeWireChain(
      */
     private fun reclaimDefault() {
         val current = sound.defaultSinkName() ?: return
-        if (current == SINK || !current.startsWith("dash-aa")) return
+        if (current == SINK || !current.startsWith("dash")) return
         val dash = sound.nodeId(SINK) ?: return
         Log.w(TAG, "the default had moved to $current — back onto DASH")
         wpctl("set-default", dash)
@@ -453,9 +453,9 @@ class PipeWireChain(
     }
 
     internal fun soundUnit() = """
-        |# Written by DASH-AA (Audio › Speakers › Car sound). DASH rewrites it; edits are lost.
+        |# Written by DASH (Audio › Speakers › Car sound). DASH rewrites it; edits are lost.
         |[Unit]
-        |Description=DASH-AA car sound: the way in (equaliser, low cut, subwoofer crossover)
+        |Description=DASH car sound: the way in (equaliser, low cut, subwoofer crossover)
         |After=pipewire.service wireplumber.service
         |BindsTo=pipewire.service
         |
@@ -472,9 +472,9 @@ class PipeWireChain(
     // Waits for the way in's sound (music and calls) before starting: taken before it exists, it would
     // never link. If it never comes, the start fails and systemd tries again.
     internal fun speakersUnit() = """
-        |# Written by DASH-AA (Audio › Speakers › Car sound). DASH rewrites it; edits are lost.
+        |# Written by DASH (Audio › Speakers › Car sound). DASH rewrites it; edits are lost.
         |[Unit]
-        |Description=DASH-AA car sound: the speaker layout
+        |Description=DASH car sound: the speaker layout
         |After=$SOUND_UNIT
         |BindsTo=$SOUND_UNIT
         |
@@ -497,22 +497,22 @@ class PipeWireChain(
         private const val TAG = "DashSoundChain"
 
         /** DASH's output — what every app plays into. */
-        const val SINK = "dash-aa.sound"
+        const val SINK = "dash.sound"
         /** The way in's music, offered to the layout. */
-        const val PROCESSED = "dash-aa.processed"
+        const val PROCESSED = "dash.processed"
         /** Where calls play while the chain runs, and their sound offered on. */
-        const val CALLS = "dash-aa.calls"
-        const val CALLS_PROCESSED = "dash-aa.calls.processed"
+        const val CALLS = "dash.calls"
+        const val CALLS_PROCESSED = "dash.calls.processed"
         /** The layout's intakes. */
-        const val LAYOUT = "dash-aa.layout"
-        const val LAYOUT_CALLS = "dash-aa.layout.calls"
-        const val SPEAKERS = "dash-aa.speakers"
-        const val SPEAKERS_CALLS = "dash-aa.speakers.calls"
+        const val LAYOUT = "dash.layout"
+        const val LAYOUT_CALLS = "dash.layout.calls"
+        const val SPEAKERS = "dash.speakers"
+        const val SPEAKERS_CALLS = "dash.speakers.calls"
 
-        const val SOUND_UNIT = "dash-aa-sound.service"
-        const val SPEAKERS_UNIT = "dash-aa-speakers.service"
-        const val SOUND_CONF = "dash-aa-sound.conf"
-        const val SPEAKERS_CONF = "dash-aa-speakers.conf"
+        const val SOUND_UNIT = "dash-sound.service"
+        const val SPEAKERS_UNIT = "dash-speakers.service"
+        const val SOUND_CONF = "dash-sound.conf"
+        const val SPEAKERS_CONF = "dash-speakers.conf"
 
         /** DASH's own chain can do everything the tabs offer. */
         val OFFERS = SoundControl.entries.toSet()
@@ -634,7 +634,7 @@ class PipeWireChain(
                 put("playback.props", offered(CALLS_PROCESSED))
             })
             // The first line names the shape, so a DASH that changes it knows the running one is older.
-            return "# DASH-AA car sound: the way in, shape $WAY_IN_SHAPE. Written by DASH-AA (Audio › Equaliser); DASH rewrites it.\n" +
+            return "# DASH car sound: the way in, shape $WAY_IN_SHAPE. Written by DASH (Audio › Equaliser); DASH rewrites it.\n" +
                 json.encodeToString(JsonObject.serializer(), process(music, calls)) + "\n"
         }
 
@@ -733,7 +733,7 @@ class PipeWireChain(
             if (music.isEmpty()) return null
             val calls = car.callFeeds(driverOnRight).entries.toList()
             val delays = car.outputDelays()
-            return "# DASH-AA car sound: the speaker layout, shape $LAYOUT_SHAPE, ${layoutSignature(car)}. Written by DASH-AA (Audio › Speakers); DASH rewrites it.\n" +
+            return "# DASH car sound: the speaker layout, shape $LAYOUT_SHAPE, ${layoutSignature(car)}. Written by DASH (Audio › Speakers); DASH rewrites it.\n" +
                 json.encodeToString(JsonObject.serializer(), process(
                     *mix(music, delays, PROCESSED, LAYOUT, SPEAKERS, "DASH speakers (internal)"),
                     *mix(calls, delays, CALLS_PROCESSED, LAYOUT_CALLS, SPEAKERS_CALLS, "DASH call speakers (internal)"),
@@ -786,7 +786,7 @@ class PipeWireChain(
                     put("node.dont-fallback", true)
                     put("node.passive", true)
                     put("stream.dont-remix", true)
-                    put("application.name", "DASH-AA")
+                    put("application.name", "DASH")
                 })
                 put("playback.props", buildJsonObject {
                     put("node.name", "$intake.out")
@@ -795,7 +795,7 @@ class PipeWireChain(
                     put("node.dont-fallback", true)
                     put("node.passive", true)
                     put("stream.dont-remix", true)
-                    put("application.name", "DASH-AA")
+                    put("application.name", "DASH")
                 })
             })
             // Each device gets one stream carrying every output the layout uses on it.
@@ -814,7 +814,7 @@ class PipeWireChain(
                 })
                 put("stream.props", buildJsonObject {
                     put("stream.dont-remix", true)
-                    put("application.name", "DASH-AA")
+                    put("application.name", "DASH")
                 })
                 put("stream.rules", buildJsonArray {
                     for ((device, outs) in byDevice) add(buildJsonObject {

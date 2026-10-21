@@ -59,7 +59,7 @@ class EvdevTouch(
         val yRange = absRange(lib, fd, ABS_MT_POSITION_Y) ?: return false.also { lib.close(fd) }
         device = found
         running = true
-        Thread({ readLoop(lib, fd, xRange, yRange) }, "dash-aa-touch").apply { isDaemon = true }.start()
+        Thread({ readLoop(lib, fd, xRange, yRange) }, "dash-touch").apply { isDaemon = true }.start()
         Log.i(TAG, "multi-touch from ${found.name} (${found.path}), x ${xRange}, y $yRange")
         return true
     }

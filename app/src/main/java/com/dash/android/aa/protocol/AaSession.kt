@@ -72,7 +72,7 @@ class AaSession(
         private set
 
     fun run() {
-        val pinger = Thread({ pingLoop() }, "dash-aa-ping").apply { isDaemon = true }
+        val pinger = Thread({ pingLoop() }, "dash-ping").apply { isDaemon = true }
         try {
             host.onProgress("Negotiating with the phone…")
             messenger.send(Aa.CH_CONTROL, Aa.VERSION_REQUEST, AaMessages.versionRequest(), encrypted = false)

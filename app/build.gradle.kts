@@ -119,7 +119,7 @@ compose.desktop {
         )
         nativeDistributions {
             targetFormats(TargetFormat.AppImage)
-            packageName = "dash-aa"
+            packageName = "dash"
             packageVersion = dashVersionName
             modules("java.naming", "jdk.unsupported", "jdk.net", "java.xml", "jdk.security.auth")
         }

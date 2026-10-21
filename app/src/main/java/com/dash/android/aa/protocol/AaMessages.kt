@@ -278,13 +278,13 @@ object AaMessages {
                 }
             }
         }
-        string(2, "DASH-AA")              // head_unit_name
+        string(2, "DASH")              // head_unit_name
         string(3, "DASH")                 // car_model
         string(4, "2026")                 // car_year
-        string(5, "DASH-AA-0001")         // car_serial
+        string(5, "DASH-0001")         // car_serial
         bool(6, c.leftHandDrive)          // left_hand_drive_vehicle
         string(7, "DASH")                 // headunit_manufacturer
-        string(8, "DASH-AA")              // headunit_model
+        string(8, "DASH")              // headunit_model
         string(9, c.softwareVersion)      // sw_build
         string(10, c.softwareVersion)     // sw_version
         bool(11, false)                   // can_play_native_media_during_vr

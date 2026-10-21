@@ -54,7 +54,7 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 
 | Shim | Stands in for | Lets these compile unchanged |
 |---|---|---|
-| `android.util.Log` | logcat → stderr, same one-line shape | eleven transport and panel files |
+| `android.util.Log` | logcat → stderr, same one-line shape; from 1.1.9 every line also handed to DASH's log (`sink`) | eleven transport and panel files |
 | `android.util.Xml` | `newPullParser()` → kXML2 (Android's own parser underneath) | `SvgParser` |
 | `android.content.Context`, `res.AssetManager`, `res.Resources`, `ContentResolver` | `filesDir`, `assets`, `getExternalFilesDir`, `displayMetrics`, opening a picked file | `ModuleDatabase`, `SvgSubset`, `PanelLoader`, `WeatherArt`, `SplashCrop`, `LicenceContent`, `ModulePanelContent` |
 | `android.net.Uri` | parse / scheme / path | splash code |
@@ -81,7 +81,7 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 | `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05). From 1.1.1, the tree reorganised for Linux — see *DASH changes* below. |
 | `ui/settings/content/DensityScaleContent.kt` | Android half (app density, Android font) dropped. |
 | `ui/settings/content/LocationContent.kt` | "Use device location" (Android permission) dropped. |
-| `ui/settings/content/AboutContent.kt` | Wordmark DASH-AA + the native version it mirrors; links open with `xdg-open`. The report section moved out (1.1.1 — see *DASH changes*). |
+| `ui/settings/content/AboutContent.kt` | Wordmark DASH (DASH-AA until 1.1.9) + the native version it mirrors; links open with `xdg-open`. The report section moved out (1.1.1 — see *DASH changes*). |
 | `ui/settings/content/SplashContent.kt` | Desktop file dialog for Android's picker; window size for Android's configuration. |
 | `ui/splash/SplashScreen.kt` | Animated splash decoded by Skia instead of Android's `AnimatedImageDrawable`. |
 | `ui/settings/content/LicenceContent.kt` | The third-party list names what DASH-AA bundles (Compose for Desktop, Skia, JNA, jSerialComm, kXML2, the Java runtime) and aasdk, from which the Android Auto definitions derive. Same obligation, different components. |
@@ -116,6 +116,8 @@ shim, a permission, a tab.
 | 1.1.8 | `time/TimeSystem.kt`, `time/TimePreferences.kt`, `time/DashTime.kt`, `time/TimeRules.kt` (new) | The seam Date & Time talks through (zone, automatic time, set by hand, zones, `canChange`), DASH's choices (24/12 hour, date style, Follow Location), **the time for every element and overlay** (`DashTime`, a `DashClock` once a second; it also keeps Java's zone current), and the zone following Location. Take them all, and start `DashTime` where native starts its other parts. Native writes an Android `TimeSystem` (the zone, Android's automatic time; `canChange` false — an app may not set the clock). |
 | 1.1.8 | `ui/systembar/DashElement.kt` | `ElementScope.time`: the Element SDK hands every element the time (Roger: readable from the Element and Overlay SDKs). Take it. |
 | 1.1.8 | `ui/time/DateTimeContent.kt` (new), `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | System › Date & Time, live (Updates' placeholder now says 1.2.1). Take them; with `canChange` false only *How DASH shows it* changes, so native adds a link to Android's own Date & Time. |
+| 1.1.9 | `logs/LogBook.kt`, `logs/LogParts.kt`, `logs/Blanker.kt` (new) | DASH's own log: kept in memory and on disk a run at a time (the last ten, 5 MB a part), how a run ended ("stopped unexpectedly"), the detail switch; the parts in plain words; and private details blanked with steady labels. Take them all. On native the `sink` hook goes where its logging lands (a small `DashLog` beside `android.util.Log`, or reading the app's own logcat), and `LineCatcher`'s stderr has no equivalent. |
+| 1.1.9 | `ui/logs/LogsContent.kt`, `ui/logs/StoppedNotice.kt` (new), `ui/screen/MainScreen.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Developer › Logs, live, and the stopped notice (never over the viewport's app). Take them; the Machine view, SAVE TO USB and the USB sticks are Linux's and come out (Android lets no app read the system log), and native's blanking reads its own `BluetoothSystem` and `NetworkSystem`. |
 | 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
@@ -142,7 +144,9 @@ program), `power/linux/` (the machine's power through logind, UPower and the pow
 held with `systemd-inhibit`; Restart DASH — DASH-AA's `PowerSystem`, 1.1.7), `arduino/PowerTester/` (the
 ESP32 car power tester, 1.1.7 — an ordinary USB module, so native can use it unchanged), `time/linux/`
 (the machine's clock through timedated, with polkit asked first — DASH-AA's `TimeSystem`, 1.1.8),
-`packaging/50-dash-aa.rules` (the polkit rule letting the person at the seat set the clock, 1.1.8), and the whole of
+`packaging/50-dash.rules` (the polkit rule letting the person at the seat set the clock, 1.1.8), `logs/linux/` (the
+machine's log through journalctl, USB sticks through lsblk and udisks, saving the logs — 1.1.9),
+`system/linux/OldNames.kt` (the one-time move from the dash-aa names, 1.1.9), and the whole of
 `aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
 the projection before the machine sleeps and looks for the phone afresh on waking.
 

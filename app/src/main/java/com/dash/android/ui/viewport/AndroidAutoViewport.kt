@@ -181,7 +181,7 @@ internal fun statusLine(status: AaStatus): String? = when (status) {
     AaStatus.WaitingForPhone -> "Connect your phone by USB for Android Auto"
     AaStatus.Disabled -> null
     is AaStatus.Unavailable -> status.reason
-    is AaStatus.NoPermission -> "Phone found, but DASH-AA may not open it — run packaging/install.sh"
+    is AaStatus.NoPermission -> "Phone found, but DASH may not open it — run packaging/install.sh"
     is AaStatus.Switching -> "Starting Android Auto on the phone…"
     is AaStatus.Connecting -> status.step
     is AaStatus.Projecting -> null

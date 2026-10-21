@@ -157,7 +157,7 @@ class AaTls(private val engine: SSLEngine) {
             })
         }
 
-        private const val ALIAS = "dash-aa-headunit"
+        private const val ALIAS = "dash-headunit"
         private const val BUFFER = 65536
         private val EMPTY: ByteBuffer = ByteBuffer.allocate(0)
 

@@ -32,7 +32,7 @@ import kotlin.test.Test
 /** Opt-in (-Dscreenshots=1): every Connections tab, the keyboard and the pairing question, against pretend networks. */
 class ConnectionsScreenshots {
     private fun app(request: PairingRequest? = null): DashApplication {
-        val app = DashApplication(createTempDirectory("dash-aa-connections").toFile())
+        val app = DashApplication(createTempDirectory("dash-connections").toFile())
         app.network = PretendNetwork()
         app.bluetooth = PretendBluetooth(request)
         app.bluetoothMusic = {}

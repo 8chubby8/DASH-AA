@@ -26,6 +26,6 @@ object AaCapabilities {
     /** Whether DASH-AA's udev rule (or an equivalent the user wrote) is in place. */
     fun udevRuleInstalled(): Boolean =
         listOf("/etc/udev/rules.d", "/usr/lib/udev/rules.d", "/lib/udev/rules.d").any { dir ->
-            File(dir).listFiles().orEmpty().any { f -> f.name.contains("dash-aa") || f.name.contains("android-udev") || f.name.contains("51-android") }
+            File(dir).listFiles().orEmpty().any { f -> f.name.contains("dash") || f.name.contains("android-udev") || f.name.contains("51-android") }
         }
 }

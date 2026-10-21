@@ -59,7 +59,7 @@ fun AboutContent() {
             // of them says: what the name stands for.
             SettingsContentHeader("Dynamic Automotive System Hub")
             Text(
-                "DASH-AA",
+                "DASH",
                 color = theme.textColourSecondary,
                 fontSize = 40.sp,
                 letterSpacing = 6.sp,

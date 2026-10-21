@@ -16,7 +16,7 @@ object Relaunch {
         if (command.isNullOrEmpty()) return false
         val pid = ProcessHandle.current().pid()
         return runCatching {
-            ProcessBuilder(listOf("setsid", "sh", "-c", "while kill -0 $pid 2>/dev/null; do sleep 0.2; done; exec \"\$@\"", "dash-aa") + command)
+            ProcessBuilder(listOf("setsid", "sh", "-c", "while kill -0 $pid 2>/dev/null; do sleep 0.2; done; exec \"\$@\"", "dash") + command)
                 .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectInput(ProcessBuilder.Redirect.from(File("/dev/null")))
                 .start()

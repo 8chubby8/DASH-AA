@@ -62,7 +62,7 @@ import kotlinx.coroutines.runBlocking
  * and never stopped by anything the UI does. Closing DASH-AA ends the process, which takes the
  * sockets with it — exactly the teardown upstream relies on.
  *
- * [home] is where everything is kept — `~/.local/share/dash-aa` normally; tests pass a scratch folder.
+ * [home] is where everything is kept — `~/.local/share/dash` normally; tests pass a scratch folder.
  *
  * Upstream's `densityCapable` probe is gone with the App Density feature it served: the apps it
  * scaled are Android apps in an Android viewport, and DASH-AA's viewport is Android Auto, whose own

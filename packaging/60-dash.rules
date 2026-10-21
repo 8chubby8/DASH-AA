@@ -1,4 +1,4 @@
-# DASH-AA — udev rules.  Install with packaging/install.sh (or copy to /etc/udev/rules.d/ and run
+# DASH — udev rules.  Install with packaging/install.sh (or copy to /etc/udev/rules.d/ and run
 # `sudo udevadm control --reload && sudo udevadm trigger`).
 #
 # 1. Android Auto: let the person at the seat open their phone over USB.
@@ -8,7 +8,7 @@
 #    whatever its maker, comes back as Google's accessory device (18d1:2d00–2d05).
 
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="18d1", TAG+="uaccess"
-# Phone makers (DASH-AA only ever asks a phone to switch; see AaUsb.PHONE_VENDORS):
+# Phone makers (DASH only ever asks a phone to switch; see AaUsb.PHONE_VENDORS):
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04e8", TAG+="uaccess"
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="22b8", TAG+="uaccess"
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1004", TAG+="uaccess"

@@ -22,7 +22,7 @@ import java.io.IOException
  *
  * **Permission.** Opening a USB device needs write access to its node in `/dev/bus/usb`. Desktop Linux
  * grants that to the logged-in user only for device kinds udev has been told about, so DASH-AA ships a
- * rule (`packaging/51-dash-aa.rules`) and, without it, reports exactly that rather than failing
+ * rule (`packaging/51-dash.rules`) and, without it, reports exactly that rather than failing
  * silently — the capability-detection rule.
  */
 object AaUsb {
@@ -118,7 +118,7 @@ object AaUsb {
                 "Android Auto",       // description
                 "2.0.1",              // version
                 "https://github.com/8chubby8/DASH",
-                "DASH-AA-0001",       // serial
+                "DASH-0001",       // serial
             )
             strings.forEachIndexed { i, s ->
                 val bytes = (s + "\u0000").toByteArray(Charsets.UTF_8)

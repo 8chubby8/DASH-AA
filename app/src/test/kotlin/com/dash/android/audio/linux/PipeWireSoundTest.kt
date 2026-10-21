@@ -41,9 +41,9 @@ class PipeWireSoundTest {
         ${node(59, "Audio/Source", """"node.name": "alsa_input.analog", "node.description": "Ryzen HD Audio Controller Analog Stereo", "device.id": 51, "card.profile.device": 0""")},
         ${node(70, "Audio/Sink", """"node.name": "alsa_output.usb", "node.description": "USB Audio Device"""", gain = 1.0)},
         ${node(80, "Stream/Output/Audio", """"node.name": "spotify", "application.name": "Spotify", "media.name": "Spotify"""", gain = 0.125)},
-        ${node(81, "Stream/Output/Audio", """"node.name": "dash-aa-media-audio", "application.name": "DASH-AA"""")},
+        ${node(81, "Stream/Output/Audio", """"node.name": "dash-media-audio", "application.name": "DASH"""")},
         ${node(82, "Audio/Source", """"node.name": "bluez_input.phone", "api.bluez5.profile": "audio-gateway", "api.bluez5.address": "AA:BB"""")},
-        ${node(83, "Audio/Sink", """"node.name": "dash-aa-ec-sink", "node.description": "call speaker"""")},
+        ${node(83, "Audio/Sink", """"node.name": "dash-ec-sink", "node.description": "call speaker"""")},
         ${defaults("alsa_output.analog", "alsa_input.analog")}
     ]"""
 

@@ -56,7 +56,7 @@ class DisplayScreenshots {
     @Test fun `draw DASH turning its own picture`() {
         if (System.getProperty("screenshots") == null) return
         val out = File("build/screenshots").apply { mkdirs() }
-        val home = createTempDirectory("dash-aa-turned").toFile()
+        val home = createTempDirectory("dash-turned").toFile()
         val app = DashApplication(home)
         app.network = com.dash.android.connections.PretendNetwork(); app.bluetooth = com.dash.android.connections.PretendBluetooth(); app.bluetoothMusic = {}
         app.display = LinuxDisplay(File(home, "display"), { emptyList() })
@@ -79,7 +79,7 @@ class DisplayScreenshots {
     @Test fun `draw the Display tabs`() {
         if (System.getProperty("screenshots") == null) return
         val out = File("build/screenshots").apply { mkdirs() }
-        val home = createTempDirectory("dash-aa-display").toFile()
+        val home = createTempDirectory("dash-display").toFile()
         val app = DashApplication(home)
         app.network = com.dash.android.connections.PretendNetwork(); app.bluetooth = com.dash.android.connections.PretendBluetooth(); app.bluetoothMusic = {}
         app.display = LinuxDisplay(File(home, "display"), { listOf(Pretend()) })

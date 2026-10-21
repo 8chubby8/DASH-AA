@@ -153,7 +153,7 @@ class PipeWireSound : SoundSystem {
         val p = runCatching {
             ProcessBuilder(
                 exe, "--record", "--raw", "--format", "s16", "--rate", "16000", "--channels", "1",
-                "-P", "node.name=dash-aa-meter node.description=DASH-AA_level_meter application.name=DASH-AA application.id=dash-aa.meter",
+                "-P", "node.name=dash-meter node.description=DASH_level_meter application.name=DASH application.id=dash.meter",
                 "-",
             ).redirectError(ProcessBuilder.Redirect.DISCARD).start()
         }.getOrNull() ?: return null
@@ -342,7 +342,7 @@ internal class PwGraph {
         val p = n.props() ?: return false
         val name = p.str("node.name")
         if (name == PipeWireChain.SINK) return false
-        return name?.startsWith("dash-aa") == true || p.str("application.name") == "DASH-AA"
+        return name?.startsWith("dash") == true || p.str("application.name") == "DASH"
     }
 
     /** `audio.position`, which PipeWire writes as a list or as a string of one: `[ FL, FR ]`. */

@@ -25,11 +25,11 @@ object BluetoothMusic {
 
     private val file: File by lazy {
         val config = System.getenv("XDG_CONFIG_HOME")?.takeIf { it.isNotBlank() } ?: (System.getProperty("user.home") + "/.config")
-        File(config, "wireplumber/wireplumber.conf.d/51-dash-aa-no-bluetooth-music.conf")
+        File(config, "wireplumber/wireplumber.conf.d/51-dash-no-bluetooth-music.conf")
     }
 
     private val CONTENT = """
-        |# Written by DASH-AA (Connections › Bluetooth › Music from phones). Phones' Bluetooth music crashes the
+        |# Written by DASH (Connections › Bluetooth › Music from phones). Phones' Bluetooth music crashes the
         |# sound system beside Android Auto's, so this machine does not offer itself as a Bluetooth speaker.
         |# Calls and Bluetooth headphones are unaffected. Switching the setting back removes this file.
         |monitor.bluez.properties = {
@@ -39,6 +39,15 @@ object BluetoothMusic {
 
     /** Whether the guard is in place now. */
     fun blocked(): Boolean = file.isFile
+
+    /**
+     * The guard as an older DASH named it ([old], from before the rename) moved to today's name. It says the
+     * same to WirePlumber, so WirePlumber is not restarted.
+     */
+    fun adopt(old: File) {
+        if (!file.isFile) { file.parentFile.mkdirs(); file.writeText(CONTENT) }
+        old.delete()
+    }
 
     /** Put the guard in place or take it away; WirePlumber is restarted only if that changed anything. */
     fun set(block: Boolean) {

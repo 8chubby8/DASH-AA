@@ -110,8 +110,8 @@ class AudioOut internal constructor(
         @Volatile private var stalled = false
 
         init {
-            Thread({ play() }, "dash-aa-audio-${Aa.channelName(channel)}").apply { isDaemon = true }.start()
-            Thread({ watch() }, "dash-aa-audio-watch-${Aa.channelName(channel)}").apply { isDaemon = true }.start()
+            Thread({ play() }, "dash-audio-${Aa.channelName(channel)}").apply { isDaemon = true }.start()
+            Thread({ watch() }, "dash-audio-watch-${Aa.channelName(channel)}").apply { isDaemon = true }.start()
         }
 
         fun enqueue(pcm: ByteArray, onPlayed: () -> Unit) {
@@ -142,7 +142,7 @@ class AudioOut internal constructor(
         }
 
         private fun play() {
-            val out = open(rate, channels, role(channel), "dash-aa-${Aa.channelName(channel)}")
+            val out = open(rate, channels, role(channel), "dash-${Aa.channelName(channel)}")
             if (out == null) {
                 Log.w(TAG, "no audio output for ${Aa.channelName(channel)} — acknowledging in silence")
                 stalled = true
@@ -246,8 +246,8 @@ internal object PwCat {
      */
     private fun args(rate: Int, channels: Int, role: String, name: String) = listOf(
         "--raw", "--format", "s16", "--rate", "$rate", "--channels", "$channels", "--media-role", role,
-        "-P", "node.name=$name node.description=DASH-AA_${name.removePrefix("dash-aa-")} " +
-            "application.name=DASH-AA application.id=dash-aa.${name.removePrefix("dash-aa-")}", "-",
+        "-P", "node.name=$name node.description=DASH_${name.removePrefix("dash-")} " +
+            "application.name=DASH application.id=dash.${name.removePrefix("dash-")}", "-",
     )
 
     fun playback(rate: Int, channels: Int, role: String, name: String): PcmOut? {
@@ -287,7 +287,7 @@ class Microphone(private val onPcm: (ByteArray, Int) -> Unit) {
         if (process != null) return
         val gen = ++generation
         Thread({
-            val rec = PwCat.record(16000, 1, "Communication", "dash-aa-mic")
+            val rec = PwCat.record(16000, 1, "Communication", "dash-mic")
             if (rec == null) { Log.w(TAG, "no microphone (pw-cat missing)"); return@Thread }
             val (p, input) = rec
             synchronized(this) { if (gen != generation) { p.destroy(); return@Thread }; process = p }
@@ -302,7 +302,7 @@ class Microphone(private val onPcm: (ByteArray, Int) -> Unit) {
                 }
             } catch (_: Exception) {
             }
-        }, "dash-aa-mic").apply { isDaemon = true }.start()
+        }, "dash-mic").apply { isDaemon = true }.start()
     }
 
     @Synchronized

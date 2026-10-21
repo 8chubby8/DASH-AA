@@ -948,6 +948,14 @@ fun MainScreen(isColdBoot: Boolean, window: java.awt.Window? = null) {
             // Monitor / Signal Monitor), rendered inside the shell — no standalone routes any more.
             // They reach the transport layer and the sourceless core through the two desks above.
 
+            // 1.1.9: DASH stopped unexpectedly last time — a quiet card, never over Android Auto or the settings.
+            val aaStatus by dashApp.androidAuto.status.collectAsState()
+            if (!showSettings && !showSplash && aaStatus !is com.dash.android.aa.AaStatus.Projecting) {
+                com.dash.android.ui.logs.StoppedNotice(Modifier.align(Alignment.Center)) {
+                    settingsReturnTarget = "developer.logs"; settingsJump++; showSettings = true
+                }
+            }
+
             // DASH-AA 1.1.6: the Bluetooth pairing question, then the keyboard (which a PIN is typed with) over it.
             com.dash.android.ui.connections.PairingPrompt()
             com.dash.android.ui.keyboard.KeyboardOverlay(Modifier.align(Alignment.BottomCenter))

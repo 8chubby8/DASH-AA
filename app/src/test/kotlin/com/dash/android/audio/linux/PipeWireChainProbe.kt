@@ -27,20 +27,20 @@ import kotlin.test.assertTrue
  * or any volume; plays only silence.
  */
 /**
- * The probe's chain has names of its own (`dash-aa-probe.…`), so it can run beside a live Car sound: with
+ * The probe's chain has names of its own (`dash-probe.…`), so it can run beside a live Car sound: with
  * the same names, WirePlumber cannot tell the two apart, and once moved the default onto the live chain's
  * internal splitter (2026-10-08).
  */
-private fun probeNames(text: String) = text.replace("\"dash-aa.", "\"dash-aa-probe.")
+private fun probeNames(text: String) = text.replace("\"dash.", "\"dash-probe.")
 private object N {
-    const val SINK = "dash-aa-probe.sound"
-    const val PROCESSED = "dash-aa-probe.processed"
-    const val CALLS = "dash-aa-probe.calls"
-    const val CALLS_PROCESSED = "dash-aa-probe.calls.processed"
-    const val LAYOUT = "dash-aa-probe.layout"
-    const val LAYOUT_CALLS = "dash-aa-probe.layout.calls"
-    const val SPEAKERS = "dash-aa-probe.speakers"
-    const val SPEAKERS_CALLS = "dash-aa-probe.speakers.calls"
+    const val SINK = "dash-probe.sound"
+    const val PROCESSED = "dash-probe.processed"
+    const val CALLS = "dash-probe.calls"
+    const val CALLS_PROCESSED = "dash-probe.calls.processed"
+    const val LAYOUT = "dash-probe.layout"
+    const val LAYOUT_CALLS = "dash-probe.layout.calls"
+    const val SPEAKERS = "dash-probe.speakers"
+    const val SPEAKERS_CALLS = "dash-probe.speakers.calls"
 }
 
 class PipeWireChainProbe {
@@ -389,12 +389,12 @@ class PipeWireChainUnitsProbe {
         val said = verify.inputStream.bufferedReader().readText()
         verify.waitFor()
         println("systemd-analyze: ${said.ifBlank { "(nothing to say)" }}")
-        assertTrue(said.lines().none { it.contains(dir.name) && !it.contains("dash-aa-sound.service: Unit") }, said)
+        assertTrue(said.lines().none { it.contains(dir.name) && !it.contains("dash-sound.service: Unit") }, said)
 
         // The wait, as systemd will run it once its $$ has become $: quick when the way in is up.
         val pre = speakers.readLines().first { it.startsWith("ExecStartPre=") }.removePrefix("ExecStartPre=")
             .replace("$$", "$").removePrefix("/bin/sh -c '").removeSuffix("'")
-            .replace("dash-aa.", "dash-aa-probe.")
+            .replace("dash.", "dash-probe.")
         val a = ProcessBuilder("pipewire", "-c", File(dir, PipeWireChain.SOUND_CONF).absolutePath)
             .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
         try {

@@ -211,7 +211,7 @@ fun AudioOutputContent() {
         SettingBlock(
             name = "Android Auto sound",
             control = {
-                PresetSegment(listOf("Phone", "DASH-AA"), if (aa.settings.audio) 1 else 0, controlWidth) { i ->
+                PresetSegment(listOf("Phone", "DASH"), if (aa.settings.audio) 1 else 0, controlWidth) { i ->
                     aa.set { it.copy(audio = i == 1) }
                 }
             },
@@ -623,7 +623,7 @@ fun AudioInputContent() {
         SettingBlock(
             name = "Android Auto microphone",
             control = {
-                PresetSegment(listOf("Phone", "DASH-AA"), if (aa.settings.microphone) 1 else 0, controlWidth) { i ->
+                PresetSegment(listOf("Phone", "DASH"), if (aa.settings.microphone) 1 else 0, controlWidth) { i ->
                     aa.set { it.copy(microphone = i == 1) }
                 }
             },

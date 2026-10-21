@@ -112,7 +112,7 @@ object ZoneFinder {
                 connectTimeout = 5_000
                 readTimeout = 5_000
                 // As the weather: some free services refuse Java's own name.
-                setRequestProperty("User-Agent", "DASH-HeadUnit/1.5 (Linux; DASH-AA)")
+                setRequestProperty("User-Agent", "DASH-HeadUnit/1.5 (Linux)")
                 setRequestProperty("Accept", "application/json")
             }
             if (conn.responseCode in 200..299) conn.inputStream.bufferedReader().use { it.readText() } else null

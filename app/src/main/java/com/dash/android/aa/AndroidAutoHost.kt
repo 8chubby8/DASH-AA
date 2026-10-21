@@ -165,7 +165,7 @@ class AndroidAutoHost(
             }
         }
         multiTouch = runCatching { evdev.start() }.getOrDefault(false)
-        Thread({ connectionLoop() }, "dash-aa-host").apply { isDaemon = true }.start()
+        Thread({ connectionLoop() }, "dash-host").apply { isDaemon = true }.start()
     }
 
     /** The viewport's size in pixels, from its layout. Debounced: Android Auto restarts only once a new
@@ -329,7 +329,7 @@ class AndroidAutoHost(
 
     private fun connectionLoop() {
         if (!AaUsb.available()) {
-            _status.value = AaStatus.Unavailable("libusb-1.0 is not installed, so DASH-AA cannot reach a phone on USB.")
+            _status.value = AaStatus.Unavailable("libusb-1.0 is not installed, so DASH cannot reach a phone on USB.")
             return
         }
         if (VideoDecoder.ffmpegPath() == null) {
@@ -435,7 +435,7 @@ class AndroidAutoHost(
                     .any { it.address.equals(phoneAddress, ignoreCase = true) }
                 calls.phoneAddress = phoneAddress
                 calls.start()
-                _callsNote.value = if (paired) "Phone paired — calls play through DASH-AA"
+                _callsNote.value = if (paired) "Phone paired — calls play through DASH"
                     else "Phone not paired with this laptop — pair it once in GNOME Settings › Bluetooth"
                 if (!paired) Log.i(TAG, "calls: phone $phoneAddress is not paired with this laptop — pair it in GNOME Settings › Bluetooth")
                 return paired

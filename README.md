@@ -78,7 +78,7 @@ reports both.
 ## Running
 
 ```bash
-app/build/compose/binaries/main/app/dash-aa/bin/dash-aa     # or "DASH-AA" from the app menu
+app/build/compose/binaries/main/app/dash/bin/dash     # or "DASH" from the app menu
 ```
 
 | | |
@@ -88,12 +88,18 @@ app/build/compose/binaries/main/app/dash-aa/bin/dash-aa     # or "DASH-AA" from 
 | `DASH_WINDOWED=1` | start in a window (for the bench) |
 | `DASH_SCALE=1.5` | override the display scale (the in-car screen is yours to size) |
 | `DASH_DISPLAY=window` | ignore the desktop's display program: Rotation turns DASH's own picture instead (for trying it) |
-| `DASH_HOME=…` | keep data somewhere other than `~/.local/share/dash-aa` |
-| `DASH_VERBOSE=1` | debug logging |
+| `DASH_HOME=…` | keep data somewhere other than `~/.local/share/dash` |
+| `DASH_VERBOSE=1` | debug logging (or Developer › Logs › DETAIL) |
 
-**Run one DASH-AA at a time.** Two will fight over the phone, and the log shows `SSLException`. Started
-from the app menu, DASH-AA logs to the system journal (`journalctl --user | grep dash-aa`). Started from a
-terminal, it logs there (add `2>&1 | tee ~/dash-aa.log` to keep it).
+**Run one DASH at a time.** Two will fight over the phone, and the log shows `SSLException`. DASH keeps
+its own log: **Developer › Logs** shows it live, with the last ten runs and the machine's log beside it, and
+saves them to a USB stick with private details blanked. The files are in `~/.local/share/dash/logs/`, one
+per run. Started from a terminal, DASH also prints its log there.
+
+**Renamed at 1.1.9.** DASH-AA's code now calls itself DASH. On its first start DASH moves your settings
+from `~/.local/share/dash-aa`, and Car sound's services to their new names, by itself. Run
+`packaging/install.sh` once more so the two rules and the menu entry take the new names too. Android Auto
+may ask you to accept the car again on the phone, as its name is now "DASH".
 
 ## Android Auto
 
@@ -128,7 +134,7 @@ the desktop's:
 - **Calls:** below.
 - **Saved:** five slots, like a radio's memory buttons. **Hold** a slot to save the car sound there,
   **press** it to load. **Undo last load** puts back what a load replaced. The slots are files in
-  `~/.local/share/dash-aa/files/sound/`, so you can back them up or share them.
+  `~/.local/share/dash/files/sound/`, so you can back them up or share them.
 
 **Loudness** keeps music full when it's quiet. As sound gets quieter your ears lose the low notes first, and
 a little of the very top; loudness puts back exactly what they lose, from the international standard for
@@ -150,12 +156,12 @@ surround* (as speakers wired across the two positive terminals), with a **Delay*
 DASH's own output is the default and its volume is the volume; the speakers' devices sit at full. Only
 the controls your speakers make sense of are shown.
 
-It runs as two of your own services, `dash-aa-sound` and `dash-aa-speakers` (`systemctl --user status
-dash-aa-sound`), with their settings in `~/.config/pipewire/dash-aa-*.conf`. They start with PipeWire, so
+It runs as two of your own services, `dash-sound` and `dash-speakers` (`systemctl --user status
+dash-sound`), with their settings in `~/.config/pipewire/dash-*.conf`. They start with PipeWire, so
 the sound keeps its settings even when DASH isn't running, so switch Car sound off before using the computer
 for anything else. Turning it off stops and disables them. To
-remove them by hand, run `systemctl --user disable --now dash-aa-speakers dash-aa-sound`, then delete
-those files and `~/.config/systemd/user/dash-aa-*.service`.
+remove them by hand, run `systemctl --user disable --now dash-speakers dash-sound`, then delete
+those files and `~/.config/systemd/user/dash-*.service`.
 
 The choices are the machine's: they need PipeWire and WirePlumber, and if those are missing the tabs say so.
 Car sound also needs PipeWire 1.0 or newer and systemd's user manager; without them it doesn't appear.

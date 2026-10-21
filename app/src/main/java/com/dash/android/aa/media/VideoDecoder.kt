@@ -82,8 +82,8 @@ class VideoDecoder(
             catch (e: IOException) { Log.e(TAG, "ffmpeg would not start: ${e.message}"); return }
         process = p
         running = true
-        Thread({ writeLoop(p) }, "dash-aa-video-in").apply { isDaemon = true }.start()
-        Thread({ readLoop(p) }, "dash-aa-video-out").apply { isDaemon = true }.start()
+        Thread({ writeLoop(p) }, "dash-video-in").apply { isDaemon = true }.start()
+        Thread({ readLoop(p) }, "dash-video-out").apply { isDaemon = true }.start()
         Log.i(TAG, "decoding ${width}x$height")
     }
 

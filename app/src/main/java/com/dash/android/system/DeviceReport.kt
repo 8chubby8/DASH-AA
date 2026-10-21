@@ -32,7 +32,7 @@ fun buildDeviceReport(context: Context, dashTextScale: Float): List<ReportLine> 
     }.getOrNull() ?: "unknown"
 
     return listOf(
-        ReportLine("DASH-AA", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · built ${BuildConfig.BUILD_DATE}"),
+        ReportLine("DASH", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · built ${BuildConfig.BUILD_DATE}"),
         ReportLine("Mirrors DASH", BuildConfig.UPSTREAM_VERSION),
         ReportLine("System", osPrettyName()),
         ReportLine("Kernel", System.getProperty("os.version") ?: "unknown"),

@@ -140,7 +140,7 @@ class WeatherProvider(context: Context) {
                 requestMethod = "GET"
                 // Some free geolocation endpoints reject the default Java user-agent, so identify
                 // ourselves plainly. Harmless to the others.
-                setRequestProperty("User-Agent", "DASH-HeadUnit/1.5 (Linux; DASH-AA)")
+                setRequestProperty("User-Agent", "DASH-HeadUnit/1.5 (Linux)")
                 setRequestProperty("Accept", "application/json")
             }
             val code = conn.responseCode

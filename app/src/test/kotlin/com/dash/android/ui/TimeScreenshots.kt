@@ -29,7 +29,7 @@ import kotlin.test.Test
 /** Opt-in (-Dscreenshots=1): Date & Time on a machine that lets DASH change the clock, one that would want a password, and one set by hand. */
 class TimeScreenshots {
     private fun app(machine: TimeState): DashApplication {
-        val app = DashApplication(createTempDirectory("dash-aa-time").toFile())
+        val app = DashApplication(createTempDirectory("dash-time").toFile())
         app.network = PretendNetwork()
         app.bluetooth = PretendBluetooth(null)
         app.bluetoothMusic = {}

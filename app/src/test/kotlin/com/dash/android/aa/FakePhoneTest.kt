@@ -53,7 +53,7 @@ class FakePhoneTest {
 
     @Test
     fun `a full session against a fake phone`() {
-        val tmp = createTempDirectory("dash-aa-test").toFile()
+        val tmp = createTempDirectory("dash-test").toFile()
         val h264 = makeTestVideo(tmp)
         val server = ServerSocket(0)
         val phoneSocket = arrayOfNulls<Socket>(1)
@@ -119,7 +119,7 @@ class FakePhoneTest {
         phone.send(Aa.CH_CONTROL, Aa.SERVICE_DISCOVERY_REQUEST, ByteArray(0))
         val discovery = phone.expect(Aa.CH_CONTROL, Aa.SERVICE_DISCOVERY_RESPONSE)
         val sd = ProtoMessage.parse(discovery.payload)
-        assertEquals("DASH-AA", sd.string(2))
+        assertEquals("DASH", sd.string(2))
         val channels = sd.repeatedMessages(1)
         val video = channels.first { it.int(1) == Aa.CH_VIDEO }.message(3)!!.message(4)!!
         assertEquals(AaVideoMode.P720.code, video.int(1))

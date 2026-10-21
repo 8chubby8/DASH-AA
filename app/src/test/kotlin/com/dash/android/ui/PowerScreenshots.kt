@@ -28,7 +28,7 @@ import kotlin.test.Test
 /** Opt-in (-Dscreenshots=1): every Power tab, on a pretend laptop and a pretend mini PC on the car's supply. */
 class PowerScreenshots {
     private fun app(machine: PowerState): DashApplication {
-        val app = DashApplication(createTempDirectory("dash-aa-power").toFile())
+        val app = DashApplication(createTempDirectory("dash-power").toFile())
         app.network = PretendNetwork()
         app.bluetooth = PretendBluetooth(null)
         app.bluetoothMusic = {}

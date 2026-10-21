@@ -22,6 +22,89 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.9
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Built — 2026-10-21. **Not yet tried on the G14:** Roger asked for it committed and pushed and will
+test later. Tests pass (137), including the blanking run over the G14's real journal by hand. `-Dscreenshots=1` draws
+Developer › Logs and the stopped notice.
+
+**What and why.** Two things: **the product is called DASH in the code**, and **Developer › Logs**.
+
+Decided with Roger before building:
+- **The name** (Roger: "the project is called dash-aa, but the product is called dash. so in the code its
+  called dash"). DASH-AA is the project, the repository and the documents; everything the code names or the
+  user sees says DASH. **The Bible is updated** (CLAUDE.md, *A Note on the Name*, on Roger's word).
+- **Ten runs kept** ("10 sounds fine"). The machine's log viewer **now**, not with the distro. **The
+  "stopped unexpectedly" notice: yes.** **Save to a USB stick now.**
+- **Private details blanked** (Roger: "I just don't want to share a log on GitHub and it have all data all
+  over it. And also if somebody shares a log with me because of a crash I don't want their information to
+  be compromised"). On disk the log is complete; the viewer shows it blanked; a USB stick only ever gets it
+  blanked.
+- Native is not worried about for now (Roger), though the shared parts are written to be taken.
+
+**Done — the rename:**
+- The app, its menu entry and window title, the About wordmark, the sound streams and services
+  (`dash-sound`, `dash.sound`…), the WirePlumber file, the rule files (`packaging/50-dash.rules`,
+  `60-dash.rules`, `dash.desktop`), the data folder (`~/.local/share/dash`), and what Android Auto is told
+  (head unit "DASH", serial "DASH-0001"). Comments describing the edition's history keep "DASH-AA".
+- **`system/linux/OldNames.kt`** moves an existing machine across on its first start, before anything opens:
+  the data folder; Car sound's two old services stopped, removed and their files deleted (Car sound then
+  starts its new ones, as after switching it off and on); the Bluetooth-music file moved without restarting
+  WirePlumber. Each step only when the old one is there and the new one is not.
+- `install.sh` removes the old-named rules and menu/autostart entries, and keeps autostart if it was on.
+  Roger's menu entry was moved over by hand this time.
+
+**Done — Developer › Logs:**
+- **`logs/LogBook.kt`** — DASH's own log. `android.util.Log` (the shim) hands every line to it, and the rest
+  of stderr (Java's own complaints, stack traces) is caught as "Java". The latest 5,000 lines in memory for
+  the live view; the whole run on disk in `<data>/logs/run-<date>-<time>.log`, written by a thread of its
+  own (a slow disk never holds up the Android Auto session). Ten runs kept; a run's file rolls over once at
+  5 MB, keeping the newest, so a looping fault cannot fill the disk.
+- **How a run ended.** A closing line is written as DASH shuts down. A run without one — killed, the power
+  cut — or one that ended within ten seconds of an error nothing caught, **stopped unexpectedly**. Uncaught
+  errors in any thread, and `main` itself failing, are logged with their trace.
+- **The stopped notice** (`ui/logs/StoppedNotice.kt`): a small card on the next start — never over Android
+  Auto (interface.md principle 7) or the settings; it waits until neither is showing. SHOW LOG opens that
+  run in Logs; OK puts it away for good (a `# noticed` line in that run's file). Until then it also heads
+  the Logs tab.
+- **`logs/Blanker.kt`** — labels, not holes, steady through one look or one save: Bluetooth/Wi-Fi addresses
+  → "Phone 1 · Google" (the maker from systemd's hardware database; private random addresses have none),
+  device names → the same label as their address, Wi-Fi names → "Network 1" (also any `SSID='…'` in the
+  machine's log), the place and map positions, internet addresses (not 192.168/10/172.16 — those are the
+  car's network and how modules are found), emails, phone numbers, USB serials, the user's and the
+  machine's names (`/home/roger` → `~`). **Module names are kept** — they are the builder's, not a person's.
+  Checked against 4,000 lines of the G14's journal: two misses found and fixed (systemd's `modprobe@….service`
+  read as an email; Wi-Fi names DASH had not seen).
+- **`logs/LogParts.kt`** — the 37 tags as Android Auto, Sound, Modules, Connections, Display, Power, System, DASH.
+- **`logs/linux/Journal.kt`** — the machine's log through `journalctl` (JSON), sorted into USB, Bluetooth,
+  Wi-Fi, Sound, Network, Power, DASH, Other. Capability detection: without the journal group only the
+  user's own programs show, and the tab says how to allow the rest; without journalctl the view is absent.
+- **`logs/linux/UsbSticks.kt`, `LogSave.kt`** — sticks found with `lsblk`, opened with `udisksctl` (no
+  password: udisks' own rule for the person at the seat) and closed again afterwards so they can be pulled
+  out. A save writes "DASH logs <date>": every kept run, the machine's log for the run being looked at,
+  This Machine's report, and a Read me saying what was blanked — all blanked.
+- **`ui/logs/LogsContent.kt`** — DASH | Machine; the run picker (this run live, or a kept one, marked if it
+  stopped unexpectedly); LEVEL and PART filters in the column heads, as the Serial Monitor's; search; tap a
+  line for all of it; PAUSE; DETAIL (replaces `DASH_VERBOSE`, remembered); SHOW PRIVATE; SAVE TO USB.
+
+**Outstanding:**
+- Roger's test on the G14: the move from the old names (sound back, settings kept), the phone accepting
+  "DASH", the Machine view, a save to a real stick, and the notice after `kill -9`.
+- Roger to run `packaging/install.sh` once for the renamed rules (the old ones work until then).
+- ffmpeg's own messages go straight to the terminal, not into DASH's log.
+- Blanking the machine's log cannot promise to catch a name DASH has never seen (said in the Read me).
+
+**For native:** take `logs/LogBook.kt`, `LogParts.kt`, `Blanker.kt`, `ui/logs/` and the Logs and
+MainScreen changes. Native's `Log` is Android's own, so the `sink` needs a home: a small `DashLog` the shared
+code logs through, or reading the app's own logcat (`logcat -d --pid`), which Android allows. The Machine
+view, the USB save and `UsbSticks` are Linux's and come out — Android gives no app the system log; native can
+offer Android's share sheet for the blanked files instead. Blanking reads native's own `BluetoothSystem` and
+`NetworkSystem`. The rename does not apply: native was always DASH.
+
+---
+
 ## Version 1.1.8
 
 **Mirrors upstream:** DASH 1.7.1

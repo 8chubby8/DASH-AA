@@ -1,6 +1,6 @@
-// DASH-AA — polkit rule.  Install with packaging/install.sh (or copy to /etc/polkit-1/rules.d/).
+// DASH — polkit rule.  Install with packaging/install.sh (or copy to /etc/polkit-1/rules.d/).
 //
-// DASH never asks for a password (DASH-AA 1.1.8, Roger: DASH has no passwords — the key in the ignition is
+// DASH never asks for a password (1.1.8, Roger: DASH has no passwords — the key in the ignition is
 // its password). The machine's time service asks polkit before each change, and polkit's own default is an
 // administrator's password, so without this rule Date & Time can only show the clock.
 //

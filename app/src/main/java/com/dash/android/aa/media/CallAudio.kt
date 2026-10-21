@@ -52,7 +52,7 @@ class CallAudio(
         if (running) return
         running = true
         reapOrphans()
-        Thread({ loop() }, "dash-aa-call-audio").apply { isDaemon = true }.start()
+        Thread({ loop() }, "dash-call-audio").apply { isDaemon = true }.start()
     }
 
     fun stop() {
@@ -107,7 +107,7 @@ class CallAudio(
                 val cmd = if (n.mediaClass == "Audio/Source") listOf(
                     "pw-loopback", "-n", "$LOOPBACK_PREFIX-voice",
                     "--capture-props=target.object=${n.name} node.dont-reconnect=true",
-                    "--playback-props=media.role=Phone node.description=DASH-AA_call",
+                    "--playback-props=media.role=Phone node.description=DASH_call",
                 ) else listOf(
                     "pw-loopback", "-n", "$LOOPBACK_PREFIX-mic",
                     "--capture-props=media.role=Phone",
@@ -189,7 +189,7 @@ class CallAudio(
 
     private fun startCanceller() {
         val conf = runCatching {
-            java.io.File.createTempFile("dash-aa-echo-cancel", ".conf").apply {
+            java.io.File.createTempFile("dash-echo-cancel", ".conf").apply {
                 deleteOnExit()
                 writeBytes(CallAudio::class.java.getResourceAsStream("/aa/echo-cancel.conf")!!.readBytes())
             }
@@ -226,14 +226,14 @@ class CallAudio(
             .filter { ph ->
                 val info = ph.info()
                 info.command().orElse("").substringAfterLast('/') == "pipewire" &&
-                    info.arguments().orElse(emptyArray()).any { it.substringAfterLast('/').startsWith("dash-aa-echo-cancel") }
+                    info.arguments().orElse(emptyArray()).any { it.substringAfterLast('/').startsWith("dash-echo-cancel") }
             }
             .filter { ph ->
                 val parent = ph.parent().orElse(null)
                 val parentCmd = parent?.info()?.command()?.orElse("") ?: ""
-                parent == null || !(parentCmd.contains("java") || parentCmd.contains("dash-aa"))
+                parent == null || !(parentCmd.contains("java") || parentCmd.contains("dash"))
             }
-            .forEach { ph -> Log.w(TAG, "stopping an orphaned echo canceller (pid ${ph.pid()}) left by an earlier DASH-AA"); ph.destroy() }
+            .forEach { ph -> Log.w(TAG, "stopping an orphaned echo canceller (pid ${ph.pid()}) left by an earlier DASH"); ph.destroy() }
     }
 
     private fun stopCanceller() {
@@ -260,8 +260,8 @@ class CallAudio(
 
     private companion object {
         const val TAG = "DashAaCalls"
-        const val LOOPBACK_PREFIX = "dash-aa-call"
-        const val EC_SINK = "dash-aa-ec-sink"
-        const val EC_SOURCE = "dash-aa-ec-source"
+        const val LOOPBACK_PREFIX = "dash-call"
+        const val EC_SINK = "dash-ec-sink"
+        const val EC_SOURCE = "dash-ec-source"
     }
 }

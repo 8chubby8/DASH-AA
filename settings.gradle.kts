@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "dash-aa"
+rootProject.name = "dash"
 include(":app")

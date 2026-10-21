@@ -192,7 +192,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     SettingsCategory(
         "developer", "Developer", listOf(
             wip("developer.terminal", "Terminal", "1.1.10"),
-            wip("developer.logs", "Logs", "1.1.9"),
+            // DASH's own log and the machine's (1.1.9) — filters, search, the last ten runs, saved to a USB stick.
+            SettingsSub("developer.logs", "Logs", SettingsStatus.LIVE, fillsBox = true),
             // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into
             // desktop"). Proposed as a switch without a reboot — DASH closes, the desktop starts,
             // logging out brings DASH back. Needs the 1.2.x start-up script, so it waits for it.

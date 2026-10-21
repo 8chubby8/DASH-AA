@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=DASH-AA
+Name=DASH
 GenericName=Head unit
 Comment=DASH with Android Auto in the viewport
 Exec=@APP@

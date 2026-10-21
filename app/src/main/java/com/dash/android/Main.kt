@@ -17,6 +17,8 @@ import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.dash.android.system.DesktopScale
+import com.dash.android.system.linux.OldNames
+import com.dash.android.logs.LogBook
 import com.dash.android.ui.screen.MainScreen
 import com.dash.android.ui.rotation.TurnedWindow
 import com.dash.android.display.transformFor
@@ -39,9 +41,12 @@ import androidx.compose.runtime.getValue
  * screen, **Ctrl+Q** quits — the desktop's way out, replacing upstream's Android Power/launcher controls.
  */
 fun main() {
+    LogBook.capture()  // first, so DASH's log has every line of this run
+    OldNames.move()  // before anything opens the data folder or starts the sound
     val app = DashApplication()
+    LogBook.start(app.filesDir.parentFile)
     app.onCreate()
-    Log.i("DASH", "DASH-AA ${BuildConfig.VERSION_NAME} (mirrors DASH ${BuildConfig.UPSTREAM_VERSION}) — data in ${app.filesDir.parentFile}")
+    Log.i("DASH", "DASH ${BuildConfig.VERSION_NAME} (mirrors DASH ${BuildConfig.UPSTREAM_VERSION}) — data in ${app.filesDir.parentFile}")
 
     // Screen blanking (1.1.5) counts from the last touch, key or mouse movement anywhere in DASH.
     runCatching {
@@ -54,14 +59,14 @@ fun main() {
 
     val windowed = System.getenv("DASH_WINDOWED") != null
     val scale = DesktopScale.detect()
-    application {
+    try { application {
         val state = rememberWindowState(
             placement = if (windowed) WindowPlacement.Floating else WindowPlacement.Fullscreen,
             size = DpSize(1280.dp, 720.dp),
         )
         Window(
             onCloseRequest = ::exitApplication,
-            title = "DASH-AA",
+            title = "DASH",
             state = state,
             onKeyEvent = { e ->
                 when {
@@ -91,5 +96,8 @@ fun main() {
                 TurnedWindow(turns) { MainScreen(isColdBoot = true, window = window) }
             }
         }
+    } } catch (e: Throwable) {
+        LogBook.crashed(e)  // said in the log before DASH goes, so the next start knows why
+        throw e
     }
 }

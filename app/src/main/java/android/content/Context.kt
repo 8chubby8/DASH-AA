@@ -13,7 +13,7 @@ import java.io.File
  * that — permissions, intents, system services — is deliberately *not* here: code that needs it is
  * Android-only and was dropped or edited in the fork, and a compile error is the honest signal.
  *
- * **Where the data lives.** `$XDG_DATA_HOME/dash-aa` (normally `~/.local/share/dash-aa`), overridable
+ * **Where the data lives.** `$XDG_DATA_HOME/dash` (normally `~/.local/share/dash`), overridable
  * with `DASH_HOME` for tests and for running two copies side by side.
  */
 open class Context protected constructor(private val home: File) {
@@ -44,7 +44,7 @@ open class Context protected constructor(private val home: File) {
             System.getenv("DASH_HOME")?.let { return File(it) }
             val data = System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }
                 ?: (System.getProperty("user.home") + "/.local/share")
-            return File(data, "dash-aa")
+            return File(data, "dash")
         }
     }
 }

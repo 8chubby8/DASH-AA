@@ -10,9 +10,15 @@ import java.time.format.DateTimeFormatter
  * Android-specific. Providing the same API here lets those files compile byte-identical to upstream,
  * which is what keeps the fork cheap to sync (see FORK.md). Output goes to stderr in logcat's own
  * one-line shape, so `./gradlew run` reads like `adb logcat` did.
+ *
+ * **DASH's own record** (1.1.9): every line written is also handed to [sink] — Developer › Logs keeps
+ * it, as Android's logcat keeps an app's lines on native. [console] is where the stderr copy goes, so the
+ * record can catch the rest of stderr without catching these lines twice.
  */
 object Log {
     @Volatile var minLevel: Int = if (System.getenv("DASH_VERBOSE") != null) VERBOSE else INFO
+    @Volatile var sink: ((level: Int, tag: String, msg: String, tr: Throwable?) -> Unit)? = null
+    @Volatile var console: java.io.PrintStream = System.err
 
     const val VERBOSE = 2
     const val DEBUG = 3
@@ -38,9 +44,10 @@ object Log {
         if (level < minLevel) return 0
         val line = "${LocalTime.now().format(clock)} $letter/${tag ?: "DASH"}: $msg"
         synchronized(this) {
-            System.err.println(line)
-            tr?.printStackTrace()
+            console.println(line)
+            tr?.printStackTrace(console)
         }
+        sink?.invoke(level, tag ?: "DASH", msg, tr)
         return line.length
     }
 }
