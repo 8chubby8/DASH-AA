@@ -1,5 +1,6 @@
 package com.dash.android.transport
 
+import com.dash.android.location.LocationRules
 import android.util.Log
 import com.dash.android.core.SignalBehaviour
 import com.dash.android.core.StoredSignal
@@ -43,6 +44,7 @@ import kotlin.math.abs
  *    window, never waits on the 5 s heartbeat). Pure leading-edge would drop the resting value of a
  *    stream for up to a heartbeat — bad for exactly the steering-angle case §9 uses.
  *  - **threshold** — numeric deadband against the last delivered value; sub-threshold moves are held.
+ *    For a position (`location_position`, `lat,lon`) it is the metres moved (DASH-AA 1.1.11).
  *  - **gate + gate_value** — the stream runs only while another stored signal equals a value. A
  *    false→true flip fires the current value immediately, ignoring the threshold (§9 "gate-open fires
  *    immediately"); while closed, nothing is sent.
@@ -191,6 +193,11 @@ class Streams(
             val last = stream.lastSentValue?.toDoubleOrNull()
             val now = value.toDoubleOrNull()
             if (last != null && now != null && abs(now - last) < threshold) return
+            // A position (`lat,lon`, DASH-AA 1.1.11): the threshold is metres moved.
+            val from = stream.lastSentValue?.let(::position)
+            val to = position(value)
+            if (from != null && to != null &&
+                LocationRules.distanceKm(from.first, from.second, to.first, to.second) * 1000 < threshold) return
         }
 
         val interval = rateIntervalMs(sub)
@@ -285,5 +292,13 @@ class Streams(
     private companion object {
         const val HEARTBEAT_MS = 5_000L
         const val TAG = "DashStreams"
+    }
+
+    private fun position(value: String): Pair<Double, Double>? {
+        val p = value.split(',')
+        if (p.size != 2) return null
+        val lat = p[0].trim().toDoubleOrNull() ?: return null
+        val lon = p[1].trim().toDoubleOrNull() ?: return null
+        return lat to lon
     }
 }

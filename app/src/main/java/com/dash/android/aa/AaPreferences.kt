@@ -54,6 +54,8 @@ data class AaSettings(
     val musicLevel: Float = 1.0f,
     val directionsLevel: Float = 1.0f,
     val systemLevel: Float = 1.0f,
+    /** System › Location (1.1.11): offer the phone DASH's GPS fix, as a car with its own GPS does. */
+    val carLocation: Boolean = true,
 ) {
     /** Driver side resolved — AUTO follows the country the laptop is set to. */
     val leftHandDrive: Boolean get() = when (driverSide) {

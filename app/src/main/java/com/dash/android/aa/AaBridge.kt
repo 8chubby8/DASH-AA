@@ -4,6 +4,7 @@ import android.util.Log
 import com.dash.android.aa.protocol.Aa
 import com.dash.android.aa.protocol.AaMessages
 import com.dash.android.core.SystemState
+import com.dash.android.location.DashLocation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
  * | `gear_position` | gear |
  * | `handbrake_on` | parking brake |
  * | `engine_rpm` | RPM |
+ * | `location_*` with `location_source` gps | the car's location (System › Location, 1.1.11) |
  * | `media_play_pause` / `media_next` / `media_prev` | media keys |
  * | `voice_activate` | the assistant |
  * | `button_home_pressed` | home |
@@ -42,6 +44,11 @@ import kotlinx.coroutines.launch
 class AaBridge(
     private val state: SystemState,
     private val scope: CoroutineScope,
+    /**
+     * Whether DASH has a GPS (1.1.11) — a receiver plugged in, even with no fix yet, or a GPS fix in the core.
+     * Only a GPS is offered to the phone: a position from the internet or a pin would steer its maps wrong.
+     */
+    private val gpsPresent: () -> Boolean = { DashLocation.current.value.receiver != null || state.current("location_source") == "gps" },
 ) {
     /** The sensors to advertise for a connection starting now. */
     fun sensorsFor(settings: AaSettings): List<Int> = buildList {
@@ -51,6 +58,7 @@ class AaBridge(
         if (state.current("gear_position") != null) add(Aa.SENSOR_GEAR)
         if (state.current("handbrake_on") != null) add(Aa.SENSOR_PARKING_BRAKE)
         if (state.current("engine_rpm")?.toDoubleOrNull() != null) add(Aa.SENSOR_RPM)
+        if (settings.carLocation && gpsPresent()) add(Aa.SENSOR_LOCATION)
     }
 
     /** The current reading for a sensor the phone just started, or null to send nothing yet. */
@@ -61,7 +69,19 @@ class AaBridge(
         Aa.SENSOR_GEAR -> state.current("gear_position")?.let { gearCode(it) }?.let { AaMessages.gear(it) }
         Aa.SENSOR_PARKING_BRAKE -> state.current("handbrake_on")?.let { AaMessages.parkingBrake(it.isTrue()) }
         Aa.SENSOR_RPM -> state.current("engine_rpm")?.toDoubleOrNull()?.let { AaMessages.rpm((it * 1000).toInt()) }
+        Aa.SENSOR_LOCATION -> locationEvent(settings)
         else -> null
+    }
+
+    /** The GPS fix from the core's `location_*` signals; nothing without a GPS fix (the phone keeps its own). */
+    private fun locationEvent(settings: AaSettings): ByteArray? {
+        if (!settings.carLocation || state.current("location_source") != "gps") return null
+        val pos = state.current("location_position")?.split(',')?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 2 } ?: return null
+        fun d(name: String) = state.current(name)?.toDoubleOrNull()
+        return AaMessages.location(
+            System.currentTimeMillis(), pos[0], pos[1], d("location_accuracy"),
+            d("location_altitude"), d("location_speed"), d("location_heading"),
+        )
     }
 
     private fun nightFor(settings: AaSettings): Boolean? = when (settings.nightSource) {
@@ -87,6 +107,13 @@ class AaBridge(
                             .forEach { type -> eventFor(type, s)?.let { sendSensor(type, it) } }
                     }
             }
+            // The GPS fix, each time it moves (once a second, from the receiver).
+            launch {
+                state.values
+                    .map { v -> LOCATION_SIGNALS.associateWith { v[it]?.value } }
+                    .distinctUntilChanged()
+                    .collect { eventFor(Aa.SENSOR_LOCATION, settings())?.let { sendSensor(Aa.SENSOR_LOCATION, it) } }
+            }
             // The event bus replays its recent history to a new subscriber; a press from before this
             // connection must never reach the phone, so anything older than the attach is ignored.
             state.events.collect { e ->
@@ -105,6 +132,7 @@ class AaBridge(
 
     companion object {
         private const val TAG = "DashAaBridge"
+        private val LOCATION_SIGNALS = listOf("location_source", "location_position", "location_speed", "location_heading", "location_altitude", "location_accuracy")
 
         private fun String.isTrue() = equals("true", ignoreCase = true) || this == "1" || equals("on", ignoreCase = true)
 

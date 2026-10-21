@@ -50,7 +50,7 @@ class AaUnitTest {
     @Test fun `sensors are advertised only when a module feeds them`() {
         val state = SystemState()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val bridge = AaBridge(state, scope)
+        val bridge = AaBridge(state, scope, gpsPresent = { false })
         assertEquals(listOf(Aa.SENSOR_DRIVING_STATUS), bridge.sensorsFor(AaSettings()))
         state.store("headlights_on", "true")
         state.store("vehicle_speed", "48")

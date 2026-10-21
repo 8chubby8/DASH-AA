@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import com.dash.android.time.DashClock
 import com.dash.android.time.DashTime
+import com.dash.android.location.DashFix
+import com.dash.android.location.DashLocation
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -52,10 +54,15 @@ sealed interface DashAction {
  * [time] is the date and time, once a second, written the way the user chose in System › Date & Time
  * (DASH-AA 1.1.8, Roger: readable from the Element and Overlay SDKs by anyone who wants it). Read only: an
  * element shows the time, it never sets it.
+ *
+ * [location] is where DASH is — position, speed, direction of travel, altitude, accuracy, satellites and the
+ * source (DASH-AA 1.1.11, Roger: the location data accessible through the Element and Overlay SDKs). The same
+ * reading DASH raises as the `location_*` signals; null where it is not known right now. Read only.
  */
 class ElementScope(
     val heightDp: Dp,
     val barHeight: Dp,
     val onAction: (DashAction) -> Unit,
     val time: StateFlow<DashClock> = DashTime.clock,
+    val location: StateFlow<DashFix> = DashLocation.current,
 )

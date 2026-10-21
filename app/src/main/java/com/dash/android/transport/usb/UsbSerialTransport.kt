@@ -4,10 +4,13 @@ import android.content.Context
 import android.util.Log
 import com.dash.android.transport.DashTransport
 import com.dash.android.transport.FrameAssembler
+import com.dash.android.transport.Inbound
 import com.dash.android.transport.InboundFrame
 import com.dash.android.transport.TransportDevice
 import com.dash.android.transport.TransportState
 import com.dash.android.transport.TransportStatus
+import com.dash.android.location.Nmea
+import com.dash.android.location.linux.GnssReceivers
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +53,12 @@ import java.io.File
  *
  * It is a dumb pipe: it frames inbound bytes into lines and blocks and emits them; it never parses
  * a message.
+ *
+ * **A GPS receiver is claimed, not connected** (DASH-AA 1.1.11). A port whose first words are good NMEA
+ * sentences is a GPS, not a module: from then on its lines go to [GnssReceivers] and nowhere else, DASH sends
+ * it nothing, and it is not listed as a module device. A port sending only noise at 115200 is tried at the
+ * speeds GPS receivers use (9600, 4800, 38400) before going back — no module ever sends noise, but a receiver
+ * behind a bridge chip does at the wrong speed. A CDC receiver (u-blox and most others) is heard at once.
  */
 class UsbSerialTransport(
     @Suppress("UNUSED_PARAMETER") context: Context,
@@ -95,7 +104,7 @@ class UsbSerialTransport(
      *  addressed to its id, exactly as it would on a shared bus. */
     override fun send(line: String) {
         val bytes = (line + "\n").toByteArray(Charsets.UTF_8)
-        val targets = synchronized(this) { connections.values.toList() }
+        val targets = synchronized(this) { connections.values.filter { !it.gps } }
         if (targets.isEmpty()) return
         scope.launch(Dispatchers.IO) {
             targets.forEach { conn ->
@@ -107,7 +116,7 @@ class UsbSerialTransport(
 
     override fun send(line: String, deviceKey: String) {
         val bytes = (line + "\n").toByteArray(Charsets.UTF_8)
-        val conn = synchronized(this) { connections[deviceKey] } ?: return
+        val conn = synchronized(this) { connections[deviceKey]?.takeIf { !it.gps } } ?: return
         scope.launch(Dispatchers.IO) {
             runCatching { conn.write(bytes) }
                 .onFailure { closeDevice(conn.path, "Write failed: ${it.message}") }
@@ -148,6 +157,7 @@ class UsbSerialTransport(
         val ports = presentPorts()
         (connections.keys - ports.keys).toList().forEach { path ->
             connections.remove(path)?.close()
+            GnssReceivers.release(path)
             Log.i(TAG, "$path gone")
         }
         refused.retainAll(ports.keys)
@@ -188,14 +198,16 @@ class UsbSerialTransport(
     private fun closeDevice(path: String, reason: String) {
         val conn = synchronized(this) { connections.remove(path) } ?: return
         conn.close()
+        GnssReceivers.release(path)
         Log.i(TAG, "$path closed — $reason")
         publishState()
     }
 
     private fun publishState() {
         synchronized(this) {
-            _devices.value = connections.values.map { TransportDevice(it.path, it.name, tag) }
-            val n = connections.size
+            val modules = connections.values.filter { !it.gps }
+            _devices.value = modules.map { TransportDevice(it.path, it.name, tag) }
+            val n = modules.size
             _status.value = when {
                 n > 0 -> TransportStatus(
                     TransportState.CONNECTED,
@@ -226,7 +238,48 @@ class UsbSerialTransport(
         private val port: SerialPort,
     ) {
         private val assembler = FrameAssembler { frame ->
-            _incoming.tryEmit(InboundFrame(frame, tag, path))
+            val line = (frame as? Inbound.Line)?.text
+            if (line != null && line.all { it == '\t' || it.code in 0x20..0x7E }) sane++
+            if (!gps && !module && line != null && Nmea.isSentence(line)) claimGps()
+            when {
+                gps -> line?.let { GnssReceivers.feed(path, it) }
+                else -> {
+                    if (line != null && line.isNotBlank() && !line.startsWith('$')) module = true
+                    _incoming.tryEmit(InboundFrame(frame, tag, path))
+                }
+            }
+        }
+
+        /** Claimed as a GPS receiver (see the class note). */
+        @Volatile var gps = false
+            private set
+        /** It has said something a GPS would not — a module, never claimed. */
+        private var module = false
+        private var sane = 0
+        private var noise = 0
+        private var speed = 0
+        private var tries = 0
+        private var since = System.currentTimeMillis()
+
+        private fun claimGps() {
+            gps = true
+            GnssReceivers.claim(path, name)
+            Log.i(TAG, "$path is a GPS receiver — claimed for Location")
+            publishState()
+        }
+
+        /** Only noise for a while: try the next speed a GPS receiver might use. */
+        private fun hunt(n: Int) {
+            if (gps || module || sane > 0 || tries >= HUNT_SPEEDS.size) return
+            noise += n
+            if (noise < HUNT_BYTES || System.currentTimeMillis() - since < HUNT_MS) return
+            speed = (speed + 1) % HUNT_SPEEDS.size
+            tries++
+            runCatching { port.setBaudRate(HUNT_SPEEDS[speed]) }
+            assembler.reset()
+            noise = 0
+            since = System.currentTimeMillis()
+            Log.i(TAG, "$path: noise only — trying ${HUNT_SPEEDS[speed]}")
         }
 
         @Volatile private var running = true
@@ -240,7 +293,10 @@ class UsbSerialTransport(
                 while (running) {
                     val n = port.readBytes(buf, buf.size)
                     if (n < 0) break                     // port gone (unplugged)
-                    if (n > 0) assembler.feed(buf, n)
+                    if (n > 0) {
+                        assembler.feed(buf, n)
+                        hunt(n)
+                    }
                 }
             } catch (e: Exception) {
                 Log.i(TAG, "$path read ended: ${e.message}")
@@ -275,5 +331,9 @@ class UsbSerialTransport(
         const val WRITE_TIMEOUT_MS = 2000
         const val READ_BUF = 4096
         const val RESWEEP_MS = 1500L
+        /** GPS speeds tried on a port sending only noise, back to the module speed last (1.1.11). */
+        val HUNT_SPEEDS = intArrayOf(BAUD_RATE, 9600, 4800, 38400)
+        const val HUNT_BYTES = 256
+        const val HUNT_MS = 3000L
     }
 }

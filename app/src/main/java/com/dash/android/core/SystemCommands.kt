@@ -63,6 +63,12 @@ object SystemCommands {
         )
         // Vehicle State — the car's own battery, for protecting it (DASH-AA 1.1.7)
         storeOnly("battery_voltage")
+        // Location — DASH raises these from its source, and a module may too (DASH-AA 1.1.11, Roger 2026-10-21)
+        storeAndEvent("location_source", "location_fix")
+        storeOnly(
+            "location_position", "location_speed", "location_heading", "location_altitude",
+            "location_accuracy", "location_satellites"
+        )
         // Safety
         storeAndEvent("seatbelt_driver_fastened", "seatbelt_passenger_fastened")
         // Safety — a warning for every seat; the module decides when (DASH-AA 1.1.3, Roger 2026-10-08)

@@ -22,6 +22,87 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.11
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-21 (Roger: "then lets get it built"). Tests pass (158). Roger's u-blox 7
+receiver, read through DASH's own USB transport (`-Dgps=1`): claimed as a GPS within a second, never listed
+as a module, a 3D fix from 9–10 satellites, the direction unknown while parked, the UTC time right.
+`-Dscreenshots=1` draws the tab with a fix, a GPS still searching and no GPS (invented places only — no real
+position goes into this repository). **Not yet tried in the car:** the phone's maps using the car's GPS, and
+the direction while moving.
+
+**What and why.** System › Location, refreshed (Roger: "at the moment it uses the wifi location. but
+hopefully youll see a usb dongle ive attached which has gps coordinates"). Until now the GPS step of the
+location cascade was an empty stub, left when Android's "Use device location" was dropped; on the laptop the
+weather and Follow Location knew only the town the internet connection is in.
+
+Decided with Roger:
+- **Speed, direction and altitude** as well as the position (Roger: "it would be nice to include speed data,
+  and direction data, and anything else you think could be usefull? maybe altitude"), plus accuracy and
+  satellites.
+- **Readable by the Element and Overlay SDKs** (Roger: "and also this data is accessable through the element
+  or overlay sdk"), the way the time is since 1.1.8.
+- **New system signals**, written into `system_commands.md` (Roger: "use unknown, leave trip distance for
+  later, write it in. write it into the bible"): `location_source`, `location_fix`, `location_position`,
+  `location_speed`, `location_heading`, `location_altitude`, `location_accuracy`, `location_satellites`.
+  Named for location, not GPS, because system messages are sourceless. `location_speed` is never merged with
+  the car's `vehicle_speed`. The position is one signal (`lat,lon`), so a latitude is never paired with a
+  longitude from another moment. **`unknown`** says a value is not known right now — not zero, not the last
+  value.
+
+Decided by Claude where Roger had not answered (open to change):
+- **No fix → the internet.** In Automatic, a car park or a cold start falls back to where the internet
+  connection is rather than keeping the last GPS position.
+- **Off** added to the sources (nothing at all, nothing looked up): leaving it open.
+
+**Done:**
+- **`location/Nmea.kt`** (shared) — the receiver's own language (RMC, GGA, GSA, VTG, GSV, any
+  constellation), checksums checked. Accuracy is estimated from the HDOP (× 2.5 m), as receivers give none in
+  metres. Below 3 km/h the direction is unknown, not noise; a lost fix forgets the position.
+- **`transport/usb/UsbSerialTransport.kt`** — **a GPS is claimed, not connected.** A port whose first words
+  are good NMEA sentences goes to `location/linux/GnssReceivers.kt` and nowhere else: not discovery, not the
+  Serial Monitor, not the module list, and DASH sends it nothing. A port giving only noise at 115200 is tried
+  at 9600, 4800 and 38400 (a receiver behind a bridge chip), once round, then left alone. Untested: no such
+  receiver here.
+- **`location/LocationRules.kt`, `DashLocation.kt`, `LocationPreferences.kt`** (shared) — where DASH is, from
+  the source the user chose: a GPS on the machine, a module reporting `location_position` (its signals already
+  in the core), the internet (every half hour), or the pinned place. Published as `DashLocation` and raised
+  as the signals. **While a module reports the location, DASH raises none** — two writers to one signal
+  would only fight. A town's name near a GPS fix from OpenStreetMap's Nominatim, sent the fix rounded to
+  about a kilometre, looked up again after 2 km.
+- **`ui/settings/content/LocationContent.kt`** — the tab: where, from what, position, speed (mph where the
+  roads are signed in it), direction (NE 47°), altitude, accuracy, satellites in use and in view, the
+  receiver; notes for no receiver and for no fix yet. The source as Automatic · GPS · Internet · Manual ·
+  Off; the town box under Manual. **Android Auto › Send the GPS to the phone.**
+- **`ui/systembar/DashElement.kt`** — `ElementScope.location`.
+- **`aa/`** — Android Auto's location sensor (LocationData: degrees × 10⁷, accuracy in mm, altitude in cm,
+  speed in mm/s, bearing × 10⁶; unknowns left out, never zero). Offered when the switch is on and a GPS is
+  plugged in; sent only from a GPS fix — an internet or pinned position would steer the phone's maps wrong.
+  The car-speed sensor is unchanged: GPS speed is never offered as the car's.
+- **`transport/Streams.kt`** — a subscription's threshold on a position is metres moved (`location_position`'s
+  5 m default), where it was ignored as not a number.
+- **`core/SystemCommands.kt`** — the eight signals.
+- **Weather and Follow Location** read `DashLocation`; the weather sends its position rounded to about a
+  kilometre; the zone is looked up again every 10 km as well as every half hour.
+
+**Outstanding:**
+- Tried in the car: whether Android Auto's maps use the car's GPS, and the direction while moving.
+- `trip_distance` (Roger: later). The GPS's own time for a clock with no internet (`GnssReading.utcMillis`
+  is read, unused). A Bluetooth GPS puck straight to DASH.
+- **For the Bible, raised not done:** native's roadmap (1.10.x) noted that `hardware.md` should gain a
+  GNSS/GPS entry; it still has none.
+
+**For native:** take `location/Nmea.kt`, `DashLocation.kt`, `LocationRules.kt`, `LocationPreferences.kt`,
+`ElementScope.location`, `Streams.kt`, `SystemCommands.kt`, the weather and Follow Location changes and the
+tab. The GPS side is Android's: native fills `LocationRules`' GNSS flow from Android's own location (its
+1.10.x Location Service, which also gives the fix to every app in the viewport). The USB claim is Linux's,
+though native's USB transport needs the same rule once a receiver is plugged into a tablet. The tab's
+Android Auto switch is DASH-AA's and comes out; `aa/` does not apply.
+
+---
+
 ## Version 1.1.10
 
 **Mirrors upstream:** DASH 1.7.1

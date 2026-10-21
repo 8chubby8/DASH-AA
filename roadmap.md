@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 to 1.1.10 complete, 2026-10-21; next 1.1.11)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 to 1.1.11 complete, 2026-10-21; next 1.1.12)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -236,9 +236,22 @@ names the stage that covers it.
   or fix the machine without leaving DASH. No safety gate, as native decided for its tools. **The keyboard**
   (Roger, 2026-10-21): a real keyboard plugged in is used; with none, DASH's keyboard sits under the
   terminal, with Esc, Tab, Ctrl, Alt and the arrows. Either can be swapped by hand for the moment.
-- **1.1.11 — Location, refreshed.** System › Location reworked (Roger, 2026-10-21). It matters more since
-  1.1.8: Date & Time's Follow Location sets the zone from it, as well as the weather. What the refresh holds
-  is to be agreed with Roger. Then 1.1.x is done and work moves to 1.2.1.
+- **1.1.11 — Location, refreshed.** **(complete — 2026-10-21)** System › Location reworked around a GPS
+  receiver (Roger, 2026-10-21: "at the moment it uses the wifi location. but hopefully youll see a usb dongle
+  ive attached which has gps coordinates"). It matters more since 1.1.8: Date & Time's Follow Location sets
+  the zone from it, as well as the weather.
+  - **A GPS on USB is claimed, not connected** — native's "raw claim" (its 1.10.x): the USB transport hears
+    NMEA and hands the port to Location, never to the module bus. No gpsd; DASH reads it itself.
+  - **The tab:** where DASH is, live — the place, the source, and from a GPS the position, speed, direction,
+    altitude, accuracy and satellites (Roger: "speed data, and direction data… maybe altitude"). The source
+    is the user's: Automatic (a GPS fix, else the internet), GPS, Internet, Manual or Off.
+  - **Eight `location_*` signals** in `system_commands.md` (Roger's call), with **`unknown`** for a value not
+    known right now. A module may report them too, and is then a source.
+  - **Readable by the Element and Overlay SDKs** (Roger): `DashLocation`, handed to every element as
+    `ElementScope.location`.
+  - **Offered to Android Auto** as the car's own GPS, with a switch; the phone decides whether to use it.
+  - **Left for later:** `trip_distance` (Roger); the GPS's time for a clock with no internet; a Bluetooth
+    GPS puck straight to DASH (a module covers Bluetooth today).
 
 **For native:** the categories are the same on both editions. Only what sits behind the platform-specific
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is

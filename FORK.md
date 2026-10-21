@@ -74,18 +74,18 @@ Each stands in for exactly what native's shared code calls, and nothing more.
 | File | Why |
 |---|---|
 | `DashApplication.kt` | No Android `Application`: it *is* the Context, made in `Main.kt`. Also owns the Android Auto host and, from 1.1.2, the machine's sound (`PipeWireSound`, with the start-up volume limit), and from 1.1.3 the car's sound (`PipeWireChain`, handed every change to the settings), and from 1.1.4 the car's speed for it and the saved sound slots, and from 1.1.5 the screens (`LinuxDisplay`; Rotation's preferences applied here, the screens put back on closing) and the display rules, and from 1.1.6 the networks and Bluetooth (`NetworkManagerNetwork`, `BlueZBluetooth` — DASH the pairing agent for the life of the process — the adapters' jobs applied, and the Bluetooth-music guard). From 1.1.7 the machine's power (`LinuxPower`), the power rules and the car's power (`CarPower`), with what runs before sleep and after waking, and Leave and Restart DASH. From 1.1.8 the machine's clock (`TimeDated`), `DashTime` started in its zone, and the zone following Location (`TimeRules`). Native's reasoning (the bus lives for the process) kept in spirit. |
-| `transport/usb/UsbSerialTransport.kt` | Linux implementation under native's class name: tty devices instead of Android's USB host API. Native's profile (115200 8N1, DTR/RTS high), per-device assembler and re-sweep kept. |
+| `transport/usb/UsbSerialTransport.kt` | Linux implementation under native's class name: tty devices instead of Android's USB host API. Native's profile (115200 8N1, DTR/RTS high), per-device assembler and re-sweep kept. From 1.1.11 a GPS receiver is claimed for Location by its NMEA, not connected as a module. |
 | `transport/bluetooth/BluetoothSppTransport.kt` | Linux implementation under native's class name: BlueZ bonded devices, SDP, RFCOMM (`linux/BlueZ.kt`). `D.A.S.H` name marker, connect-out model and re-sweep kept. |
 | `system/DeviceReport.kt` | Android probes replaced by the Linux capabilities DASH-AA depends on (from 1.1.2, PipeWire as *Sound*). |
 | `ui/screen/MainScreen.kt` | No activity (permissions, screen-on splash, `requestedOrientation` removed); **the viewport added** in the settings-blind rectangle; Transport Manager's Wi-Fi/Bluetooth links open Connections (1.1.6; the desktop's panels before); the pairing prompt and DASH's keyboard drawn over everything, Android Auto told it is covered while they are up; the splash plays again when the ignition turns the screen on (1.1.7 — native's own screen-on splash, now driven by `CarPower`). |
 | `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android tabs dropped (Roger, 2026-10-05). From 1.1.1, the tree reorganised for Linux — see *DASH changes* below. |
 | `ui/settings/content/DensityScaleContent.kt` | Android half (app density, Android font) dropped. |
-| `ui/settings/content/LocationContent.kt` | "Use device location" (Android permission) dropped. |
+| `ui/settings/content/LocationContent.kt` | "Use device location" (Android permission) dropped. From 1.1.11 also a *DASH change* (below); its Android Auto switch is DASH-AA's. |
 | `ui/settings/content/AboutContent.kt` | Wordmark DASH (DASH-AA until 1.1.9) + the native version it mirrors; links open with `xdg-open`. The report section moved out (1.1.1 — see *DASH changes*). |
 | `ui/settings/content/SplashContent.kt` | Desktop file dialog for Android's picker; window size for Android's configuration. |
 | `ui/splash/SplashScreen.kt` | Animated splash decoded by Skia instead of Android's `AnimatedImageDrawable`. |
 | `ui/settings/content/LicenceContent.kt` | The third-party list names what DASH-AA bundles (Compose for Desktop, Skia, JNA, jSerialComm, kXML2, the Java runtime) and aasdk, from which the Android Auto definitions derive. Same obligation, different components. |
-| `weather/WeatherProvider.kt` | No device-location tier; the cascade is manual pin → IP → clock. |
+| `weather/WeatherProvider.kt` | No device-location tier; the cascade is manual pin → IP → clock. From 1.1.11 it reads `DashLocation` first (a *DASH change*). |
 
 ## DASH changes — made here as DASH, for native to take
 
@@ -120,6 +120,8 @@ shim, a permission, a tab.
 | 1.1.9 | `ui/logs/LogsContent.kt`, `ui/logs/StoppedNotice.kt` (new), `ui/screen/MainScreen.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Developer › Logs, live, and the stopped notice (never over the viewport's app). Take them; the Machine view, SAVE TO USB and the USB sticks are Linux's and come out (Android lets no app read the system log), and native's blanking reads its own `BluetoothSystem` and `NetworkSystem`. |
 | 1.1.10 | `terminal/TerminalSession.kt`, `terminal/TerminalPreferences.kt` (new) | One shell in DASH's terminal: JetBrains' JediTerm (core only, LGPL-3.0) understands what the shell sends; `DashTerminal` keeps it running while DASH runs; the text size remembered. Take them; native hands the session its own connector in place of `terminal/linux/Pty` (a process over Android's `/system/bin/sh`, run as the app). |
 | 1.1.10 | `ui/terminal/TerminalContent.kt` (new), `ui/keyboard/DashKeyboard.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt`, `content/LicenceContent.kt` | Developer › Terminal, live: drawn in Compose (not JediTerm's Swing widget), DASH's keyboard under it when no real keyboard is plugged in, with Esc · Tab · Ctrl · Alt · arrows. The keyboard's keys became `KeyPad`, shared by the box keyboard and the Terminal, and the box keyboard comes up only when no real keyboard is plugged in (a "Keyboard" on the box brings it up by hand). Take them; native answers "is a keyboard plugged in?" from `Configuration.keyboard`, not `Keyboards`. JediTerm added to DASH-AA's licence list. |
+| 1.1.11 | `location/Nmea.kt`, `location/DashLocation.kt`, `location/LocationRules.kt`, `location/LocationPreferences.kt` (new) | Where DASH is: NMEA read, the sources (GPS, a module, the internet, the pin) by the user's choice, the `location_*` signals with `unknown`, `DashLocation` for everything that reads it. Take them; native fills the GNSS flow from Android's location. |
+| 1.1.11 | `ui/settings/content/LocationContent.kt`, `ui/systembar/DashElement.kt`, `ui/time/DateTimeContent.kt`, `weather/WeatherProvider.kt`, `core/SystemCommands.kt`, `transport/Streams.kt` | The Location tab (its Android Auto switch comes out), `ElementScope.location`, Follow Location's wording, the weather reading `DashLocation`, the eight signals, and a position's threshold as metres moved. Take them. |
 | 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
@@ -150,7 +152,8 @@ ESP32 car power tester, 1.1.7 — an ordinary USB module, so native can use it u
 machine's log through journalctl, USB sticks through lsblk and udisks, saving the logs — 1.1.9),
 `system/linux/OldNames.kt` (the one-time move from the dash-aa names, 1.1.9), `terminal/linux/Pty.kt` (the
 terminal device through libc, the shell started by `setsid --ctty` — 1.1.10), `system/linux/Keyboards.kt` (is a
-keyboard plugged in, from `/proc/bus/input/devices` — 1.1.10), and the whole of
+keyboard plugged in, from `/proc/bus/input/devices` — 1.1.10), `location/linux/GnssReceivers.kt` (the GPS
+receivers the USB transport claimed by their NMEA — 1.1.11), and the whole of
 `aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
 the projection before the machine sleeps and looks for the phone afresh on waking.
 

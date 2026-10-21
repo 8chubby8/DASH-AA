@@ -98,6 +98,7 @@ object Aa {
     const val FPS_30 = 1
     const val FPS_60 = 2
 
+    const val SENSOR_LOCATION = 1
     const val SENSOR_CAR_SPEED = 3
     const val SENSOR_RPM = 4
     const val SENSOR_PARKING_BRAKE = 7
@@ -341,6 +342,26 @@ object AaMessages {
     fun gear(gear: Int): ByteArray = proto { message(8) { int(1, gear) } }
     fun parkingBrake(on: Boolean): ByteArray = proto { message(7) { bool(1, on) } }
     fun rpm(rpmE3: Int): ByteArray = proto { message(4) { int(1, rpmE3) } }
+
+    /**
+     * The car's own GPS fix (DASH-AA 1.1.11) — LocationData: the time in epoch milliseconds, degrees × 10⁷,
+     * accuracy in millimetres, altitude in centimetres, speed in mm/s, bearing in degrees × 10⁶. Each optional
+     * field is left out when not known, never sent as zero.
+     */
+    fun location(
+        timeMillis: Long, latitude: Double, longitude: Double, accuracyMetres: Double?,
+        altitudeMetres: Double?, speedKmh: Double?, bearingDegrees: Double?,
+    ): ByteArray = proto {
+        message(1) {
+            uint(1, timeMillis)
+            int(2, Math.round(latitude * 1e7).toInt())
+            int(3, Math.round(longitude * 1e7).toInt())
+            uint(4, Math.round((accuracyMetres ?: 0.0) * 1000).toInt())
+            altitudeMetres?.let { int(5, Math.round(it * 100).toInt()) }
+            speedKmh?.let { int(6, Math.round(it / 3.6 * 1000).toInt()) }
+            bearingDegrees?.let { int(7, Math.round(it * 1e6).toInt()) }
+        }
+    }
 
     // ---- Input events. ----
     data class Pointer(val id: Int, val x: Int, val y: Int)

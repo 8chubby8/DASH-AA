@@ -31,6 +31,10 @@ import com.dash.android.power.PowerRules
 import com.dash.android.power.PowerSystem
 import com.dash.android.power.linux.LinuxPower
 import com.dash.android.power.linux.Relaunch
+import com.dash.android.location.DashLocation
+import com.dash.android.location.LocationPreferences
+import com.dash.android.location.LocationRules
+import com.dash.android.location.linux.GnssReceivers
 import com.dash.android.time.DashTime
 import com.dash.android.time.TimePreferences
 import com.dash.android.time.TimeRules
@@ -145,6 +149,14 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     var time: TimeSystem = TimeDated()
         internal set  // tests set a pretend one before onCreate
 
+    /**
+     * **Where DASH is** (DASH-AA 1.1.11) — System › Location's choice, from a GPS receiver the USB transport
+     * claimed, a module, the internet or the pinned place. Started here, not in a tab: the signals, the
+     * elements and Android Auto have it whether or not settings are open.
+     */
+    lateinit var location: LocationRules
+        private set
+
     /** Date & Time's rule (1.1.8): the time zone following Location. */
     lateinit var timeRules: TimeRules
         private set
@@ -221,11 +233,19 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
             woke = { carPower.woke(); ready.wake(); androidAuto.machineWoke() },
         ).start()
         Runtime.getRuntime().addShutdownHook(Thread { carPower.off() })
-        // Date & Time (1.1.8).
+        // Location (1.1.11): a module reporting the location itself is one of its sources.
+        val moduleLocation = combine(controller.database.modules, controller.reconciliation.activity) { m, a ->
+            m.values.any { "location_position" in it.signals && a[it.id] == com.dash.android.transport.ModuleActivity.ACTIVE }
+        }.distinctUntilChanged()
+        location = LocationRules(
+            controller.systemState, GnssReceivers.state, LocationPreferences(this).settings,
+            DashPreferences(this).manualLocation, moduleLocation, soundScope,
+        ).also { it.start() }
+        // Date & Time (1.1.8): the zone follows where Location says DASH is, looked up again after 10 km.
         time.start()
         val timeSettings = TimePreferences(this).settings
         DashTime.start(soundScope, time.state, timeSettings)
-        timeRules = TimeRules(time, timeSettings, DashPreferences(this).manualLocation, soundScope).also { it.start() }
+        timeRules = TimeRules(time, timeSettings, LocationRules.places(DashLocation.current, 10.0), soundScope).also { it.start() }
         Thread({
             runBlocking {
                 val limit = runCatching { SoundPreferences(this@DashApplication).settings.first().startupLimit }

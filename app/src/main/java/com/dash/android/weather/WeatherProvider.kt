@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.dash.android.prefs.DashPreferences
 import kotlinx.coroutines.Dispatchers
+import com.dash.android.location.DashLocation
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -30,6 +32,9 @@ import java.util.Locale
  *
  * Manual city entry (the design's fourth rung) waits on a settings UI to enter it — the cascade is
  * structured to slot it in ahead of GPS later without disturbing the rest.
+ *
+ * **DASH-AA 1.1.11:** the cascade is now System › Location's ([DashLocation]): a GPS receiver, a module, the
+ * internet or the pinned place, as the user chose. The steps here answer only before Location has started.
  *
  * All work is off the main thread and every failure is swallowed into the clock-only floor, so a
  * caller can `provider.current()` from a composable and simply receive the best snapshot available.
@@ -72,8 +77,16 @@ class WeatherProvider(context: Context) {
     }
 
     // ── Location cascade ─────────────────────────────────────────────────────────────────────────
-    // Manual pin (user's chosen place) wins outright; otherwise GPS, then IP.
+    // DASH-AA 1.1.11: System › Location decides — whatever DashLocation holds, from the source the user
+    // chose. Only with Location not running (nothing has published) does the old cascade below answer:
+    // manual pin, then IP.
     private suspend fun resolveLocation(): Located? {
+        if (DashLocation.current.value.at > 0) {
+            // Just started, the internet's answer may be a moment away.
+            val here = withTimeoutOrNull(8_000) { DashLocation.current.first { it.hasPosition } } ?: return null
+            Log.i(TAG, "location ${here.source.signal} ${here.place ?: ""}")
+            return Located(round(here.latitude!!), round(here.longitude!!), here.place)
+        }
         prefs.manualLocation.first()?.let {
             Log.i(TAG, "manual pin ${it.name}")
             return Located(it.latitude, it.longitude, it.name)
@@ -85,12 +98,14 @@ class WeatherProvider(context: Context) {
     /**
      * DASH-AA: Android's device-location tier has no equivalent on the laptop yet, so this step of the
      * cascade answers nothing and the cascade falls through to IP — exactly what upstream does when the
-     * location permission was never granted. A GNSS fix arrives with upstream's Location Service
-     * (1.10.x), which on Linux would read the receiver over the module transport or GeoClue.
+     * location permission was never granted. Since 1.1.11 a GPS fix comes through [DashLocation] above.
      */
     private fun gpsLocation(): Located? = null
 
     private fun ipLocation(): Located? = ipWhoIs() ?: ipApiCo()
+
+    /** About a kilometre: the weather needs no more of a GPS fix than that. */
+    private fun round(degrees: Double) = Math.round(degrees * 100) / 100.0
 
     private fun ipWhoIs(): Located? {
         val body = httpGet("https://ipwho.is/") ?: return null

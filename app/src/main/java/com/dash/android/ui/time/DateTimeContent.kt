@@ -114,8 +114,8 @@ fun DateTimeContent() {
                 help = (if (settings.zoneFromLocation) when {
                     found == null -> "Looking up the zone…"
                     found!!.zone == null -> "Could not look up the zone for ${found!!.from} — no internet? It stays as it is and is tried again in half an hour."
-                    else -> "${found!!.zone}, for ${found!!.from}. Looked up again every half hour, so the clocks change when the car crosses into another zone."
-                } else "Set the zone from System › Location — the place pinned there, or with none, where the internet connection is."),
+                    else -> "${found!!.zone}, for ${found!!.from}. Looked up again every half hour and every 10 km, so the clocks change when the car crosses into another zone."
+                } else "Set the zone from where System › Location says DASH is."),
                 control = {
                     PresetSegment(listOf("Off", "On"), if (settings.zoneFromLocation) 1 else 0, controlWidth) { i ->
                         update { it.copy(zoneFromLocation = i == 1) }

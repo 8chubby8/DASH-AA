@@ -133,7 +133,7 @@ compose.desktop {
 tasks.test {
     useJUnitPlatform()
     // The screenshot harness is opt-in; forward its switches from the Gradle command line.
-    listOf("screenshots", "clicks", "sound", "display", "kwin", "connections", "power", "time").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
-    outputs.upToDateWhen { listOf("screenshots", "sound", "display", "kwin", "connections", "power", "time").all { System.getProperty(it) == null } }
+    listOf("screenshots", "clicks", "sound", "display", "kwin", "connections", "power", "time", "gps").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
+    outputs.upToDateWhen { listOf("screenshots", "sound", "display", "kwin", "connections", "power", "time", "gps").all { System.getProperty(it) == null } }
     testLogging { events("passed", "failed"); showStandardStreams = true; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
