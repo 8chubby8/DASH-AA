@@ -225,6 +225,8 @@ private val DEPENDENCIES = listOf(
     Dependency("kXML2", "2.3.0", "MIT", "kxml.sourceforge.net"),
     Dependency("dbus-java", "5.2.2", "MIT", "github.com/hypfvieh/dbus-java"),
     Dependency("SLF4J", "2.0.17", "MIT", "slf4j.org"),
+    Dependency("JediTerm (terminal emulator core)", "3.70", "LGPL-3.0", "github.com/JetBrains/jediterm"),
+    Dependency("JetBrains Java Annotations", "24.0.1", "Apache 2.0", "github.com/JetBrains/java-annotations"),
     Dependency("OpenJDK runtime (bundled)", "17", "GPL-2.0 with Classpath Exception", "openjdk.org"),
     Dependency("aasdk — Android Auto message definitions", "master", "GPL-3.0", "github.com/f1xpl/aasdk"),
 )

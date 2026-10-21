@@ -199,18 +199,7 @@ fun KeyboardOverlay(modifier: Modifier = Modifier) {
 @Composable
 private fun Keyboard(target: DashKeyboard.Target, locked: Boolean) {
     val theme = LocalDashTheme.current
-    // A PIN or an address opens on the numbers; the letters are a tap away.
-    var page by remember(target) { mutableStateOf(if (target.digits) Page.NUMBERS else Page.LETTERS) }
-    var shift by remember(target) { mutableStateOf(false) }
-    var capsLock by remember(target) { mutableStateOf(false) }
-    var lastShift by remember { mutableStateOf(0L) }
     var shown by remember(target) { mutableStateOf(false) }
-
-    fun type(s: String) {
-        target.text.value += s
-        if (shift && !capsLock) shift = false
-    }
-    fun back() { target.text.value = target.text.value.dropLast(1) }
 
     Box(
         Modifier
@@ -237,60 +226,101 @@ private fun Keyboard(target: DashKeyboard.Target, locked: Boolean) {
                 if (target.secret) SmallKey(if (shown) "Hide" else "Show") { shown = !shown }
                 SmallKey("Close") { DashKeyboard.close() }
             }
-            if (locked) {
-                Text(
-                    "The keyboard is available when the car is stopped.",
-                    color = theme.textColourPrimary,
-                    fontSize = MAINBODY,
-                    fontFamily = theme.font,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                )
-                return@Column
-            }
-            val upper = shift || capsLock
-            when (page) {
-                Page.LETTERS -> {
-                    KeyRow { LETTERS[0].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } } }
-                    KeyRow(inset = 0.5f) { LETTERS[1].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } } }
-                    KeyRow {
-                        Key(if (capsLock) "⇪" else "⇧", weight = 1.5f, lit = upper) {
-                            val now = System.currentTimeMillis()
-                            when {
-                                capsLock -> { capsLock = false; shift = false }
-                                shift && now - lastShift < 450 -> capsLock = true
-                                else -> shift = !shift
-                            }
-                            lastShift = now
+            KeyPad(
+                locked = locked,
+                key = target,
+                startOnDigits = target.digits,
+                type = { target.text.value += it },
+                back = { target.text.value = target.text.value.dropLast(1) },
+                doneLabel = "Done",
+                done = target.onDone,
+            )
+        }
+    }
+}
+
+/**
+ * The keys themselves — letters, two pages of symbols, space and backspace — typing through [type] and
+ * [back]. Shared by the keyboard that comes up for a box ([KeyboardOverlay]) and the Terminal's (1.1.10),
+ * which sends each key to the shell. [key] starts it afresh (letters, shift off) when it changes.
+ * While [locked] — the car moving — it says so in place of the keys.
+ */
+@Composable
+fun KeyPad(
+    locked: Boolean,
+    key: Any?,
+    startOnDigits: Boolean = false,
+    type: (String) -> Unit,
+    back: () -> Unit,
+    doneLabel: String,
+    done: () -> Unit,
+) {
+    val theme = LocalDashTheme.current
+    // A PIN or an address opens on the numbers; the letters are a tap away.
+    var page by remember(key) { mutableStateOf(if (startOnDigits) Page.NUMBERS else Page.LETTERS) }
+    var shift by remember(key) { mutableStateOf(false) }
+    var capsLock by remember(key) { mutableStateOf(false) }
+    var lastShift by remember { mutableStateOf(0L) }
+
+    fun type(s: String) {
+        type.invoke(s)
+        if (shift && !capsLock) shift = false
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        if (locked) {
+            Text(
+                "The keyboard is available when the car is stopped.",
+                color = theme.textColourPrimary,
+                fontSize = MAINBODY,
+                fontFamily = theme.font,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+            )
+            return@Column
+        }
+        val upper = shift || capsLock
+        when (page) {
+            Page.LETTERS -> {
+                KeyRow { LETTERS[0].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } } }
+                KeyRow(inset = 0.5f) { LETTERS[1].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } } }
+                KeyRow {
+                    Key(if (capsLock) "⇪" else "⇧", weight = 1.5f, lit = upper) {
+                        val now = System.currentTimeMillis()
+                        when {
+                            capsLock -> { capsLock = false; shift = false }
+                            shift && now - lastShift < 450 -> capsLock = true
+                            else -> shift = !shift
                         }
-                        LETTERS[2].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } }
-                        BackKey(weight = 1.5f, onBack = ::back)
+                        lastShift = now
                     }
-                }
-                Page.NUMBERS, Page.SYMBOLS -> {
-                    val rows = if (page == Page.NUMBERS) NUMBERS else SYMBOLS
-                    KeyRow { rows[0].forEach { s -> Key(s) { type(s) } } }
-                    KeyRow { rows[1].forEach { s -> Key(s) { type(s) } } }
-                    KeyRow {
-                        Key(if (page == Page.NUMBERS) "=\\<" else "123", weight = 1.5f) { page = if (page == Page.NUMBERS) Page.SYMBOLS else Page.NUMBERS }
-                        rows[2].forEach { s -> Key(s) { type(s) } }
-                        BackKey(weight = 1.5f, onBack = ::back)
-                    }
+                    LETTERS[2].forEach { c -> Key(if (upper) c.uppercase() else c.toString()) { type(if (upper) c.uppercase() else c.toString()) } }
+                    BackKey(weight = 1.5f, onBack = back)
                 }
             }
-            KeyRow {
-                Key(if (page == Page.LETTERS) "123" else "ABC", weight = 1.5f) { page = if (page == Page.LETTERS) Page.NUMBERS else Page.LETTERS }
-                Key(",") { type(",") }
-                Key("space", weight = 5f) { type(" ") }
-                Key(".") { type(".") }
-                Key("Done", weight = 1.5f, lit = true) { target.onDone() }
+            Page.NUMBERS, Page.SYMBOLS -> {
+                val rows = if (page == Page.NUMBERS) NUMBERS else SYMBOLS
+                KeyRow { rows[0].forEach { s -> Key(s) { type(s) } } }
+                KeyRow { rows[1].forEach { s -> Key(s) { type(s) } } }
+                KeyRow {
+                    Key(if (page == Page.NUMBERS) "=\\<" else "123", weight = 1.5f) { page = if (page == Page.NUMBERS) Page.SYMBOLS else Page.NUMBERS }
+                    rows[2].forEach { s -> Key(s) { type(s) } }
+                    BackKey(weight = 1.5f, onBack = back)
+                }
             }
+        }
+        KeyRow {
+            Key(if (page == Page.LETTERS) "123" else "ABC", weight = 1.5f) { page = if (page == Page.LETTERS) Page.NUMBERS else Page.LETTERS }
+            Key(",") { type(",") }
+            Key("space", weight = 5f) { type(" ") }
+            Key(".") { type(".") }
+            Key(doneLabel, weight = 1.5f, lit = true) { done() }
         }
     }
 }
 
 @Composable
-private fun KeyRow(inset: Float = 0f, content: @Composable RowScope.() -> Unit) {
+fun KeyRow(inset: Float = 0f, content: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (inset > 0f) Spacer(Modifier.weight(inset))
         content()
@@ -299,7 +329,7 @@ private fun KeyRow(inset: Float = 0f, content: @Composable RowScope.() -> Unit) 
 }
 
 @Composable
-private fun RowScope.Key(label: String, weight: Float = 1f, lit: Boolean = false, onTap: () -> Unit) {
+fun RowScope.Key(label: String, weight: Float = 1f, lit: Boolean = false, onTap: () -> Unit) {
     val theme = LocalDashTheme.current
     Box(
         Modifier
@@ -316,7 +346,7 @@ private fun RowScope.Key(label: String, weight: Float = 1f, lit: Boolean = false
 
 /** Backspace: one character a tap; held, it keeps going. */
 @Composable
-private fun RowScope.BackKey(weight: Float, onBack: () -> Unit) {
+fun RowScope.BackKey(weight: Float, onBack: () -> Unit) {
     val theme = LocalDashTheme.current
     Box(
         Modifier
@@ -360,4 +390,4 @@ private fun SmallKey(label: String, onTap: () -> Unit) {
     )
 }
 
-private val KEY_HEIGHT = 52.dp
+val KEY_HEIGHT = 52.dp

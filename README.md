@@ -96,6 +96,10 @@ its own log: **Developer › Logs** shows it live, with the last ten runs and th
 saves them to a USB stick with private details blanked. The files are in `~/.local/share/dash/logs/`, one
 per run. Started from a terminal, DASH also prints its log there.
 
+**Developer › Terminal** is the machine's command line inside DASH: your own shell, as you (never root).
+With a keyboard plugged in it types straight in; with none, DASH's keyboard sits under it with Esc, Tab, Ctrl,
+Alt and the arrows. The shell keeps running when you leave the tab; START AGAIN gives a fresh one.
+
 **Renamed at 1.1.9.** DASH-AA's code now calls itself DASH. On its first start DASH moves your settings
 from `~/.local/share/dash-aa`, and Car sound's services to their new names, by itself. Run
 `packaging/install.sh` once more so the two rules and the menu entry take the new names too. Android Auto

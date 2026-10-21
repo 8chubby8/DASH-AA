@@ -65,6 +65,10 @@ dependencies {
     implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.2.2")
     implementation("org.slf4j:slf4j-nop:2.0.17")
 
+    // Developer › Terminal (1.1.10): JetBrains' terminal emulator, the core only — what the shell's output
+    // means. DASH draws it in Compose and opens the terminal device itself (linux/Pty). LGPL-3.0.
+    implementation("org.jetbrains.jediterm:jediterm-core:3.70")
+
     testImplementation(kotlin("test"))
 }
 

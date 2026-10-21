@@ -85,6 +85,7 @@ fun SettingsContent(sub: SettingsSub) {
         "system.machine" -> ThisMachineContent()
         "system.about" -> AboutContent()
         "system.licence" -> LicenceContent()
+        "developer.terminal" -> com.dash.android.ui.terminal.TerminalContent()
         "developer.logs" -> com.dash.android.ui.logs.LogsContent()
         else -> WipPlaceholder(sub)
     }

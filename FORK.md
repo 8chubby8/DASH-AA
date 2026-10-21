@@ -118,6 +118,8 @@ shim, a permission, a tab.
 | 1.1.8 | `ui/time/DateTimeContent.kt` (new), `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | System › Date & Time, live (Updates' placeholder now says 1.2.1). Take them; with `canChange` false only *How DASH shows it* changes, so native adds a link to Android's own Date & Time. |
 | 1.1.9 | `logs/LogBook.kt`, `logs/LogParts.kt`, `logs/Blanker.kt` (new) | DASH's own log: kept in memory and on disk a run at a time (the last ten, 5 MB a part), how a run ended ("stopped unexpectedly"), the detail switch; the parts in plain words; and private details blanked with steady labels. Take them all. On native the `sink` hook goes where its logging lands (a small `DashLog` beside `android.util.Log`, or reading the app's own logcat), and `LineCatcher`'s stderr has no equivalent. |
 | 1.1.9 | `ui/logs/LogsContent.kt`, `ui/logs/StoppedNotice.kt` (new), `ui/screen/MainScreen.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Developer › Logs, live, and the stopped notice (never over the viewport's app). Take them; the Machine view, SAVE TO USB and the USB sticks are Linux's and come out (Android lets no app read the system log), and native's blanking reads its own `BluetoothSystem` and `NetworkSystem`. |
+| 1.1.10 | `terminal/TerminalSession.kt`, `terminal/TerminalPreferences.kt` (new) | One shell in DASH's terminal: JetBrains' JediTerm (core only, LGPL-3.0) understands what the shell sends; `DashTerminal` keeps it running while DASH runs; the text size remembered. Take them; native hands the session its own connector in place of `terminal/linux/Pty` (a process over Android's `/system/bin/sh`, run as the app). |
+| 1.1.10 | `ui/terminal/TerminalContent.kt` (new), `ui/keyboard/DashKeyboard.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt`, `content/LicenceContent.kt` | Developer › Terminal, live: drawn in Compose (not JediTerm's Swing widget), DASH's keyboard under it when no real keyboard is plugged in, with Esc · Tab · Ctrl · Alt · arrows. The keyboard's keys became `KeyPad`, shared by the box keyboard and the Terminal. Take them; native answers "is a keyboard plugged in?" from `Configuration.keyboard`, not `Keyboards`. JediTerm added to DASH-AA's licence list. |
 | 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
@@ -146,7 +148,9 @@ ESP32 car power tester, 1.1.7 — an ordinary USB module, so native can use it u
 (the machine's clock through timedated, with polkit asked first — DASH-AA's `TimeSystem`, 1.1.8),
 `packaging/50-dash.rules` (the polkit rule letting the person at the seat set the clock, 1.1.8), `logs/linux/` (the
 machine's log through journalctl, USB sticks through lsblk and udisks, saving the logs — 1.1.9),
-`system/linux/OldNames.kt` (the one-time move from the dash-aa names, 1.1.9), and the whole of
+`system/linux/OldNames.kt` (the one-time move from the dash-aa names, 1.1.9), `terminal/linux/Pty.kt` (the
+terminal device through libc, the shell started by `setsid --ctty` — 1.1.10), `system/linux/Keyboards.kt` (is a
+keyboard plugged in, from `/proc/bus/input/devices` — 1.1.10), and the whole of
 `aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
 the projection before the machine sleeps and looks for the phone afresh on waking.
 

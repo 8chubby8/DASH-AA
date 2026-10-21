@@ -22,12 +22,91 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.10
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-21 (Roger: "Get the terminal done"). Roger's first try on the G14 found a crash,
+fixed the same day (below). Tests pass
+(143): the keyboard question against the G14's own devices, and a real shell end to end — it answers, knows
+its size and is told when it changes, Ctrl+C stops what is running, it is not root, `exit` ends it and
+START AGAIN hangs it up. `-Dscreenshots=1` types into the tab as a real keyboard does (keys down, characters
+typed, Ctrl+C) and draws it with and without DASH's keyboard. Roger's own shell (fish, with its greeting and
+prompt) checked by hand.
+
+**What and why.** Developer › Terminal. On DASH-AA Linux there is no desktop behind DASH, so a terminal
+inside DASH is the only way to look at or fix the machine without leaving it — and the way Claude Code will
+be run on the Surface (roadmap 1.2.1).
+
+Decided with Roger:
+- **Built from JetBrains' open-source terminal**, not from scratch (roadmap). **As the user, never as root**;
+  no safety gate.
+- **The keyboard** (Roger: "it needs to have a look to see whether a keyboard is plugged in. If a keyboard is
+  plugged in then it should use that. If there's no keyboard then it can default to an on-screen keyboard").
+
+**Done:**
+- **`terminal/TerminalSession.kt`** (shared) — JetBrains' **JediTerm**, its core only (LGPL-3.0, from JetBrains'
+  own repository): it understands what the shell sends — colours, the cursor, full-screen programs, the
+  scrollback (5,000 lines). JediTerm's Swing widget is not used: **DASH draws the terminal in Compose**, so it
+  sits under DASH's chrome like any tab, and the keyboard, the settings blind and the theme work over it.
+  `DashTerminal` keeps one shell for as long as DASH runs: leaving the tab leaves a long job running.
+- **`terminal/linux/Pty.kt`** — the terminal device opened through libc with JNA, which DASH already has.
+  **Not pty4j**, JediTerm's usual partner: it is EPL-1.0, which cannot be combined with DASH's GPL-3.0. The
+  shell is started by `setsid --ctty` (util-linux), so it leads its own session with the terminal as its
+  controlling terminal — Ctrl+C, job control and `sudo` work as in any terminal — and the JVM never forks.
+  The user's shell (`$SHELL`, their password-file entry, else bash, else sh), in their home folder,
+  `TERM=xterm-256color`. Closing hangs up (SIGHUP), and stops the shell outright after two seconds.
+  Capability detection: no shell, no `setsid` or no `/dev/ptmx`, and the tab says so in place of a terminal.
+- **`system/linux/Keyboards.kt`** — is a keyboard plugged in, from `/proc/bus/input/devices` (readable by
+  anyone, no rule needed): a device with a key for every letter. That leaves out the power and sleep buttons,
+  a laptop's hot keys and headset or bezel keys, which the kernel also calls keyboards. A laptop's own
+  keyboard counts. Watched every two seconds, for a Surface's Type Cover clipped on and off.
+- **`ui/terminal/TerminalContent.kt`** — the tab. With a keyboard plugged in, it is all terminal and the real
+  keys type into it: characters as the keyboard's layout gives them (£, AltGr's €), keys with no character
+  and Ctrl+letter as they are pressed, Ctrl+Shift+C and V to copy and paste; every key is the terminal's
+  except F11. With none, **DASH's keyboard sits under the terminal**, on its own floor as when it comes up for
+  a box, with a row of the keys a shell needs that a password does not: Esc, Tab, Ctrl and Alt (lit until
+  the next key), the arrows, Home, End, PgUp, PgDn, | ~ / -; Enter in place of Done. The terminal shrinks
+  above it and the shell is told its new size. SHOW / HIDE KEYBOARD swaps it by hand for the moment; a
+  keyboard plugged in or pulled out returns it to the rule. The car-moving lock is the on-screen keyboard's
+  (Display › Touchscreen); a real keyboard is never locked.
+- Scrolled back with a finger or the wheel (in a full-screen program the wheel moves the cursor instead);
+  text chosen with the mouse, or a long press and drag, then COPY; PASTE types the clipboard in (marked as
+  pasted when the program asks, so a pasted line is not run by itself). A− and A+ set the text size,
+  remembered. START AGAIN ends the shell and starts a fresh one; when the shell ends by itself the tab says so.
+- **`ui/keyboard/DashKeyboard.kt`** — the keys became `KeyPad`, shared by the box keyboard and the Terminal.
+  The box keyboard is unchanged.
+- JediTerm and JetBrains' annotations added to Licence's list.
+
+**Fixed the same day (Roger's first try on the G14):** bringing up DASH's keyboard, or pressing A+, closed DASH
+with "maxWidth must be >= than minWidth". The space for the terminal shrank, and for a moment, until the shell
+was told, its screen was bigger than the space: drawing text that began past the edge threw, and a throw while
+drawing closes the window. What falls outside now waits for the next frame, and any fault drawing the
+terminal costs one frame and a line in the log, never DASH. A test draws a shell bigger than its space (it
+fails without the fix with Roger's exact error).
+
+**Outstanding:**
+- Mouse reporting to programs (clicks in `mc` or `htop`) is not offered: a tap on the terminal is DASH's.
+- One shell, no tabs inside the Terminal.
+- A USB receiver for a mouse alone can say it has a keyboard; SHOW KEYBOARD covers it.
+- The keyboard detection is only for the Terminal. The box keyboard (Wi-Fi passwords, search) still comes up
+  whether or not a real keyboard is plugged in, as at 1.1.6 — the same rule could be applied there if Roger
+  wants it.
+
+**For native:** take `terminal/TerminalSession.kt`, `TerminalPreferences.kt`, `ui/terminal/` and the KeyPad
+change. The device is Linux's: native gives the session its own connector — a process over Android's own
+shell (`/system/bin/sh`, run as the app, which is all an unrooted app has). "Is a keyboard plugged in?" is
+answered by Android's `Configuration.keyboard` (and `hardKeyboardHidden`) in place of `Keyboards`.
+JediTerm's core is plain Java and Kotlin and runs on Android.
+
+---
+
 ## Version 1.1.9
 
 **Mirrors upstream:** DASH 1.7.1
 
-**Status:** Built — 2026-10-21. **Not yet tried on the G14:** Roger asked for it committed and pushed and will
-test later. Tests pass (137), including the blanking run over the G14's real journal by hand. `-Dscreenshots=1` draws
+**Status:** Complete — 2026-10-21. Roger asked for it committed and pushed, then moved on to the Terminal;
+he looked at Logs on the G14 while trying 1.1.10. Tests pass (137), including the blanking run over the G14's real journal by hand. `-Dscreenshots=1` draws
 Developer › Logs and the stopped notice.
 
 **What and why.** Two things: **the product is called DASH in the code**, and **Developer › Logs**.

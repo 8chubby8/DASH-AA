@@ -191,7 +191,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     // No safety gate — native decided nothing in settings sits behind one.
     SettingsCategory(
         "developer", "Developer", listOf(
-            wip("developer.terminal", "Terminal", "1.1.10"),
+            // The machine's command line (1.1.10): the user's shell, as the user, with DASH's keyboard when no real one is plugged in.
+            SettingsSub("developer.terminal", "Terminal", SettingsStatus.LIVE, fillsBox = true),
             // DASH's own log and the machine's (1.1.9) — filters, search, the last ten runs, saved to a USB stick.
             SettingsSub("developer.logs", "Logs", SettingsStatus.LIVE, fillsBox = true),
             // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into

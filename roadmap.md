@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 complete, 2026-10-21; 1.1.9 built, 2026-10-21; next 1.1.10)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 to 1.1.10 complete, 2026-10-21; next 1.1.11)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -89,7 +89,7 @@ names the stage that covers it.
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
 | Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.5 (and 1.2.x) |
 | Blanks the screen and sleeps | DASH does it | **done** — 1.1.5, 1.1.7 |
-| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); the Terminal's keys at 1.1.10 |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); 1.1.10 the Terminal's keys, and only when no real keyboard is plugged in |
 | Picks files (the splash image) | DASH's own file picker | 1.2.x, once DASH-AA Linux runs in a VM (Roger, 2026-10-21) |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
@@ -223,17 +223,19 @@ names the stage that covers it.
     Without it, the tab shows the clock and says how to allow it. **The time is readable by the Element and
     Overlay SDKs** (Roger): `DashTime`, once a second, handed to every element as `ElementScope.time`, and
     the viewport's clock reads it too.
-- **1.1.9 — Logs.** **(built — 2026-10-21; Roger to test)** Developer › Logs: DASH's own log live, or any of
+- **1.1.9 — Logs.** **(complete — 2026-10-21)** Developer › Logs: DASH's own log live, or any of
   the last ten runs kept on disk; the machine's log (USB, Bluetooth, Wi-Fi, sound, networks, power) beside
   it; filtered by level and part, searched; a detail switch; saved to a USB stick. **Private details are
   blanked** on screen and always on the stick, complete on disk (Roger). A small card on the next start
   when DASH stopped unexpectedly, never over Android Auto. **And the code is called DASH** (Roger: "the
   product is called dash"): app, data folder, sound services, rules and the name the phone sees, with a
   one-time move from the dash-aa names; the Bible updated.
-- **1.1.10 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
-  from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
-  on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
-  to look at or fix the machine without leaving DASH. No safety gate, as native decided for its tools.
+- **1.1.10 — Terminal.** **(complete — 2026-10-21)** Developer › Terminal. It runs as the user, never as
+  root. It is built from JetBrains' open-source terminal (JediTerm's core) rather than from scratch, drawn
+  by DASH. It is there because the PC has no desktop, so a terminal inside DASH is the only way to look at
+  or fix the machine without leaving DASH. No safety gate, as native decided for its tools. **The keyboard**
+  (Roger, 2026-10-21): a real keyboard plugged in is used; with none, DASH's keyboard sits under the
+  terminal, with Esc, Tab, Ctrl, Alt and the arrows. Either can be swapped by hand for the moment.
 - **1.1.11 — Location, refreshed.** System › Location reworked (Roger, 2026-10-21). It matters more since
   1.1.8: Date & Time's Follow Location sets the zone from it, as well as the weather. What the refresh holds
   is to be agreed with Roger. Then 1.1.x is done and work moves to 1.2.1.
@@ -248,7 +250,8 @@ Audio's device choice and Mixer have no Android equivalent (Android routes sound
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
 non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
 its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions, Date & Time's clock setting, Logs' Machine view and USB save and 1.2.1's Updates need Android-side
-equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7).
+equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7). The
+Terminal is taken whole except its device: native runs Android's own shell as the app (1.1.10).
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
