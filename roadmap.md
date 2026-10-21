@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 to 1.1.11 complete, 2026-10-21; next 1.1.12)*
+#### 1.1.x — Settings, reorganised *(complete — 1.1.1 and 1.1.2, 2026-10-07; 1.1.3 to 1.1.6, 2026-10-08; 1.1.7, 2026-10-09; 1.1.8 to 1.1.11, 2026-10-21. Next: 1.2.1)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -252,6 +252,7 @@ names the stage that covers it.
   - **Offered to Android Auto** as the car's own GPS, with a switch; the phone decides whether to use it.
   - **Left for later:** `trip_distance` (Roger); the GPS's time for a clock with no internet; a Bluetooth
     GPS puck straight to DASH (a module covers Bluetooth today).
+  - **1.1.x is done with it**; work moves to 1.2.1.
 
 **For native:** the categories are the same on both editions. Only what sits behind the platform-specific
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
