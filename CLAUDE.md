@@ -140,10 +140,13 @@ This project went through an earlier working title during development. That name
 and does not appear anywhere in this document set, the codebase, or any external facing material. DASH is
 the name. It always was, as far as anyone outside this project needs to know.
 
-**DASH-AA** names this edition — DASH with Android Auto, on Linux. It is still DASH. Use DASH throughout
-documentation, conversation, and code; use DASH-AA where the edition itself matters (the wordmark, the
-package, the data folder, this brief). The code keeps the package `com.dash.android` deliberately, so files
-shared with native stay identical.
+**DASH-AA** names this project and edition — DASH with Android Auto, on Linux. **The product is DASH**
+(Roger, 2026-10-21: "the project is called dash-aa, but the product is called dash. so in the code its
+called dash"). DASH-AA is used only for the project itself: the repository, this brief and the documents,
+and DASH-AA Linux (the system of 1.2.x). Everything the code names or the user sees says DASH: the
+wordmark, the app and its menu entry, the data folder (`~/.local/share/dash`), the sound streams and
+services, the rule files, and the name Android Auto shows on the phone. The code keeps the package
+`com.dash.android` deliberately, so files shared with native stay identical.
 
 ---
 
@@ -415,8 +418,8 @@ design. If something in them seems wrong or incomplete, raise it — do not work
   Bluetooth › *Music from phones*, 1.1.6), never relying on the phone's *Media audio* switch; give every
   PipeWire stream its own identity.
 - **Build system:** Gradle. `./gradlew test` runs the fake-phone and parser tests; `./gradlew
-  createDistributable` builds the self-contained app (`app/build/compose/binaries/main/app/dash-aa/`).
-- **Data:** `~/.local/share/dash-aa` (override with `DASH_HOME`).
+  createDistributable` builds the self-contained app (`app/build/compose/binaries/main/app/dash/`).
+- **Data:** `~/.local/share/dash` (override with `DASH_HOME`).
 - **Target hardware (development):** Roger's ROG Zephyrus G14 (Ryzen, GNOME on Wayland, 3456×2160 at
   1.67×), Pixel 8 Pro.
 - **Target hardware (next):** a touchscreen PC running a lightweight DASH-AA Linux (roadmap 1.2.x).
