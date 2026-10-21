@@ -26,8 +26,8 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 **Mirrors upstream:** DASH 1.7.1
 
-**Status:** In progress. **Date & Time complete — 2026-10-21**; Developer › Logs is still to come in this
-version. Tests pass (128), plus an opt-in probe: `-Dtime=1` reads the G14's real time service and looks up
+**Status:** Complete — 2026-10-21. Date & Time only: Logs became 1.1.9, the Terminal 1.1.10 and a Location
+refresh 1.1.11 (Roger: "date and time 8. logs 9. terminal 10. location 11"). Tests pass (128), plus an opt-in probe: `-Dtime=1` reads the G14's real time service and looks up
 the zone for the connection and for a pinned place (read only — nothing set). `-Dscreenshots=1` draws the
 tab on a machine that lets DASH change the clock, one that would want a password, and one set by hand.
 Roger tried it on the G14: "seems to work well".
@@ -83,7 +83,6 @@ Decided with Roger before building:
   zone live from `TimeSystem` and sets it as Java's default too, so everything else follows.
 
 **Outstanding:**
-- **Developer › Logs**, the rest of 1.1.8.
 - **On the G14 the "needs the install" message never shows.** Its own setup already lets Roger change the
   time with no password, so the refusal path has only been seen in the screenshots. The Surface will be
   the first real test of the rule.

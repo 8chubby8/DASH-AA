@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 Date & Time complete, 2026-10-21, Logs next)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 complete, 2026-10-21; next 1.1.9)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -89,8 +89,8 @@ names the stage that covers it.
 | Asks for your password when a setting needs more than a normal user may do | Nothing can ask, so the action would quietly fail. Each one DASH needs is granted to the seat user once, at install, like the USB phone rule | each stage, as found |
 | Puts the picture on the screen, and turns it | A small display program runs DASH full screen, and Rotation goes through it | 1.1.5 (and 1.2.x) |
 | Blanks the screen and sleeps | DASH does it | **done** — 1.1.5, 1.1.7 |
-| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); the Terminal's keys at 1.1.9 |
-| Picks files (the splash image) | DASH's own file picker | 1.1.8 |
+| Has a keyboard on screen | DASH needs one, for Wi-Fi passwords and the Terminal | **done** — 1.1.6 (QWERTY, only while stopped); the Terminal's keys at 1.1.10 |
+| Picks files (the splash image) | DASH's own file picker | 1.2.x, once DASH-AA Linux runs in a VM (Roger, 2026-10-21) |
 | Opens web links | The QR codes in About already cover a machine with no browser | done |
 | Starts the sound system when you log in | The machine logs the user in automatically, so PipeWire runs | 1.2.x |
 | Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | **done** — 1.1.7: Leave DASH only with a desktop to go back to; Restart DASH always |
@@ -212,20 +212,28 @@ names the stage that covers it.
     (`power_output_1…8`) for amplifiers, dashcams and lights, each timed; the car's battery protected
     (`battery_voltage`); the crank drop-out ridden out. New signals in `system_commands.md`. An **ESP32
     Power Tester** (`arduino/PowerTester/`) plays a day in the car over USB.
-- **1.1.8 — System.** Date & Time, and Developer › Logs. (Updates moved to 1.2.1, Roger 2026-10-20: the
-  update screen only makes sense once DASH-AA Linux has the system slots behind it.)
-  - **Date & Time** **(complete — 2026-10-21)**: the zone (picked, or following System › Location),
+- **1.1.8 — Date & Time.** **(complete — 2026-10-21)** Planned as System (Date & Time, Updates and Logs);
+  Updates moved to 1.2.1 (Roger, 2026-10-20: the update screen only makes sense once DASH-AA Linux has the
+  system slots behind it), and Logs became 1.1.9 (Roger, 2026-10-21: "date and time 8. logs 9. terminal 10.
+  location 11").
+  - **Date & Time**: the zone (picked, or following System › Location),
     automatic time, setting the clock by hand, and 24/12 hour and the date style. Through timedated as the
     seat user. **No password, ever** (Roger: DASH has no passwords; "the password for dash is the key in
     the ignition"): a one-time polkit rule in `install.sh` lets the person at the seat change the clock.
     Without it, the tab shows the clock and says how to allow it. **The time is readable by the Element and
     Overlay SDKs** (Roger): `DashTime`, once a second, handed to every element as `ElementScope.time`, and
     the viewport's clock reads it too.
-  - **Developer › Logs** — next.
-- **1.1.9 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
+- **1.1.9 — Logs.** Developer › Logs. To be talked through with Roger before building; proposed: DASH's
+  log live, filtered by level, part of DASH and search; kept on disk per run (the last few runs); a detail
+  switch; the machine's log (USB, Bluetooth, Wi-Fi, sound, networks) as a second view; saving to a USB
+  stick.
+- **1.1.10 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
   from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
   on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
   to look at or fix the machine without leaving DASH. No safety gate, as native decided for its tools.
+- **1.1.11 — Location, refreshed.** System › Location reworked (Roger, 2026-10-21). It matters more since
+  1.1.8: Date & Time's Follow Location sets the zone from it, as well as the weather. What the refresh holds
+  is to be agreed with Roger. Then 1.1.x is done and work moves to 1.2.1.
 
 **For native:** the categories are the same on both editions. Only what sits behind the platform-specific
 tabs differs. `SettingsTree.kt` and the shared tabs are taken as they are. Native's Android Auto slot is
@@ -288,8 +296,16 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
   updates and roll back are proven in a virtual machine on the G14 before the Surface, so the Surface only
   has to prove its hardware (Wi-Fi, Bluetooth, touch, speed). The early draft in `distro/` (uncommitted,
   written before these decisions — one partition, ext4) is the starting point and is redone to match.
+- **Then a VM as if in the car** (Roger, 2026-10-21): DASH-AA Linux run in a virtual machine on the G14
+  as the test bench for everything that needs no desktop — the real image, no desktop behind it — **the
+  file picker first** (it was 1.1.8, moved here because only a machine with no desktop tests it). What the
+  VM needs: the phone and USB modules passed through **by USB port, not by device** (the phone becomes a
+  different device when it switches to Android Auto, and a device pass-through loses it); the VM bridged
+  onto the real network for Wi-Fi modules; a USB Bluetooth dongle of its own for pairing and Bluetooth
+  modules. Multi-touch, the lid and the battery stay the Surface's and the car's to test; in the VM,
+  capability detection should simply leave them out.
 - **Looking at problems on the Surface:** Claude Code over SSH from the G14 (works even when DASH will
-  not start), and Claude Code on the Surface itself, run from the 1.1.9 Terminal as the ordinary user and
+  not start), and Claude Code on the Surface itself, run from the 1.1.10 Terminal as the ordinary user and
   kept on the user partition so updates do not remove it.
 
 **For native:** the Linux image, the slots and the installer are Linux's own and do not apply to Android

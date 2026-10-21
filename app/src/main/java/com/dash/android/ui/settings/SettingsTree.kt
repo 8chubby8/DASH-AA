@@ -191,8 +191,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     // No safety gate — native decided nothing in settings sits behind one.
     SettingsCategory(
         "developer", "Developer", listOf(
-            wip("developer.terminal", "Terminal", "1.1.9"),
-            wip("developer.logs", "Logs", "1.1.8"),
+            wip("developer.terminal", "Terminal", "1.1.10"),
+            wip("developer.logs", "Logs", "1.1.9"),
             // A way out to a full desktop, when one is installed (Roger, 2026-10-07: "reboot into
             // desktop"). Proposed as a switch without a reboot — DASH closes, the desktop starts,
             // logging out brings DASH back. Needs the 1.2.x start-up script, so it waits for it.
