@@ -173,9 +173,15 @@ and everything plugged into it, including the driver's phone — at the mercy of
 the ordinary user at the seat. Always.
 
 **DASH-AA never runs as root and never asks for it while running.** The one privileged step is a *one-time
-install* of a udev rule (`packaging/install.sh`) that grants the person at the seat — not a group, not
-everyone — access to their phone over USB. That is Linux's equivalent of Android's one-tap USB permission,
-and like it, it is asked once, by the user, knowingly.
+install* of two rules (`packaging/install.sh`), each granting the person at the seat — not a group, not
+everyone — one narrow thing and nothing more:
+- **the udev rule** — access to their phone over USB. That is Linux's equivalent of Android's one-tap USB
+  permission.
+- **the polkit rule** (1.1.8) — setting the clock, the time zone and automatic time, so DASH never has to
+  ask for a password (see *No Passwords*).
+
+Like Android's permission, they are asked for once, by the user, knowingly. On DASH-AA Linux (1.2.x) they
+are part of the system itself, so there is no install step at all.
 
 Any feature that would require elevated access must have a non-root path. Graceful degradation is mandatory
 when none exists — the feature does not appear or does not function, but the system continues without error
@@ -200,14 +206,52 @@ everything else, is always wrong.
 This is not a workaround. It is the architectural pattern that makes one codebase run correctly on every
 machine it meets. Native established it at 1.1.x with App Density (probe the privileged API by reflection;
 success gives native density control, failure gives a settings deep link). DASH-AA carries it to Linux: no
-libusb, no ffmpeg, no udev rule, no touchscreen, no Bluetooth adapter — each is detected and
+libusb, no ffmpeg, no udev rule, no polkit rule, no touchscreen, no Bluetooth adapter — each is detected and
 reported in plain words with the fix, never a crash (`AaCapabilities`, and the report in About DASH).
 
 Every feature that depends on the platform must follow this pattern. No exceptions.
 
-DASH does not encourage, instruct, or assist users in obtaining privileges through any method. But DASH does
-not penalise users who have them. If capability detection finds something available, the corresponding
-feature unlocks transparently. DASH does not need to know how it came to be there and does not ask.
+DASH — the program — does not encourage, instruct, or assist users in obtaining privileges through any
+method. But DASH does not penalise users who have them. If capability detection finds something available,
+the corresponding feature unlocks transparently. DASH does not need to know how it came to be there and does
+not ask.
+
+This is about what DASH *does*, not about whose machine it is. On DASH-AA Linux the machine is the user's,
+and its own administrator — `sudo` with no password — is theirs to use from the Terminal by design (*No
+Passwords*). That is the user commanding their own machine. It is not DASH obtaining privileges, and it
+does not break this rule. DASH's own code never uses it.
+
+---
+
+## No Passwords
+
+**DASH has no passwords** (Roger, 2026-10-21: "i see dash as having no passwords for login"). A car stereo
+has no login, and neither does DASH.
+
+- **DASH never shows a password box.** Not to change a setting, not to start, not ever. Anything DASH
+  changes that the machine would protect with a password is allowed in advance for the person at the seat,
+  by a narrow rule (*The No-Root Constraint*). Where the rule is missing, capability detection applies: the
+  setting is shown as it is, with how to allow it, and nothing pops up.
+- **DASH-AA Linux logs straight into DASH.** Turn it on and it is DASH. There is no login screen and no
+  lock screen.
+- **`sudo` just works**, with no password, for whoever is at the screen, in DASH's Terminal. The machine is
+  theirs. **DASH's own code never uses it**: DASH keeps to its narrow, named permissions, so a bug in DASH
+  can at worst get one setting wrong. It can never damage the machine.
+- **Network login is by key only.** With no passwords, anything else would let anyone on the same network
+  into the car's computer. Reaching DASH-AA Linux from another machine (Claude Code looking at a problem
+  from the G14, say) means that machine's key, trusted once.
+- **A laptop that runs DASH keeps its own login.** Roger's G14 stays as it is. This principle is DASH's,
+  and DASH-AA Linux's, not every machine's DASH happens to run on.
+
+**An idea discussed, not confirmed: the key in the ignition as DASH's "password"** (Roger, 2026-10-21:
+"the password for dash is the key in the ignition"). Whoever holds the key is trusted, as with the car
+itself. Much of it exists already: with the key out, DASH's power stages (1.1.7) put it to sleep or switch it
+off. It is something to work on at another time. The questions it raised then:
+- With no module reporting the ignition (a laptop on a desk, a car with no power module), there is no key
+  to read, so DASH stays open, as the keyboard's stationary lock does.
+- Whether network login and the DASH network should work only with the key in.
+- Whether "the ignition is on" should count from any module or only from a hardwired one: anything on the
+  same network could claim it over Wi-Fi.
 
 ---
 

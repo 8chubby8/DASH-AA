@@ -41,8 +41,8 @@ Decided with Roger before building:
   (1.2.x) the machine logs straight into DASH, and **`sudo` just works** in the Terminal for whoever is at
   the screen. DASH's own code never uses it. Network login to the Surface is by key only. The G14 stays as
   it is, with Roger's own login.
-- **"The password for DASH is the key in the ignition"** (Roger). With the key out, 1.1.7's stages already
-  put DASH to sleep. Two questions are **left for later** (Roger): whether network login and the DASH
+- **"The password for DASH is the key in the ignition"** (Roger), an idea discussed, not confirmed. With
+  the key out, 1.1.7's stages already put DASH to sleep. Two questions are **left for later** (Roger): whether network login and the DASH
   hotspot work only with the key in, and whether "ignition on" from a Wi-Fi module should count, or only
   from a hardwired one.
 - **Option 1 of three for permission:** a one-time rule, not DASH asking for a password, and not read-only.
@@ -92,6 +92,15 @@ Decided with Roger before building:
 - **Follow Location from the connection** finds where the mobile network says it is. A SIM router may
   place the car somewhere else in the same country, which only matters near a border.
 - Not tested with no desktop (the 1.1.x rule): on GNOME only.
+
+**Bible (Roger, 2026-10-21, after release):** `CLAUDE.md` changed in three places. *The No-Root
+Constraint* now names two one-time rules, udev and polkit, built into DASH-AA Linux rather than installed.
+*The Capability Detection Principle* lists the polkit rule, and says its "does not assist users in
+obtaining privileges" is about DASH the program: the user's own passwordless `sudo` on DASH-AA Linux does
+not break it. A new section, **No Passwords**, records the decisions above, and records the key in the ignition as an
+idea discussed but not confirmed, to work on another time.
+interface.md's SDK sections (the time as a data source for elements and overlays) and the Clock and Date
+element's own formats are left open (Roger).
 
 **For native:**
 - **Take as they are:** `time/TimeSystem.kt`, `time/TimePreferences.kt`, `time/DashTime.kt`,
