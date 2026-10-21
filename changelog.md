@@ -91,8 +91,9 @@ Decided by Claude where Roger had not answered (open to change):
 - Tried in the car: whether Android Auto's maps use the car's GPS, and the direction while moving.
 - `trip_distance` (Roger: later). The GPS's own time for a clock with no internet (`GnssReading.utcMillis`
   is read, unused). A Bluetooth GPS puck straight to DASH.
-- **For the Bible, raised not done:** native's roadmap (1.10.x) noted that `hardware.md` should gain a
-  GNSS/GPS entry; it still has none.
+- ~~**For the Bible:** native's roadmap (1.10.x) noted that `hardware.md` should gain a GNSS/GPS entry.~~
+  **Added the same day on Roger's word** ("yes add the gps entry to hardware.md"): peripheral 9, GNSS / GPS
+  Receiver, and its row in the summary table.
 
 **For native:** take `location/Nmea.kt`, `DashLocation.kt`, `LocationRules.kt`, `LocationPreferences.kt`,
 `ElementScope.location`, `Streams.kt`, `SystemCommands.kt`, the weather and Follow Location changes and the

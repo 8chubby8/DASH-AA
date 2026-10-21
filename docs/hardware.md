@@ -405,9 +405,25 @@ Regardless of board selected, every DASH installation requires the following cap
 
 **Required on:** All installations, mandatory on budget boards.
 
-With ESP32 module connections, CAN USB adapter, UART adapter, USB audio interface, and potentially a USB cellular modem or USB microphone all connected simultaneously, a powered USB hub is not optional — it is a core component of any DASH installation.
+With ESP32 module connections, CAN USB adapter, UART adapter, USB audio interface, a GPS receiver, and potentially a USB cellular modem or USB microphone all connected simultaneously, a powered USB hub is not optional — it is a core component of any DASH installation.
 
 **Specification:** Minimum 4-port, ideally 7-port. Must be independently powered — not bus-powered — to supply adequate current to all connected devices. For car installation, a hub powered from the 12V → USB-C converter is the correct approach. For bench development, any quality powered USB hub works. Anker and Ugreen are reliable brands.
+
+---
+
+### 9. GNSS / GPS Receiver
+
+**Required for:** DASH knowing where it is from the sky rather than from the internet — System › Location, the `location_*` signals (position, speed, direction of travel, altitude), elements that show them, the weather and Follow Location's time zone without a connection, and on DASH-AA the car's own location offered to Android Auto. *(Added 2026-10-21, DASH-AA 1.1.11, on Roger's word; native's roadmap 1.10.x had noted the entry was missing.)*
+
+**Deficient boards:** All boards listed, and most laptops and tablets used as Bronze — none have onboard GNSS a head unit can rely on. A phone or tablet's own GPS works for that device but sits wherever the device is mounted.
+
+**Solution (preferred) — USB GNSS receiver (~£10–25):** a USB dongle on a short lead, any make that speaks NMEA 0183 — which is almost all of them. Proven with DASH-AA: a **u-blox 7** (`1546:01a7`, *u-blox 7 - GPS/GNSS Receiver*), which appears on Linux as `/dev/ttyACM*` and gave a 3D fix from 9–10 satellites indoors on a desk. DASH recognises a receiver by what it sends and claims it for Location, never as a module, so no setting is needed. Receivers that appear as `/dev/ttyACM*` (u-blox and most others) are heard at once; one behind a bridge chip (`/dev/ttyUSB*`, often at 9600 or 4800) is found by DASH trying those speeds, which is untested. Newer u-blox generations (8, M10) and receivers that also use GLONASS, Galileo and BeiDou get a fix faster and hold it better among buildings; DASH reads every constellation.
+
+**Solution (alternative) — a GPS module:** an ESP32 with a GPS chip, reporting the `location_*` signals over USB, Wi-Fi or Bluetooth like any SYSTEM module. DASH then uses it as its location source. This is also the route for a GPS that is not on USB.
+
+**Placement:** the receiver needs a view of the sky. Many cars' windscreens carry a metallic heat-reflecting or heated layer that blocks GPS everywhere except a small uncoated patch, usually behind the mirror — the place a toll tag goes. Under the dash or in the boot, a receiver on a USB lead or with an external antenna does better than one plugged straight into the board.
+
+**On Android (native):** a receiver plugged into a tablet reaches Android's own location only through DASH's Location Service (native roadmap 1.10.x) — the mock-location setup on Bronze, injected directly on Silver and Gold.
 
 ---
 
@@ -423,6 +439,7 @@ With ESP32 module connections, CAN USB adapter, UART adapter, USB audio interfac
 | Microphone input | All boards | USB audio interface with 3.5mm mic jack | ~£10–20 |
 | Touchscreen | All boards | MIPI DSI + BSP driver or HDMI + USB HID | £0 (USB HID) |
 | Powered USB hub | All boards | 7-port powered hub | ~£20–30 |
+| GNSS / GPS | All boards | USB NMEA receiver (u-blox 7 proven) or a GPS module | ~£10–25 |
 
 **Minimum universal peripheral cost (any DASH board): ~£80–120** on top of the board itself, assuming no cellular modem and using USB HID touch.
 
