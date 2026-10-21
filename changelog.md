@@ -22,6 +22,90 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.1.8
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** In progress. **Date & Time complete — 2026-10-21**; Developer › Logs is still to come in this
+version. Tests pass (128), plus an opt-in probe: `-Dtime=1` reads the G14's real time service and looks up
+the zone for the connection and for a pinned place (read only — nothing set). `-Dscreenshots=1` draws the
+tab on a machine that lets DASH change the clock, one that would want a password, and one set by hand.
+Roger tried it on the G14: "seems to work well".
+
+**What and why.** System › Date & Time. With no desktop it is the machine's only clock setting, so it
+covers what a desktop's does, plus DASH's own: how the time and date are written.
+
+Decided with Roger before building:
+- **DASH has no passwords** (Roger: "i see dash as having no passwords for login"). DASH never shows a
+  password box. Whatever DASH changes is allowed in advance for the person at the seat. On DASH-AA Linux
+  (1.2.x) the machine logs straight into DASH, and **`sudo` just works** in the Terminal for whoever is at
+  the screen. DASH's own code never uses it. Network login to the Surface is by key only. The G14 stays as
+  it is, with Roger's own login.
+- **"The password for DASH is the key in the ignition"** (Roger). With the key out, 1.1.7's stages already
+  put DASH to sleep. Two questions are **left for later** (Roger): whether network login and the DASH
+  hotspot work only with the key in, and whether "ignition on" from a Wi-Fi module should count, or only
+  from a hardwired one.
+- **Option 1 of three for permission:** a one-time rule, not DASH asking for a password, and not read-only.
+- **The time is readable by the Element and Overlay SDKs** (Roger: "date and time would need to be
+  readable from the elements and overlays sdk, should someone want to have access to the information").
+
+**Done:**
+- **The seam** (shared): `time/TimeSystem.kt`. It covers the zone, automatic time (from the internet),
+  whether the clock is synced, setting the clock by hand, the zones the machine knows, and whether DASH may
+  change any of it (`canChange`). `time/TimePreferences.kt` holds DASH's own choices: 24 or 12 hour, five
+  date styles, and Follow Location.
+- **`time/DashTime.kt`** (shared): **the time for anything that shows it**. One reading a second, on the
+  second, as `DashClock`: the moment, the zone and its short name, the offset, the date and time as plain
+  numbers, and `time` and `date` already written the user's way. Every element gets it as
+  `ElementScope.time`, and the Overlay SDK's scope will carry the same. The viewport's analogue clock reads
+  it too; nothing built in gets the time another way.
+- **`time/TimeRules.kt`** (shared): **Follow Location**. The zone is set from System › Location: the
+  pinned place (looked up with Open-Meteo), or with none, where the internet connection is (ipwho.is, then
+  ipapi.co). These are the same services the weather uses. The zone is looked up on start, when the place
+  changes, and every half hour. With no internet the zone stays as it is. A zone the machine does not know
+  is never set, and nothing is set if the zone is already right.
+- **Linux** (`time/linux/TimeDated.kt`): **timedated** over the system bus, as the seat user (zone,
+  automatic time, set time, list of zones). Before anything is offered, polkit is asked through `pkcheck`
+  whether DASH may make the three changes with no password and no one to answer. Yes: the controls appear.
+  No: the tab shows the clock and says how to allow it.
+- **`packaging/50-dash-aa.rules`**, installed by `install.sh`: a polkit rule letting the person at the seat
+  (local and active, so not over the network or from a background program) set the time, the zone and
+  automatic time. Nothing else.
+- **The tab** (`ui/time/DateTimeContent.kt`): now (time to the second, date, zone with its short name and
+  offset, set from the internet or by hand); Setting the clock (automatic on or off; by hand with day,
+  month, year, hour and minute steppers and *Set the clock*); Time zone (Follow Location, what it found
+  and for where; or Change, picking the region and then the place, each with its offset); How DASH shows
+  it (hours and date style, each shown with today).
+
+**What broke on the way, and was fixed:**
+- **A running Java program reads the time zone once, at start-up.** A zone changed in the tab, or by
+  Follow Location, would not have reached DASH's clocks until DASH restarted. `DashTime` now takes the
+  zone live from `TimeSystem` and sets it as Java's default too, so everything else follows.
+
+**Outstanding:**
+- **Developer › Logs**, the rest of 1.1.8.
+- **On the G14 the "needs the install" message never shows.** Its own setup already lets Roger change the
+  time with no password, so the refusal path has only been seen in the screenshots. The Surface will be
+  the first real test of the rule.
+- **Time with no internet at all:** the clock keeps its own time (the Surface has a clock battery). A GPS
+  module sending the time would be a new signal in `system_commands.md`, so it is Roger's call, later.
+- **Follow Location from the connection** finds where the mobile network says it is. A SIM router may
+  place the car somewhere else in the same country, which only matters near a border.
+- Not tested with no desktop (the 1.1.x rule): on GNOME only.
+
+**For native:**
+- **Take as they are:** `time/TimeSystem.kt`, `time/TimePreferences.kt`, `time/DashTime.kt`,
+  `time/TimeRules.kt`, `ui/time/DateTimeContent.kt`, `ui/systembar/DashElement.kt` (`ElementScope.time`),
+  and `ui/clock/AnalogueClock.kt` if native wants the clock. `DashTime` must be started where native's
+  application starts its other parts.
+- **Needs an Android equivalent:** a `TimeSystem` that reports the zone and whether Android sets the time
+  automatically, with `canChange` false, because Android will not let an app set the clock or the zone. The
+  tab then shows only *How DASH shows it* changing, and should point to Android's own Date & Time. Follow
+  Location stays off: Android sets its zone from the phone network.
+- **Does not apply:** `time/linux/` and the polkit rule.
+
+---
+
 ## Version 1.1.7
 
 **Mirrors upstream:** DASH 1.7.1

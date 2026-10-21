@@ -9,6 +9,7 @@ import com.dash.android.ui.display.ColourContent
 import com.dash.android.ui.display.ScreensContent
 import com.dash.android.ui.display.TouchscreenContent
 import com.dash.android.ui.power.CarPowerContent
+import com.dash.android.ui.time.DateTimeContent
 import com.dash.android.ui.power.PowerActionsContent
 import com.dash.android.ui.power.PowerOutputsContent
 import com.dash.android.ui.power.PowerBatteryContent
@@ -80,6 +81,7 @@ fun SettingsContent(sub: SettingsSub) {
         "modules.serial" -> SerialMonitorContent()
         "modules.signal" -> SignalMonitorContent()
         "system.location" -> LocationContent()
+        "system.datetime" -> DateTimeContent()
         "system.machine" -> ThisMachineContent()
         "system.about" -> AboutContent()
         "system.licence" -> LicenceContent()

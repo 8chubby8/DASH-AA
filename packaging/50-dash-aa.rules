@@ -1,0 +1,18 @@
+// DASH-AA — polkit rule.  Install with packaging/install.sh (or copy to /etc/polkit-1/rules.d/).
+//
+// DASH never asks for a password (DASH-AA 1.1.8, Roger: DASH has no passwords — the key in the ignition is
+// its password). The machine's time service asks polkit before each change, and polkit's own default is an
+// administrator's password, so without this rule Date & Time can only show the clock.
+//
+// This lets the person at the seat — signed in on this machine's own screen, in the session in front of
+// it, not over the network and not a background program — change the time, the time zone and automatic
+// time. Nothing else. DASH itself still runs as that ordinary user, never as root.
+
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.timedate1.set-time" ||
+         action.id == "org.freedesktop.timedate1.set-timezone" ||
+         action.id == "org.freedesktop.timedate1.set-ntp") &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

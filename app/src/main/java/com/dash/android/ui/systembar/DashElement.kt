@@ -2,6 +2,9 @@ package com.dash.android.ui.systembar
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
+import com.dash.android.time.DashClock
+import com.dash.android.time.DashTime
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The contract every system bar element implements — built-in and, in future, community-built
@@ -45,9 +48,14 @@ sealed interface DashAction {
  * The render context handed to an element. [heightDp] is the user-defined element height the
  * element must render within. [barHeight] is the full bar height — available if an element needs
  * to know its ceiling. Nothing here is built-in-only.
+ *
+ * [time] is the date and time, once a second, written the way the user chose in System › Date & Time
+ * (DASH-AA 1.1.8, Roger: readable from the Element and Overlay SDKs by anyone who wants it). Read only: an
+ * element shows the time, it never sets it.
  */
 class ElementScope(
     val heightDp: Dp,
     val barHeight: Dp,
-    val onAction: (DashAction) -> Unit
+    val onAction: (DashAction) -> Unit,
+    val time: StateFlow<DashClock> = DashTime.clock,
 )

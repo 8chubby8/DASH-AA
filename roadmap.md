@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; next 1.1.8)*
+#### 1.1.x — Settings, reorganised *(in progress — 1.1.1 and 1.1.2 complete, 2026-10-07; 1.1.3 to 1.1.6 complete, 2026-10-08; 1.1.7 complete, 2026-10-09; 1.1.8 Date & Time complete, 2026-10-21, Logs next)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -214,6 +214,14 @@ names the stage that covers it.
     Power Tester** (`arduino/PowerTester/`) plays a day in the car over USB.
 - **1.1.8 — System.** Date & Time, and Developer › Logs. (Updates moved to 1.2.1, Roger 2026-10-20: the
   update screen only makes sense once DASH-AA Linux has the system slots behind it.)
+  - **Date & Time** **(complete — 2026-10-21)**: the zone (picked, or following System › Location),
+    automatic time, setting the clock by hand, and 24/12 hour and the date style. Through timedated as the
+    seat user. **No password, ever** (Roger: DASH has no passwords; "the password for dash is the key in
+    the ignition"): a one-time polkit rule in `install.sh` lets the person at the seat change the clock.
+    Without it, the tab shows the clock and says how to allow it. **The time is readable by the Element and
+    Overlay SDKs** (Roger): `DashTime`, once a second, handed to every element as `ElementScope.time`, and
+    the viewport's clock reads it too.
+  - **Developer › Logs** — next.
 - **1.1.9 — Terminal.** Developer › Terminal. It runs as the user, never as root. It is built
   from JetBrains' open-source terminal rather than from scratch. On the 1.2.x touchscreen PC it needs the
   on-screen keyboard. It is there because the PC has no desktop, so a terminal inside DASH is the only way
@@ -228,7 +236,7 @@ and its Brightness and Blanking rules are shared; Screens, Colour and Touchscree
 Audio's device choice and Mixer have no Android equivalent (Android routes sound itself); the
 Sound tab's equaliser maps to Android's `Equalizer` effect, while balance and fade mostly have no
 non-root Android path, so native's Sound tab is thinner. Loudness can ride on that `Equalizer` (fitted to
-its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions, System's Logs and 1.2.1's Updates need Android-side
+its bands); time alignment has no non-root Android path; Saved is taken as it is. Audio's PipeWire controls, Power's logind actions, Date & Time's clock setting, System's Logs and 1.2.1's Updates need Android-side
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7).
 
 #### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*

@@ -62,13 +62,14 @@ with WirePlumber. Java is bundled into the app, and Gradle downloads what the bu
 ```bash
 git clone https://github.com/8chubby8/DASH-AA.git
 cd DASH-AA
-packaging/install.sh               # builds the app, installs the udev rule (asks for sudo once), adds a menu entry
+packaging/install.sh               # builds the app, installs the udev and polkit rules (asks for sudo once), adds a menu entry
 packaging/install.sh --autostart   # …and starts DASH-AA when you log in, like a head unit
 ```
 
-The udev rule is the only privileged step, and it's asked for once. It lets *the person at the seat* open
-their phone over USB for Android Auto, and it keeps ModemManager off module boards. DASH-AA itself never
-runs as root.
+The two rules are the only privileged step, and they're asked for once. The udev rule lets *the person at
+the seat* open their phone over USB for Android Auto, and keeps ModemManager off module boards. The polkit
+rule lets the same person set the clock and the time zone from System › Date & Time, because DASH never asks
+for a password. DASH-AA itself never runs as root.
 
 For USB serial modules your user must be in the `uucp` (Arch) or `dialout` (Debian, Ubuntu) group. For
 multi-touch, it must be in the `input` group. `install.sh` warns about the serial group, and About DASH

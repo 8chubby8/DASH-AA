@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # DASH-AA — one-time setup on the machine that runs it.
 #
-#   packaging/install.sh            udev rule (asks for sudo) + app menu entry
+#   packaging/install.sh            udev and polkit rules (asks for sudo) + app menu entry
 #   packaging/install.sh --autostart   … and start DASH-AA when you log in
 #
-# Builds the self-contained app first if it is not built. Nothing here needs root except the udev rule,
-# and that is the only thing sudo is asked for.
+# Builds the self-contained app first if it is not built. Nothing here needs root except the two rules,
+# and they are the only things sudo is asked for.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
@@ -20,6 +20,10 @@ echo "Installing the udev rule (phone access for Android Auto; ModemManager kept
 sudo install -m 0644 packaging/60-dash-aa.rules /etc/udev/rules.d/60-dash-aa.rules
 sudo udevadm control --reload
 sudo udevadm trigger --subsystem-match=usb --subsystem-match=tty
+
+# polkit reads its rules again by itself; nothing to restart.
+echo "Installing the polkit rule (DASH sets the clock and the time zone without asking for a password)…"
+sudo install -m 0644 packaging/50-dash-aa.rules /etc/polkit-1/rules.d/50-dash-aa.rules
 
 for g in uucp dialout; do
   if getent group "$g" >/dev/null && ! id -nG | grep -qw "$g"; then

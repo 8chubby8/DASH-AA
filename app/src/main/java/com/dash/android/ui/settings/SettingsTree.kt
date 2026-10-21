@@ -170,11 +170,11 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
     SettingsCategory(
         "system", "System", listOf(
             SettingsSub("system.location", "Location", SettingsStatus.LIVE),
-            wip("system.datetime", "Date & Time", "1.1.8"),
+            SettingsSub("system.datetime", "Date & Time", SettingsStatus.LIVE),
             // What DASH found on this machine — moved out of About DASH (1.1.1), because it will grow as
             // each new tab checks for what it needs.
             SettingsSub("system.machine", "This Machine", SettingsStatus.LIVE),
-            wip("system.updates", "Updates", "1.1.8"),
+            wip("system.updates", "Updates", "1.2.1"),
             // About and Licence are separate tabs on purpose (roadmap 1.5.14). About is who made
             // DASH and where to find it; Licence is the GPL-3.0 §5(d) notice, the full text and the
             // third-party attributions — a legal surface with enough bulk to bury the other.

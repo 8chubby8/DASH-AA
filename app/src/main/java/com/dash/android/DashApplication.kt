@@ -31,6 +31,11 @@ import com.dash.android.power.PowerRules
 import com.dash.android.power.PowerSystem
 import com.dash.android.power.linux.LinuxPower
 import com.dash.android.power.linux.Relaunch
+import com.dash.android.time.DashTime
+import com.dash.android.time.TimePreferences
+import com.dash.android.time.TimeRules
+import com.dash.android.time.TimeSystem
+import com.dash.android.time.linux.TimeDated
 import kotlin.system.exitProcess
 import com.dash.android.prefs.DashPreferences
 import com.dash.android.ui.rotation.DashOrientation
@@ -132,6 +137,18 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
     lateinit var carPower: CarPower
         private set
 
+    /**
+     * **The machine's clock** (DASH-AA 1.1.8) — timedated. Started here, not in a tab: the zone follows
+     * Location whether or not settings are open, and [DashTime] — what every element and overlay reads the
+     * time from — ticks in the machine's zone from the moment DASH starts.
+     */
+    var time: TimeSystem = TimeDated()
+        internal set  // tests set a pretend one before onCreate
+
+    /** Date & Time's rule (1.1.8): the time zone following Location. */
+    lateinit var timeRules: TimeRules
+        private set
+
     /** Leave DASH, back to the desktop it runs inside — the shutdown hooks put the screens back on the way. */
     fun leave(): Unit = exitProcess(0)
 
@@ -204,6 +221,11 @@ class DashApplication(home: java.io.File = defaultHome()) : Context(home) {
             woke = { carPower.woke(); ready.wake(); androidAuto.machineWoke() },
         ).start()
         Runtime.getRuntime().addShutdownHook(Thread { carPower.off() })
+        // Date & Time (1.1.8).
+        time.start()
+        val timeSettings = TimePreferences(this).settings
+        DashTime.start(soundScope, time.state, timeSettings)
+        timeRules = TimeRules(time, timeSettings, DashPreferences(this).manualLocation, soundScope).also { it.start() }
         Thread({
             runBlocking {
                 val limit = runCatching { SoundPreferences(this@DashApplication).settings.first().startupLimit }

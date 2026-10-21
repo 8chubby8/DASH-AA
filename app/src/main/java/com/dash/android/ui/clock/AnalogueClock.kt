@@ -5,19 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.dash.android.ui.theme.LocalDashTheme
-import kotlinx.coroutines.delay
-import java.time.LocalTime
+import com.dash.android.time.DashTime
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -41,14 +37,9 @@ import kotlin.math.sin
 @Composable
 fun AnalogueClock(modifier: Modifier = Modifier) {
     val theme = LocalDashTheme.current
-    var now by remember { mutableStateOf(LocalTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = LocalTime.now()
-            // Wake just after the next whole second, so the hand steps in time with the real clock.
-            delay(1000L - now.nano / 1_000_000 + 5)
-        }
-    }
+    // The time as every element and overlay reads it (DASH-AA 1.1.8) — in the machine's zone as it is now,
+    // stepping just after each whole second.
+    val now by DashTime.clock.collectAsState()
 
     val face = theme.backgroundColourSecondary
     val ink = theme.textColourSecondary
