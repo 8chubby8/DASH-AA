@@ -1,0 +1,10 @@
+#!/bin/bash
+# DASH-AA Linux: is the release running now on trial — one of its three tries to reach DASH (1.2.2)? Yes
+# (exit 0) only when systemd-boot started it from a kernel image named +<left>-<done> with the two adding
+# up to three. One started only because nothing else was left (+0-4 on, or +0-9 set aside by dash-update)
+# is not: restarting it would only start it again, for ever.
+v=/sys/firmware/efi/efivars/LoaderBootCountPath-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+[ -e "$v" ] || exit 1
+name=$(tail -c +5 "$v" | tr -d '\000')
+[[ "$name" =~ \+([0-9]+)(-([0-9]+))?\.efi$ ]] || exit 1
+[ $(( ${BASH_REMATCH[1]} + ${BASH_REMATCH[3]:-0} )) = 3 ]

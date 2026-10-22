@@ -41,10 +41,11 @@ No root and no password: mkosi, systemd's image builder, does it all as you, fet
 first time (into `distro/work`). The result in `distro/out/`:
 
 - `dash_<version>.raw` — the whole disk image. Written to a USB stick, it is the installer.
-- `dash_<version>.efi` and the system partition beside it — what an update will be (stage 2).
+- `dash_<version>.update` — the release, sealed: what System › Updates installs (it is on the stick too).
 
-The version is the changelog's; `DASH_IMAGE_VERSION=1.2.1.4 distro/build.sh` gives a test build its own
-(an update needs a version different from the one installed). The build refuses a Java runtime or launcher
+The version is the changelog's — three numbers, nothing more. Each build is also marked with when it was
+made (`dash_1.2.2-202610222310`, shown as "1.2.2, built 22 Oct 23:10"), so a second build of the same version
+can still be installed over the first. The build refuses a Java runtime or launcher
 that needs a newer processor than plain x86-64 (`x86-64-v3`/`v4`): the Surface's i5 cannot run them.
 
 The SSH key allowed in is `~/.ssh/dash_ed25519.pub` (or `DASH_SSH_KEY=<file>`). It goes onto the USB's
@@ -73,19 +74,32 @@ While it runs, `ssh -p 2222 dash@localhost -i ~/.ssh/dash_ed25519` gets in.
 4. The installer starts by itself. Choose the disk and type `erase`. It needs no internet.
 5. Take the USB out and restart. DASH comes up.
 
-## Update from a USB stick
+## Update: System › Updates
 
-Until System › Updates (stage 2), a newer release goes on from a USB stick holding its image, without
-erasing anything: it goes into the spare slot, the one running now stays to fall back to, and everything
-of yours on the data partition is kept.
+Every build is also an update: `dash_<version>.update`, **sealed** with the release key that lives only on
+the computer that builds (`~/.config/dash-release/release.pem`, made by the first build — keep it: a
+machine installs only releases sealed with the key its system was built with). The stick image carries the
+update file too, so one stick both installs and updates.
 
-1. Write the new image to the stick, as above.
-2. With DASH running, plug the stick in, press **Ctrl+Alt+F2** and log in as `dash` (or `ssh dash`).
+1. Write the new image to the stick, as above (or copy just the `.update` file onto any stick).
+2. With DASH running, plug the stick in: System › Updates › **Look on USB sticks**, then **Install**.
    Do not start the machine *from* the stick: that is the installer.
-3. `lsblk` — the stick is the disk with `dash-data` that is not the machine's own (for example `sdb`).
-4. `sudo mount /dev/sdb3 /mnt && sudo /mnt/usb/update`, and type `update`.
-5. Take the stick out, then `sudo reboot`. The new release has three tries; if it fails all three, the
-   machine goes back to the old one by itself.
+3. DASH copies its settings, the new release goes into the spare slot, and the one running now stays.
+   **Restart now** when it is done. The new release has three tries; if it fails all three, the machine
+   goes back to the old one by itself.
+4. **Go back** in the same tab starts the other slot's release instead, asking first whether to keep your
+   settings as they are or put back the copy taken before the update. Wi-Fi and Bluetooth pairings are never
+   copied or put back.
+
+What does it, as root: `/usr/lib/dash/dash-update`, started by DASH as `dash-update@<file>.service` or
+`dash-rollback.service` — the two things the person at the seat may start (`50-dash.rules`). It checks the
+seal itself and every part of the file against it as it writes. Which slot starts is in the kernel images'
+names on the boot partition: `+3` on trial, no count good, `+0-9` set aside (see the top of `dash-update`).
+
+**By hand, from a machine older than System › Updates** (1.2.1.3): with the stick plugged in, Ctrl+Alt+F2
+(or `ssh dash`), `lsblk` to find the stick (the disk with `dash-data` that is not the machine's own, for
+example `sdb`), then `sudo mount /dev/sdb3 /mnt && sudo /mnt/usb/update`, type `update`, take the stick out
+and `sudo reboot`.
 
 ## Getting in
 
@@ -105,5 +119,6 @@ of yours on the data partition is kept.
 | `initrd/`, `mkosi.finalize` | the piece of the initrd that puts the data partition in place |
 | `mkosi.sandbox/` | the linux-surface package repository and its signing key, for the build |
 | `surface/` | the linux-surface signing key as published, from which the keyring was made |
-| `usb/update` | the update from a USB stick, put on the stick's data partition |
+| `usb/update` | the update by hand from a USB stick, put on the stick's data partition |
+| `summary.txt` | what is new in the next release, a line each — shown in System › Updates |
 | `test-vm.sh` | the image in QEMU on the G14 |

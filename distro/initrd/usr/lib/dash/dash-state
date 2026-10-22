@@ -16,10 +16,17 @@ set -uo pipefail
 R=/sysroot
 COUNTING=/sys/firmware/efi/efivars/LoaderBootCountPath-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
 
+# As /usr/lib/dash/on-trial in the system: one of a release's three tries, not a start because nothing else was left.
+on_trial() {
+    [ -e "$COUNTING" ] || return 1
+    local name; name=$(tail -c +5 "$COUNTING" | tr -d '\000')
+    [[ "$name" =~ \+([0-9]+)(-([0-9]+))?\.efi$ ]] || return 1
+    [ $(( ${BASH_REMATCH[1]} + ${BASH_REMATCH[3]:-0} )) = 3 ]
+}
 say() { echo "<3>DASH: $*" >/dev/kmsg; echo "DASH: $*" >&2; }
 give_up() {
     say "$*"
-    if [ -e "$COUNTING" ]; then
+    if on_trial; then
         say "this release is on trial — restarting for its next try"
         sleep 5
         systemctl --no-block --force reboot

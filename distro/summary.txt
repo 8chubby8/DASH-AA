@@ -1,0 +1,2 @@
+System › Updates: install a release from a USB stick, and go back to the one before
+The boot menu says DASH

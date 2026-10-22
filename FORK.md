@@ -156,7 +156,10 @@ terminal device through libc, the shell started by `setsid --ctty` — 1.1.10), 
 keyboard plugged in, from `/proc/bus/input/devices` — 1.1.10), `location/linux/GnssReceivers.kt` (the GPS
 receivers the USB transport claimed by their NMEA — 1.1.11), `system/linux/Command.kt` (running a program
 with a time limit that holds — every program DASH-AA asks something of goes through it, 1.2.1), `distro/` (DASH-AA
-Linux: the image, its installer, the update from a USB stick and the VM test — 1.2.1), and the whole of
+Linux: the image, its installer, the update from a USB stick and the VM test — 1.2.1; the sealed update file,
+`dash-update` and the slot rules — 1.2.2), `updates/` (System › Updates: the update file and its seal, the
+settings copies — plain Kotlin, shared-ready — and `updates/linux/LinuxUpdates.kt`, the slots and the update
+services — 1.2.2), `ui/updates/UpdatesContent.kt` (System › Updates, 1.2.2), and the whole of
 `aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
 the projection before the machine sleeps and looks for the phone afresh on waking.
 

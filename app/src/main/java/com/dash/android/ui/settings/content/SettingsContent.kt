@@ -83,6 +83,7 @@ fun SettingsContent(sub: SettingsSub) {
         "system.location" -> LocationContent()
         "system.datetime" -> DateTimeContent()
         "system.machine" -> ThisMachineContent()
+        "system.updates" -> com.dash.android.ui.updates.UpdatesContent()
         "system.about" -> AboutContent()
         "system.licence" -> LicenceContent()
         "developer.terminal" -> com.dash.android.ui.terminal.TerminalContent()

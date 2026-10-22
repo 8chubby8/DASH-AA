@@ -5,7 +5,7 @@
 # partition — the home folder, settings, Wi-Fi, pairings — is not touched.
 #
 # On the machine, with the stick plugged in:   sudo mount /dev/sdX3 /mnt && sudo /mnt/usb/update
-# (sdX: the stick — lsblk shows it). By hand until System › Updates does it (1.2.1, stage 2).
+# (sdX: the stick — lsblk shows it). By hand — System › Updates does it from 1.2.2.
 set -euo pipefail
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
 ROOT_TYPE=4f68bce3-e8cd-4db1-96e7-fbcaf984b709

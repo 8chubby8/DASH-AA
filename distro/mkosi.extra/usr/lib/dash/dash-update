@@ -1,0 +1,172 @@
+#!/bin/bash
+# DASH-AA Linux — the hands of System › Updates (roadmap 1.2.2). DASH itself never runs as root, so
+# what needs root is done here, started by DASH as a system service (dash-update@.service, dash-rollback.service)
+# — which the person at the seat may start, and nothing else of the kind (polkit, 50-dash.rules).
+#
+#   dash-update install <file>   the release in <file> into the spare slot, to be tried at the next start
+#   dash-update rollback         the other slot's release to be tried at the next start
+#
+# Nothing DASH says is taken on trust: the file's seal is checked here, against the release key built into
+# this system, and every part of it against the sealed list as it is written — a file changed while it is
+# being read is caught. Until the very end the spare slot cannot be started at all, so a release half
+# written, or refused, is never started.
+#
+# Which slot starts is told to systemd-boot by the kernel images' names, as for any start (boot counting):
+#   dash_<version>_<kernel>.efi       good — has reached DASH
+#   dash_<version>_<kernel>+3.efi     on trial — three tries to reach DASH (dash-up.service)
+#   dash_<version>_<kernel>+0-9.efi   set aside — started only if nothing else is left (not a trial: its
+#                                     counts never add up to three, so dash-up never restarts it)
+# systemd-boot starts the newest release that is not set aside. So the one being tried goes ahead of the one
+# running now: if it is the older of the two, the one running now is set aside (it still comes back if the
+# tried one fails its three tries, as the newer of two set aside).
+#
+# What it is doing is in /run/dash-update/status, for DASH to show.
+set -euo pipefail
+ROOT_TYPE=4f68bce3-e8cd-4db1-96e7-fbcaf984b709
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+KEY=/usr/lib/dash/release.pub
+S=/run/dash-update
+W=$S/work
+STARTED=$(date +%s)
+
+mkdir -p "$S"; chmod 755 "$S"
+rm -rf "$W"; mkdir -m 700 "$W"
+
+status() {   # status <working|done|failed> <percent> <what>
+    printf 'started=%s\nstate=%s\npercent=%s\nmessage=%s\n' "$STARTED" "$1" "$2" "$3" >"$S/status.new"
+    chmod 644 "$S/status.new"; mv "$S/status.new" "$S/status"
+    echo "$3"
+}
+fail() { status failed 0 "$*"; exit 1; }
+trap 'rc=$?; [ $rc = 0 ] || grep -q "^state=failed" "$S/status" 2>/dev/null || status failed 0 "Something went wrong (line $LINENO)."; mountpoint -q "$W/esp" && umount "$W/esp"; rm -rf "$W"' EXIT
+
+# A release is <version>-<when built> (dash_1.2.2-202610222310); said as "DASH 1.2.2, built 22/10 23:10".
+shown() {
+    if [[ "$1" =~ ^(.+)-([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})$ ]]; then
+        echo "DASH ${BASH_REMATCH[1]}, built ${BASH_REMATCH[4]}/${BASH_REMATCH[3]} ${BASH_REMATCH[5]}:${BASH_REMATCH[6]}"
+    else echo "DASH $1"; fi
+}
+newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }   # is $1 newer than $2
+
+# --- This machine ---------------------------------------------------------------------------------------
+cur=$(findmnt -no SOURCE /)
+disk=/dev/$(lsblk -no PKNAME "$cur")
+cur_label=$(lsblk -no PARTLABEL "$cur")
+cur_version=${cur_label#dash_}
+spare="" esp=""
+while read -r path type; do
+    [ "$type" = "$ROOT_TYPE" ] && [ "$path" != "$cur" ] && spare=$path
+    [ "$type" = "$ESP_TYPE" ] && esp=$path
+done < <(lsblk -lnpo PATH,PARTTYPE "$disk")
+[[ "$cur_label" == dash_* ]] || fail "This system was not started from a DASH slot."
+[ -n "$spare" ] || fail "This machine has no spare slot."
+[ -n "$esp" ] || fail "This machine's boot partition was not found."
+spare_label=$(lsblk -no PARTLABEL "$spare")
+
+esp_at=$(findmnt -no TARGET "$esp" | head -1 || true)
+if [ -z "$esp_at" ]; then mkdir -p "$W/esp"; mount "$esp" "$W/esp"; esp_at=$W/esp; fi
+L=$esp_at/EFI/Linux
+[ -d "$L" ] || fail "The boot partition has no kernel images."
+
+uki() { ls "$L"/dash_"$1"_*.efi 2>/dev/null | head -1; }                     # a release's kernel image
+plain() { basename "$1" | sed -E 's/\+[0-9]+(-[0-9]+)?\.efi$/.efi/'; }       # its name with no tries
+mark() {   # mark <image> <good|trial|aside>
+    local to; to=$(plain "$1")
+    case $2 in trial) to=${to%.efi}+3.efi ;; aside) to=${to%.efi}+0-9.efi ;; esac
+    [ "$(basename "$1")" = "$to" ] || mv "$1" "$L/$to"
+}
+# The one being tried ahead of the one running now (see the top).
+try_next() {   # try_next <version>
+    mark "$(uki "$1")" trial
+    if newer "$cur_version" "$1"; then mark "$(uki "$cur_version")" aside; else mark "$(uki "$cur_version")" good; fi
+}
+
+[ -n "$(uki "$cur_version")" ] || fail "The release running now has no kernel image on the boot partition."
+
+case ${1:-} in
+
+# --- Roll back ------------------------------------------------------------------------------------------
+rollback)
+    status working 0 "Getting ready to go back…"
+    [[ "$spare_label" == dash_* ]] || fail "There is nothing in the other slot to go back to."
+    other=${spare_label#dash_}
+    [ -n "$(uki "$other")" ] || fail "$(shown "$other") has no kernel image on the boot partition, so it cannot be started."
+    try_next "$other"
+    sync
+    status done 100 "$(shown "$other") starts next time. If it does not reach DASH in three tries, $(shown "$cur_version") comes back."
+    ;;
+
+# --- Install a release ----------------------------------------------------------------------------------
+install)
+    file=${2:-}
+    [ -f "$file" ] || fail "The update file is not there any more."
+    status working 0 "Checking the seal…"
+    [ -s "$KEY" ] || fail "This system has no release key, so it cannot check any update."
+    tar -xOf "$file" --occurrence release.txt >"$W/release.txt" 2>/dev/null || fail "This is not a DASH update file."
+    tar -xOf "$file" --occurrence release.sig >"$W/release.sig" 2>/dev/null || fail "This update has no seal. DASH only installs sealed releases."
+    openssl pkeyutl -verify -pubin -inkey "$KEY" -rawin -in "$W/release.txt" -sigfile "$W/release.sig" >/dev/null 2>&1 ||
+        fail "This update's seal is not DASH's. It may have been changed — it was not installed."
+    get() { sed -n "s/^$1=//p" "$W/release.txt"; }
+    version=$(get version | head -1)
+    read -r sys_name sys_sum sys_size sys_raw <<<"$(get system | head -1)"
+    [[ "$version" =~ ^[0-9A-Za-z.+~-]+$ ]] || fail "The update's version is not readable."
+    [ "$version" != "$cur_version" ] || fail "$(shown "$version") is the one running now."
+    [ "$sys_raw" -le "$(blockdev --getsize64 "$spare")" ] || fail "$(shown "$version") is bigger than the spare slot."
+
+    # This machine's kernel: the Surface's own on a Surface, Arch's on anything else (as the installer chose).
+    vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
+    product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
+    want=generic
+    [[ "$vendor" == *Microsoft* && "$product" == *Surface* ]] && want=surface
+    k_name="" k_sum=""
+    while read -r n s kind; do [ "$kind" = "$want" ] && { k_name=$n; k_sum=$s; }; done < <(get kernel)
+    [ -n "$k_name" ] || fail "$(shown "$version") has no kernel for this machine."
+    [[ "$k_name" == "dash_${version}_"*.efi && "$k_name" != */* ]] || fail "The update's kernel image is misnamed."
+    status working 0 "Checking the kernel…"
+    tar -xOf "$file" --occurrence "$k_name" >"$W/kernel.efi" || fail "The update's kernel image could not be read."
+    [ "$(sha256sum <"$W/kernel.efi" | cut -c1-64)" = "$k_sum" ] || fail "The update's kernel image is not the one sealed."
+
+    # From here the spare slot is being written: first make sure nothing can start what is in it.
+    status working 0 "Clearing the spare slot…"
+    for f in "$L"/dash_*.efi; do
+        [ -e "$f" ] || continue
+        case "$(basename "$f")" in "dash_${cur_version}_"*) ;; *) rm -f "$f" ;; esac
+    done
+    partn=$(cat "/sys/class/block/$(basename "$spare")/partition")
+    # (The disk is in use, so sfdisk cannot have the kernel re-read it; partx tells it of the change.)
+    sfdisk -q --no-reread --part-label "$disk" "$partn" _empty 2>/dev/null || true
+    sync
+
+    status working 0 "Writing $(shown "$version")…"
+    mkfifo "$W/sum"
+    sha256sum <"$W/sum" | cut -c1-64 >"$W/sum.txt" & summing=$!
+    stat=/sys/class/block/$(basename "$spare")/stat
+    before=$(awk '{print $7}' "$stat")
+    ( tar -xOf "$file" --occurrence "$sys_name" | tee "$W/sum" | zstd -dcq |
+        dd of="$spare" bs=4M iflag=fullblock oflag=direct status=none ) & writing=$!
+    while kill -0 "$writing" 2>/dev/null; do
+        done_bytes=$(( ($(awk '{print $7}' "$stat") - before) * 512 ))
+        status working $(( done_bytes * 100 / sys_raw > 99 ? 99 : done_bytes * 100 / sys_raw )) "Writing $(shown "$version")…"
+        sleep 1
+    done
+    wait "$writing" || fail "$(shown "$version") could not be written into the spare slot."
+    wait "$summing" || true
+    [ "$(cat "$W/sum.txt")" = "$sys_sum" ] || fail "$(shown "$version") on the stick is not the one sealed — it was not installed."
+
+    status working 99 "Getting it ready to start…"
+    # Its kernel image finds it by its partition UUID; its label says its version.
+    sys_uuid=$(get uuid | head -1)
+    sfdisk -q --no-reread --part-uuid "$disk" "$partn" "$sys_uuid" 2>/dev/null || true
+    sfdisk -q --no-reread --part-label "$disk" "$partn" "dash_$version" 2>/dev/null || true
+    [ "$(sfdisk --part-uuid "$disk" "$partn" | tr A-Z a-z)" = "$(echo "$sys_uuid" | tr A-Z a-z)" ] &&
+        [ "$(sfdisk --part-label "$disk" "$partn")" = "dash_$version" ] || fail "The spare slot could not be labelled."
+    partx -u "$disk" 2>/dev/null || true
+    cp "$W/kernel.efi" "$L/$k_name"
+    try_next "$version"
+    sync
+    status done 100 "$(shown "$version") is ready. It starts next time; $(shown "$cur_version") stays, to come back to."
+    ;;
+
+*)
+    echo "dash-update install <file> | rollback" >&2; exit 2 ;;
+esac

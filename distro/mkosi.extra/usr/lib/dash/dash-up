@@ -8,4 +8,10 @@ for _ in $(seq 1 180); do
     sleep 1
 done
 echo "DASH did not come up" >&2
+# On trial: restart, using up a try (after the third the machine starts the other slot). Started only
+# because nothing else was left: stay, so the machine can still be reached and put right (1.2.2).
+if /usr/lib/dash/on-trial; then
+    echo "This release is on trial — restarting for its next try" >&2
+    systemctl --no-block reboot
+fi
 exit 1

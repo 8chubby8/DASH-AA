@@ -24,7 +24,7 @@ planned to cover: the Pixel 8 Pro projecting on the G14, taps and trackpad zoom 
 (1.0.3), phone calls over Bluetooth (1.0.4), sound faults that cannot freeze the phone (1.0.5–1.0.6), echo
 cancelling (1.0.7), call volume (1.0.8–1.0.9), and real modules on the laptop. See the changelog.
 
-#### 1.1.x — Settings, reorganised *(complete — 1.1.1 and 1.1.2, 2026-10-07; 1.1.3 to 1.1.6, 2026-10-08; 1.1.7, 2026-10-09; 1.1.8 to 1.1.11, 2026-10-21. Next: 1.2.1)*
+#### 1.1.x — Settings, reorganised *(complete — 1.1.1 and 1.1.2, 2026-10-07; 1.1.3 to 1.1.6, 2026-10-08; 1.1.7, 2026-10-09; 1.1.8 to 1.1.11, 2026-10-21)*
 The settings panel reorganised around DASH-AA's Linux base. This is the first piece of work under the new
 direction (CLAUDE.md, *The Direction*): DASH-AA leads, and the result has to be usable by DASH native. The
 minor number goes up stage by stage until the work is done.
@@ -96,7 +96,7 @@ names the stage that covers it.
 | Somewhere to go when you leave DASH | "Leave DASH" must lead somewhere. Where is left open (Roger, 2026-10-07: "i feel the answer will become obvious once more of the shell is finished") | **done** — 1.1.7: Leave DASH only with a desktop to go back to; Restart DASH always |
 | A way back to a full desktop, when one is installed | Developer › **Switch to Desktop** (Roger, 2026-10-07): DASH closes, the desktop starts, logging out of it brings DASH back — no reboot, no root | 1.2.x |
 | Shuts down and restarts | DASH, through logind | **done** — 1.1.7 |
-| Updates the system | System › Updates installs a whole tested release into the spare system slot, and can roll back (decided 2026-10-15) | 1.2.1 |
+| Updates the system | System › Updates installs a whole tested release into the spare system slot, and can roll back (decided 2026-10-15) | ~~1.2.2~~ done |
 
 **Stages:**
 
@@ -267,7 +267,7 @@ its bands); time alignment has no non-root Android path; Saved is taken as it is
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7). The
 Terminal is taken whole except its device: native runs Android's own shell as the app (1.1.10).
 
-#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 in progress — DASH-AA Linux installed and working on the Surface, 2026-10-22)*
+#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 and 1.2.2 complete, 2026-10-22 — DASH-AA Linux on the Surface, updated from System › Updates. Next: 1.2.3)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
 PC — the board era's idea (upstream's version 2: dedicated hardware, DASH as the whole system) reached
 from the Linux side. Power on and DASH-AA is the screen: no desktop, no login prompt, no app to start.
@@ -311,12 +311,26 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
   placement later; first measure what Java costs on the Surface.
 
 **The stages (Roger, 2026-10-20):**
-- **1.2.1 — Updates, then the install.** System › Updates and roll back first, then DASH-AA Linux
+- ~~**1.2.1 — Updates, then the install.**~~ **Complete, 2026-10-22, as the install** (Updates became 1.2.2). System › Updates and roll back first, then DASH-AA Linux
   installed on the Surface — straight to the full A/B install, no plain-image stage first. The install,
   updates and roll back are proven in a virtual machine on the G14 before the Surface, so the Surface only
   has to prove its hardware (Wi-Fi, Bluetooth, touch, speed). **Order (Roger, 2026-10-21): the A/B
   install in a VM first; then a USB stick and the Surface; then the update file, System › Updates and roll
   back.** Progress and what is decided are under *1.2.1 so far*, below.
+- ~~**1.2.2 — Updates**~~ **Complete, 2026-10-22** — installed on the Surface; proven in the VM (changelog). (Roger, 2026-10-22: 1.2.1 closed as the install; "updates first"). System › Updates:
+  a sealed update file from a USB stick, installed into the spare slot, and one press back to the other
+  slot. Decided with Roger: DASH's own settings are copied before each install (not Wi-Fi or Bluetooth
+  pairings), the last three kept; going back asks whether to keep the settings as they are or put that copy
+  back; USB only for now (GitHub later — publishing the system brings a duty to offer its source); the
+  first update carries the small Surface fixes (the boot menu says DASH; the pairing note names Connections
+  › Bluetooth).
+- **1.2.3 — Wireless Android Auto — next.** (Roger, 2026-10-22; moved up from 1.4.x, after Updates so every test
+  build reaches the Surface through System › Updates and can be rolled back). The phone pairs with DASH over
+  Bluetooth, is handed the name and password of DASH's own network over a Bluetooth service, joins it and
+  connects to DASH; from there it is the same Android Auto as by cable. The Surface's one Wi-Fi card hosts
+  the network for the phone, so it cannot join a router at the same time: in the car the router's Ethernet
+  (through the hub) gives the internet. Roger tests it on the Surface's own card first, with no second
+  adapter (he is on holiday), the card taken off his hotspot for the test.
 - **Then a VM as if in the car** (Roger, 2026-10-21): DASH-AA Linux run in a virtual machine on the G14
   as the test bench for everything that needs no desktop — the real image, no desktop behind it — **the
   file picker first** (it was 1.1.8, moved here because only a machine with no desktop tests it). What the
@@ -353,11 +367,12 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
 - **The update from a USB stick** (`distro/usb/update`): the new release into the spare slot, the old one
   kept to fall back to, the data partition untouched. Proven in the VM, with the fall back after three failed
   starts; not yet on the Surface.
-- **Next: fixes Roger finds on the Surface, then stage 2** — the signed update file, System › Updates and
-  roll back.
+- **1.2.1 closed here** (Roger, 2026-10-22): the install. The signed update file, System › Updates and
+  roll back are 1.2.2; wireless Android Auto is 1.2.3.
 
 **For native:** the Linux image, the slots and the installer are Linux's own and do not apply to Android
-(Android updates itself). System › Updates is the Linux side; native's equivalent is its own app update.
+(Android updates itself). System › Updates is the Linux side; native's equivalent is its own app update. The
+settings copies (`updates/SettingsCopies.kt`) and the update file reader are plain Kotlin, if native ever wants them.
 
 #### 1.3.x — In the car
 - **Deferred until Roger raises it:** the full touchscreen pass — multi-touch into Android Auto, the
@@ -368,9 +383,7 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
   stages). Left for the car: the module that wakes the machine in hardware, which only a real module can
   do (system_commands.md, *The car's power*).
 
-#### 1.4.x — Wireless Android Auto
-The machine as the phone's Wi-Fi hotspot plus the Bluetooth start-up handshake, so the phone projects
-without a cable. Deferred by Roger's first ruling (wired first).
+#### 1.4.x — ~~Wireless Android Auto~~ *(moved up to 1.2.3 by Roger, 2026-10-22)*
 
 #### Later, unordered
 - **Screen roles** (Roger, 2026-10-08; to be designed with him, and interface.md updated, before building).

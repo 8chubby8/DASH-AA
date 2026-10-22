@@ -1,0 +1,8 @@
+# DASH-AA Linux: System › Updates going back to the other slot's release (1.2.2). The person at the seat may
+# start it (50-dash.rules).
+[Unit]
+Description=DASH: go back to the other slot's release
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/dash/dash-update rollback

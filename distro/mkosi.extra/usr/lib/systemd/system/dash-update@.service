@@ -1,0 +1,8 @@
+# DASH-AA Linux: System › Updates installing a release (1.2.2) — the file named by the instance, checked and
+# written into the spare slot by dash-update as root. The person at the seat may start it (50-dash.rules).
+[Unit]
+Description=DASH: install the release in %f
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/dash/dash-update install %f

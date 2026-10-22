@@ -15,4 +15,10 @@ polkit.addRule(function (action, subject) {
         action.id === "org.freedesktop.login1.suspend-multiple-sessions") {
         return polkit.Result.YES;
     }
+    // System › Updates (1.2.2): starting the two services that install a release and go back to the other
+    // slot — those two only, and only starting them. What they install is checked by them, not taken from DASH.
+    if (action.id === "org.freedesktop.systemd1.manage-units" && action.lookup("verb") === "start") {
+        var unit = action.lookup("unit") || "";
+        if (/^dash-update@[^\/]+\.service$/.test(unit) || unit === "dash-rollback.service") return polkit.Result.YES;
+    }
 });

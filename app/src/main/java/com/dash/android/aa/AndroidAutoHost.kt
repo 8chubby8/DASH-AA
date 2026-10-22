@@ -436,8 +436,8 @@ class AndroidAutoHost(
                 calls.phoneAddress = phoneAddress
                 calls.start()
                 _callsNote.value = if (paired) "Phone paired — calls play through DASH"
-                    else "Phone not paired with this laptop — pair it once in GNOME Settings › Bluetooth"
-                if (!paired) Log.i(TAG, "calls: phone $phoneAddress is not paired with this laptop — pair it in GNOME Settings › Bluetooth")
+                    else "Phone not paired with this machine — pair it once in Connections › Bluetooth"
+                if (!paired) Log.i(TAG, "calls: phone $phoneAddress is not paired with this machine — pair it in Connections › Bluetooth")
                 return paired
             }
         }

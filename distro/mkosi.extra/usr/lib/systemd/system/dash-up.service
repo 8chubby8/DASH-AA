@@ -1,5 +1,5 @@
 # DASH-AA Linux: a new release counts as good only once DASH is on the screen (Roger: fall back after three
-# tries). Until it is, systemd-boot counts each start down from three; this restarts the machine for the
+# tries). Until it is, systemd-boot counts each start down from three; dash-up restarts the machine for the
 # next try, and after the third it starts the other slot instead.
 [Unit]
 Description=DASH is on the screen
@@ -7,7 +7,6 @@ After=greetd.service
 Before=boot-complete.target
 # Only while a release is still being tried — a release already good is never restarted over DASH.
 ConditionPathExists=/sys/firmware/efi/efivars/LoaderBootCountPath-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
-FailureAction=reboot
 
 [Service]
 Type=oneshot

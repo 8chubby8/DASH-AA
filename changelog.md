@@ -22,17 +22,95 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.2.2
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-22. **DASH 1.2.2 installed on the Surface Pro 3 from 1.2.1.3** by the USB
+stick, by hand (the last time: 1.2.1.3 had no Updates tab), and it works (Roger: "super. that works").
+System › Updates proven in the VM end to end: install from a stick, restart, go back with the settings put
+back, and a release that fails its three tries giving way by itself. Tests pass (168).
+
+**What and why.** System › Updates (roadmap 1.2.2; Roger, 2026-10-22: 1.2.1 closed as the install, Updates
+is 1.2.2, wireless Android Auto 1.2.3). A new release goes into the spare slot from an update file on a USB
+stick; the one running stays, and one press goes back to it. Decided with Roger: DASH's own settings copied
+before each install, never Wi-Fi or Bluetooth pairings, the last three kept; going back asks whether to keep
+the settings as they are or put that copy back; USB only for now (GitHub later — publishing the system brings
+a duty to offer its source); DASH never looks for updates by itself.
+
+**Done:**
+- **The update file** (`distro/build.sh`): every build also makes `dash_<release>.update` — a plain tar of
+  `release.txt` (the version, date, the slot's partition UUID, a checksum per part, a summary from
+  `distro/summary.txt`, whether the settings format changed), `release.sig`, both kernel images and the
+  system packed with zstd (1.5 GB from 2.5). **Sealed** with an Ed25519 release key that lives only on the
+  computer that builds (`~/.config/dash-release/release.pem`, made by the first build); its public half is
+  built into the system (`/usr/lib/dash/release.pub`). The stick image carries the update file on its data
+  partition (made again after the build, big enough), so one stick installs and updates.
+- **Versions are three numbers** (Roger, firmly): the fourth number used for test builds at 1.2.1
+  (1.2.1.1–1.2.1.3) is gone. A build is told apart by when it was made instead — `1.2.2-202610222214`,
+  always shown as "DASH 1.2.2, built 22 Oct 22:14" — so a second build of one version can go over the first.
+- **The installer behind it** (`/usr/lib/dash/dash-update`, root): DASH never writes a slot. It starts
+  `dash-update@<file>.service` or `dash-rollback.service`, which the person at the seat may start and nothing
+  else of the kind (`50-dash.rules`). It checks the seal itself (openssl), clears the spare slot so nothing can
+  start it while it is written, streams the system in while checking it against the sealed checksum, labels
+  the slot, puts this machine's kernel (Surface or not) on the boot partition, and reports progress in
+  `/run/dash-update/status`.
+- **Which slot starts** is told by the kernel images' names (systemd-boot's boot counting): `+3` on trial,
+  no count good, `+0-9` set aside. systemd-boot starts the newest that is not set aside, so the release being
+  tried goes first, and when it is the older of the two the one running is set aside — it still comes back as
+  the newer of two set aside if the tried one fails. Checked against systemd-boot's own source (v258).
+- **No restart loop:** `dash-up` (and `dash-state` in the initrd) restart for another try only when the
+  release really is on trial (`/usr/lib/dash/on-trial`: its counts add up to three). One started only because
+  nothing else was left stays up, so the machine can still be reached and put right.
+- **System › Updates** (`ui/updates/UpdatesContent.kt`, `updates/`): running now and the other slot; Look on
+  USB sticks (udisks opens them — now in the image, which also lets Logs save to a stick on DASH-AA Linux);
+  each update found with its summary, date, size and whether its seal is good; Install with a confirmation,
+  then progress, then Restart now / Later; Go back, asking keep-or-put-back when a copy from that release
+  exists. Capability detection: on a machine that is not DASH-AA Linux it says how DASH is updated there.
+- **Take the stick out first:** the stick a release came from carries the same system with the same
+  partition UUID, so restarting with it in could start from the stick. DASH finds it and holds back Restart
+  until it is out; going back refuses with it in.
+- **Small Surface fixes:** the boot menu says DASH (`usr/lib/os-release`); the pairing note says Connections
+  › Bluetooth, not GNOME Settings.
+- `test-vm.sh`: a QMP socket for touches (`input-send-event`), so Claude can press DASH's buttons in the VM.
+
+**Proven in the VM (2026-10-22):** the hand update from a stick onto the VM's 1.2.1.3; then through the tab:
+Look, the seal good, Install (settings copied, about 12 s in the VM), restart without the stick, the release
+marked good; Go back with "put back my settings" — the restart was automatic, the older release marked good,
+a marker file in the settings gone; a forward go-back; and the older release made to fail its tries — the
+newer came back by itself and was not restarted over and over.
+
+**Broke and fixed on the way:**
+- The first unit took the file name with `%I`, which drops the leading `/`: `%f`.
+- A copy over the network to the Surface failed — it has no rsync (the stick was used instead).
+
+**Outstanding:**
+- **CLAUDE.md lists two privileged rules** (No-Root Constraint: the udev rule, the polkit rule for the clock).
+  On DASH-AA Linux the polkit rule now also lets the seat start the two update services. Raised for Roger —
+  the Bible is his to change.
+- On the Surface: going back and the Updates tab itself not yet pressed there (1.2.2 went on by hand); Updates
+  from the tab is first used for the next release. Bluetooth, call audio and the battery still unchecked.
+- The stick check runs while the Ready screen is open; restarting from Power with the stick in is not caught.
+- A release that changes the settings format is marked (`settings=changed`) and said in the list, but going
+  back does not yet insist on the copy.
+- GitHub releases: later (the GPL source duty first).
+
+**For native:** does not apply — Android updates the app itself. `updates/SettingsCopies.kt` and
+`updates/UpdateFile.kt` are plain Kotlin and would follow if native ever installs sealed releases.
+
+---
+
 ## Version 1.2.1
 
 **Mirrors upstream:** DASH 1.7.1
 
-**Status:** In progress — **stage 1 done: DASH-AA Linux installed on the Surface Pro 3 and working**,
+**Status:** Complete — closed as the install (Roger, 2026-10-22); Updates went to 1.2.2. **DASH-AA Linux installed on the Surface Pro 3 and working**,
 2026-10-22 (Roger: "im happy. i have dash on a device. and it works"). Release 1.2.1.3 from a USB stick: the
 Surface's own kernel, its Wi-Fi on Roger's phone's hotspot, DASH full screen, touch, Android Auto from the
 Pixel, the clock from the network, the release marked good on its first try, `ssh dash` from the G14 by key.
 The update from a USB stick, and the fall back to the other slot after three failed starts, are proven in the
 VM (1.2.1 → 1.2.1.3); on the Surface it was installed fresh, so neither is proven there yet. Tests pass (162).
-Next: stage 2, the signed update file, System › Updates and roll back.
+The signed update file, System › Updates and roll back became 1.2.2.
 
 **What and why.** DASH-AA Linux: the Surface Pro 3 as a head unit with DASH as its whole screen (roadmap
 1.2.x). Decided with Roger before building: signed releases (the key only on the G14), three tries then the

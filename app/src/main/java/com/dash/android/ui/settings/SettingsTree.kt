@@ -174,7 +174,8 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             // What DASH found on this machine — moved out of About DASH (1.1.1), because it will grow as
             // each new tab checks for what it needs.
             SettingsSub("system.machine", "This Machine", SettingsStatus.LIVE),
-            wip("system.updates", "Updates", "1.2.1"),
+            // DASH-AA Linux's two system slots (1.2.2): a release from a USB stick into the other one, and back.
+            SettingsSub("system.updates", "Updates", SettingsStatus.LIVE),
             // About and Licence are separate tabs on purpose (roadmap 1.5.14). About is who made
             // DASH and where to find it; Licence is the GPL-3.0 §5(d) notice, the full text and the
             // third-party attributions — a legal surface with enough bulk to bury the other.
