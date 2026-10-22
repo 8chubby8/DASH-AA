@@ -1,5 +1,6 @@
 package com.dash.android.logs.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -64,10 +65,8 @@ object UsbSticks {
     private fun JsonObject.b(k: String) = (this[k] as? JsonPrimitive)?.booleanOrNull
 
     private fun run(vararg cmd: String): String? = runCatching {
-        val p = ProcessBuilder(*cmd).redirectErrorStream(true).start()
-        val out = p.inputStream.bufferedReader().readText()
-        if (!p.waitFor(30, TimeUnit.SECONDS)) { p.destroyForcibly(); return null }
-        if (p.exitValue() != 0) { Log.w(TAG, "${cmd.first()} ${cmd.getOrNull(1)}: ${out.trim()}"); return null }
-        out
+        val r = Command.run(cmd.toList(), 30) ?: return null
+        if (r.code != 0) { Log.w(TAG, "${cmd.first()} ${cmd.getOrNull(1)}: ${r.out.trim()}"); return null }
+        r.out
     }.getOrNull()
 }

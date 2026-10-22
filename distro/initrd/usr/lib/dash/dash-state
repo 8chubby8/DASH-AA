@@ -1,0 +1,59 @@
+#!/bin/bash
+# DASH-AA Linux, in the initrd. The system slot mounted at /sysroot is read-only; everything that is the
+# user's lives on the data partition of the same disk, and is put in place here, before the system starts:
+#
+#   /var    the data partition's own, bound over the slot's
+#   /home   likewise
+#   /etc    the slot's, with the user's changes on top (an overlay) — the time zone, Wi-Fi, pairings,
+#           the machine's SSH identity — so they outlive every update and roll back
+#
+# The first start fills /var and /home from the slot.
+#
+# If any of it fails, it says what on the screen (past `quiet`), and while a release is on trial (boot
+# counting) it restarts the machine: that uses up one of the release's three tries, so after the third the
+# machine falls back to the other slot by itself rather than waiting in emergency mode (1.2.1).
+set -uo pipefail
+R=/sysroot
+COUNTING=/sys/firmware/efi/efivars/LoaderBootCountPath-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+
+say() { echo "<3>DASH: $*" >/dev/kmsg; echo "DASH: $*" >&2; }
+give_up() {
+    say "$*"
+    if [ -e "$COUNTING" ]; then
+        say "this release is on trial — restarting for its next try"
+        sleep 5
+        systemctl --no-block --force reboot
+    fi
+    exit 1
+}
+# Run a step; on failure, say what it said.
+step() { local out; out=$("$@" 2>&1) || give_up "$* — ${out:-failed}"; }
+
+# The data partition on the disk the system came from — never one on another disk (an installer USB left in).
+src=$(findmnt -no SOURCE "$R") || give_up "the system slot is not mounted"
+disk=$(lsblk -no PKNAME "$src") || give_up "no disk for $src"
+data=""
+for _ in $(seq 1 50); do
+    while read -r path label; do
+        [ "$label" = dash-data ] && { data=$path; break; }
+    done < <(lsblk -lnpo PATH,PARTLABEL "/dev/$disk")
+    [ -n "$data" ] && break
+    sleep 0.2
+done
+[ -n "$data" ] || give_up "no data partition on /dev/$disk"
+
+e2fsck -p "$data" >/dev/null 2>&1
+step mount -o noatime "$data" "$R/data"
+
+for d in var home; do
+    if [ ! -d "$R/data/$d" ]; then
+        step cp -a "$R/$d" "$R/data/$d.new"
+        step mv "$R/data/$d.new" "$R/data/$d"
+    fi
+    step mount --bind "$R/data/$d" "$R/$d"
+done
+
+step mkdir -p "$R/data/etc/upper" "$R/data/etc/work"
+# index=off: with it on (this kernel's default) the overlay remembers which /etc it was first laid over and
+# refuses any other ("failed to verify upper root origin") — and an update is exactly another one (1.2.1).
+step mount -t overlay overlay -o "index=off,lowerdir=$R/etc,upperdir=$R/data/etc/upper,workdir=$R/data/etc/work" "$R/etc"

@@ -1,0 +1,4 @@
+# DASH-AA Linux — let the person at the seat read the touchscreen directly, for two-finger touch into
+# Android Auto (aa/input/EvdevTouch.kt). Touchscreens only: keyboards stay root's, so nothing DASH runs can
+# read what is typed. Granted to whoever is logged in at the seat (uaccess), like the phone's rule.
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TOUCHSCREEN}=="1", TAG+="uaccess"

@@ -1,5 +1,6 @@
 package com.dash.android.logs.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import com.dash.android.logs.LogLine
 import kotlinx.serialization.json.Json
@@ -36,11 +37,7 @@ object Journal {
         val journalctl = listOf("/usr/bin/journalctl", "/bin/journalctl").firstOrNull { File(it).canExecute() }
             ?: return Access(false, false, "This machine has no journal (journalctl is not installed).")
         val said = runCatching {
-            val p = ProcessBuilder(journalctl, "-b", "-n", "1", "-q", "--no-pager", "-o", "cat")
-                .redirectErrorStream(true).start()
-            val out = p.inputStream.bufferedReader().readText()
-            p.waitFor(10, TimeUnit.SECONDS)
-            out
+            Command.run(journalctl, "-b", "-n", "1", "-q", "--no-pager", "-o", "cat", seconds = 10)?.out.orEmpty()
         }.getOrElse { return Access(false, false, "The journal could not be read: ${it.message}") }
         val limited = said.contains("insufficient permissions") || said.contains("not seeing messages from other users")
         return if (limited) Access(true, false,

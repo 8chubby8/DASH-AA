@@ -1,5 +1,6 @@
 package com.dash.android.system
 
+import com.dash.android.system.linux.Command
 import android.content.Context
 import com.dash.android.BuildConfig
 import com.dash.android.aa.AaCapabilities
@@ -80,8 +81,7 @@ private fun serialAccess(): String {
         return if (open == ports.size) "Yes (${ports.size} port${if (ports.size == 1) "" else "s"})"
         else "Blocked on ${ports.size - open} port(s) — join the 'uucp' or 'dialout' group"
     }
-    val groups = runCatching { ProcessBuilder("id", "-Gn").start().inputStream.bufferedReader().readText() }
-        .getOrDefault("")
+    val groups = runCatching { Command.run("id", "-Gn", seconds = 2)?.out }.getOrNull().orEmpty()
     return if (groups.split(' ', '\n').any { it == "uucp" || it == "dialout" }) "Yes (no port plugged in)"
     else "Not in 'uucp'/'dialout' — modules on USB will be refused"
 }

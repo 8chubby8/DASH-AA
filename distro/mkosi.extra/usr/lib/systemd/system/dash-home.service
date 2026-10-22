@@ -1,0 +1,14 @@
+# DASH-AA Linux: dash's home folder, on the user partition — made on the first start, and always theirs.
+[Unit]
+Description=DASH: the user's home folder
+DefaultDependencies=no
+After=local-fs.target systemd-sysusers.service
+Before=greetd.service sshd.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/dash/dash-home
+
+[Install]
+WantedBy=multi-user.target

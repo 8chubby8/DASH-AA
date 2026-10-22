@@ -1,0 +1,19 @@
+#!/bin/bash
+# DASH-AA Linux — run inside the new system as it is built (mkosi), once per build.
+set -euo pipefail
+
+echo en_GB.UTF-8 UTF-8 >/etc/locale.gen
+locale-gen
+
+# The one user. DASH runs as them, never as root. No password, ever (CLAUDE.md, No Passwords): greetd logs
+# them in at power-on, sudo asks nothing, and the network gets in by key only.
+#   wheel: sudo, for you at the bench.   uucp: USB serial modules and GPS receivers (/dev/ttyACM*, ttyUSB*).
+useradd -M -u 1000 -U -G wheel,uucp -s /bin/bash dash
+passwd -d dash >/dev/null
+chmod 440 /etc/sudoers.d/10-wheel
+# What runs is in the presets (usr/lib/systemd/*-preset/10-dash.preset): mkosi applies them after this.
+# The home folder is made on the machine itself (dash-home.service), where it can belong to dash.
+rm -rf /home/dash
+
+# DASH, from /opt/dash, on the path.
+ln -sf /opt/dash/bin/dash /usr/local/bin/dash

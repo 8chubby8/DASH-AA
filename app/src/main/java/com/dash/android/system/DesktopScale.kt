@@ -1,5 +1,6 @@
 package com.dash.android.system
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import java.awt.GraphicsEnvironment
 import java.util.concurrent.TimeUnit
@@ -36,13 +37,11 @@ object DesktopScale {
 
     /** The primary logical monitor's scale from Mutter's own display configuration. */
     private fun gnomePrimaryScale(): Float? = runCatching {
-        val p = ProcessBuilder(
+        val out = Command.run(
             "gdbus", "call", "--session", "--dest", "org.gnome.Mutter.DisplayConfig",
             "--object-path", "/org/gnome/Mutter/DisplayConfig",
-            "--method", "org.gnome.Mutter.DisplayConfig.GetCurrentState",
-        ).redirectErrorStream(true).start()
-        val out = p.inputStream.bufferedReader().readText()
-        if (!p.waitFor(3, TimeUnit.SECONDS)) { p.destroyForcibly(); return null }
+            "--method", "org.gnome.Mutter.DisplayConfig.GetCurrentState", seconds = 3,
+        )?.out ?: return null
         // Logical monitors: (x, y, scale, uint32 transform, primary, [...], {...})
         val monitors = Regex("""\((-?\d+), (-?\d+), ([\d.]+), (?:uint32 )?\d+, (true|false)""").findAll(out).toList()
         val chosen = monitors.firstOrNull { it.groupValues[4] == "true" } ?: monitors.firstOrNull()

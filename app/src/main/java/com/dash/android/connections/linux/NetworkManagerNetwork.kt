@@ -1,5 +1,6 @@
 package com.dash.android.connections.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import com.dash.android.connections.AdapterJob
 import com.dash.android.connections.AdapterKind
@@ -391,10 +392,7 @@ class NetworkManagerNetwork : NetworkSystem {
 
     /** Run nmcli; null when it is not installed or does not finish. Its output is never translated. */
     private fun nmcli(vararg args: String): Result? = try {
-        val p = ProcessBuilder(listOf("nmcli") + args).redirectErrorStream(true)
-            .apply { environment()["LC_ALL"] = "C" }.start()
-        val text = p.inputStream.bufferedReader().readText()
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); null } else Result(p.exitValue(), text)
+        Command.run(listOf("nmcli") + args, 60, mapOf("LC_ALL" to "C"))?.let { Result(it.code, it.out) }
     } catch (e: IOException) {
         null
     }

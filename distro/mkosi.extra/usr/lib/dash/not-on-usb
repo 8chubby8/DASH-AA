@@ -1,0 +1,5 @@
+#!/bin/bash
+# DASH-AA Linux: true on an installed machine, false when started from the installer USB.
+src=$(findmnt -no SOURCE /)
+disk=$(lsblk -no PKNAME "$src")
+[ "$(lsblk -dno TRAN "/dev/$disk")" != usb ]

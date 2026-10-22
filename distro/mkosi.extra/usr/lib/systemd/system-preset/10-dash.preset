@@ -1,0 +1,11 @@
+# DASH-AA Linux: what runs. Everything not named here is left as Arch's own presets say.
+enable NetworkManager.service
+enable bluetooth.service
+enable greetd.service
+enable sshd.service
+enable avahi-daemon.service
+enable systemd-timesyncd.service
+enable power-profiles-daemon.service
+enable dash-home.service
+enable dash-up.service
+enable dash-install.service

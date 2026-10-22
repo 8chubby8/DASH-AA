@@ -1,0 +1,24 @@
+#!/bin/sh
+# DASH-AA Linux — keeps DASH on the screen. If DASH is not running, start it; if it crashes, start it
+# again. DASH's own Restart DASH (Power) starts a new DASH itself, so this only steps in when none is
+# running or about to run — never a second copy.
+APP=/opt/dash/bin/dash
+LOG="$HOME/.local/state/dash"
+mkdir -p "$LOG"
+# Hand the session to PipeWire and other user services (they need to know about the screen).
+systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null
+quick=0
+while :; do
+    if ! pgrep -u "$(id -u)" -f "$APP" >/dev/null; then
+        started=$(date +%s)
+        # Each start's own output, after the last ones — the reason a start failed is kept.
+        [ -f "$LOG/dash.log" ] && [ "$(stat -c %s "$LOG/dash.log")" -gt 1048576 ] && mv -f "$LOG/dash.log" "$LOG/dash.old.log"
+        echo "=== $(date '+%F %T') starting DASH" >>"$LOG/dash.log"
+        "$APP" >>"$LOG/dash.log" 2>&1
+        echo "=== $(date '+%F %T') DASH ended ($?)" >>"$LOG/dash.log"
+        # A DASH that dies straight away, over and over, is given longer between tries.
+        if [ $(( $(date +%s) - started )) -lt 20 ]; then quick=$((quick + 1)); else quick=0; fi
+        [ "$quick" -gt 3 ] && sleep 10
+    fi
+    sleep 1
+done

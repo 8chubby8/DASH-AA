@@ -1,5 +1,6 @@
 package com.dash.android.display.linux
 
+import com.dash.android.system.linux.Command
 import com.dash.android.display.DisplayFeatures
 import com.dash.android.display.NightLight
 import com.dash.android.display.Screen
@@ -50,12 +51,8 @@ internal data class Snapshot(
 
 /** Run a program and return its exit code and everything it printed; -1 when it would not run or hung. */
 internal fun run(cmd: List<String>, env: Map<String, String> = emptyMap(), seconds: Long = 5): Pair<Int, String> = runCatching {
-    val pb = ProcessBuilder(cmd).redirectErrorStream(true)
-    pb.environment().putAll(env)
-    val p = pb.start()
-    val out = p.inputStream.bufferedReader().readText()
-    if (!p.waitFor(seconds, TimeUnit.SECONDS)) { p.destroyForcibly(); return -1 to "no answer" }
-    p.exitValue() to out
+    val r = Command.run(cmd, seconds, env) ?: return -1 to "no answer"
+    r.code to r.out
 }.getOrElse { -1 to (it.message ?: "${cmd.first()} missing") }
 
 internal fun onPath(name: String): Boolean =

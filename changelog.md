@@ -22,6 +22,128 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.2.1
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** In progress — **stage 1 done: DASH-AA Linux installed on the Surface Pro 3 and working**,
+2026-10-22 (Roger: "im happy. i have dash on a device. and it works"). Release 1.2.1.3 from a USB stick: the
+Surface's own kernel, its Wi-Fi on Roger's phone's hotspot, DASH full screen, touch, Android Auto from the
+Pixel, the clock from the network, the release marked good on its first try, `ssh dash` from the G14 by key.
+The update from a USB stick, and the fall back to the other slot after three failed starts, are proven in the
+VM (1.2.1 → 1.2.1.3); on the Surface it was installed fresh, so neither is proven there yet. Tests pass (162).
+Next: stage 2, the signed update file, System › Updates and roll back.
+
+**What and why.** DASH-AA Linux: the Surface Pro 3 as a head unit with DASH as its whole screen (roadmap
+1.2.x). Decided with Roger before building: signed releases (the key only on the G14), three tries then the
+other slot, read-only system slots, no workbench, Claude Code installed natively, SSH from the first start by
+a new key, the machine called `dash`.
+
+**Done — stage 1, the A/B install (`distro/`):**
+- **Built with mkosi**, systemd's image builder, as the ordinary user (`distro/build.sh`): no root and no
+  password, its tools fetched into a sandbox the first time. The archiso draft needed `sudo` for every build;
+  it was kept in `distro/old/` until this one was proven on the Surface. Packages frozen at the Arch Linux
+  Archive of 2026-10-20 (`Snapshot=`).
+- **One image is both the installer USB and the system.** Started from USB, the first screen is the
+  installer (`dash-install`): choose the disk, type `erase`, under a minute. It makes ESP (1 GiB), slot A (the
+  system), slot B (empty, for the next update) and data (the rest), copies the system, gives it three fresh
+  tries, and puts the SSH key from the USB onto the machine.
+- **Read-only system, the user's things on data.** Slot A is erofs, labelled `dash_<version>`; its UKI finds
+  it by partition UUID. A piece added to mkosi's initrd (`initrd/`, `dash-state`) mounts the data partition of
+  the same disk and puts `/var`, `/home` and an overlay over `/etc` in place before the system starts — so the
+  time zone, Wi-Fi, pairings, the machine ID and its SSH identity outlive updates.
+- **Three tries** (Roger): the UKI is `dash_<version>+3.efi`; `dash-up.service` counts the release good only
+  once DASH has been running for 30 seconds, and restarts the machine for the next try if it has not.
+- **No passwords:** greetd starts DASH's session at power-on and again whenever it ends — never a login
+  prompt; `sudo` asks nothing; SSH by key only (`~/.ssh/dash_ed25519` on the G14, `ssh dash`). The machine is
+  `dash`, answering to `dash.local` (avahi).
+- **Claude Code** installs itself with Anthropic's own installer into `~/.local` the first time there is
+  internet (`claude-code-install.service`) — 2.1.306 in the VM.
+- **`distro/test-vm.sh`** — the image as a USB stick and a blank 64 GB disk in QEMU (`install`, `run`, `fresh`);
+  `HEADLESS=1` gives a monitor socket and serial log for driving it from a script.
+
+**Broke and fixed on the way (each found in the VM):**
+- No services ran: mkosi applies systemd's presets after the build scripts, undoing `systemctl enable`. The
+  services are named in preset files instead.
+- The home folder belonged to root (mkosi's build scripts cannot change owners): `dash-home.service` makes it
+  on the machine.
+- The initrd piece used `awk`, which the initrd does not have.
+- The USB marks itself good when it starts, so the installed slot lost its count: the installer resets it.
+- **DASH's session was killed five seconds after every start**: the installer's service took the first screen
+  (systemd hangs it up before any check runs). It now checks for the USB first and only then takes the screen.
+- The installer stopped at once with no terminal type set.
+- greetd fell back to a login greeter when DASH's session ended; now it only ever starts DASH's session.
+- No mouse pointer at all (labwc has none of its own): the Adwaita pointer is in the image. In a VM labwc
+  draws it itself, as QEMU's window showed the hardware pointer upside down and off to one side (Roger).
+- **System › This Machine froze DASH** (Roger, in the VM): with no Bluetooth service, `bluetoothctl` waits for
+  one forever, and DASH read its answer before starting its four-second limit — so the limit never applied.
+  The same mistake was in ten places (display, sound, call audio, Wi-Fi, USB sticks, logs, Bluetooth). All now
+  run through `system/linux/Command.kt`, which reads alongside and stops the program at the limit; This
+  Machine builds its report away from the screen. `CommandTest` holds it.
+
+**Done — the Surface (2026-10-22):**
+- **The Surface's own kernel.** The image carries both Arch's kernel and **linux-surface** (its Wi-Fi,
+  Bluetooth and touch fixes), one UKI each. The package repository and its signing key go into mkosi's
+  sandbox (`mkosi.sandbox/`); linux-surface is not in the Arch Linux Archive, so it is the one part not
+  frozen by date. The installer reads the machine's maker and model (DMI): a Microsoft Surface keeps the
+  Surface UKI and every other machine keeps Arch's (capability detection, not a Surface build).
+- **Wi-Fi:** the Surface Pro 3's Marvell card needs `linux-firmware-marvell`, which is not in
+  `linux-firmware`'s own set.
+- **The update from a USB stick** (Roger: "can we just use the usb stick to update the java, kernal, and wifi
+  driver, rather than reinstall the whole thing"): `distro/usb/update`, on the stick's data partition. Run
+  from the installed machine with the stick plugged in, it copies the stick's system into the **spare** slot,
+  gives that slot the new release's partition UUID and label, puts the matching kernel's UKI on the ESP with
+  three fresh tries, and removes UKIs belonging to neither the running release nor the new one. The running
+  slot and the data partition are not touched, so the old release stays to fall back to. It asks for `update`
+  to be typed first. The forerunner of System › Updates.
+- **`test-vm.sh update`** — starts the installed VM disk with the newest image plugged in as a USB stick.
+  Test builds take their own version (`DASH_IMAGE_VERSION=1.2.1.3`), as an update needs one different from
+  what is installed.
+- **Proven in the VM:** 1.2.1 → 1.2.1.3 by the stick — the new release running from slot B, marked good, the
+  hostname, SSH identity and a file in the home folder kept, old UKIs cleaned. Then a release made to fail:
+  three tries, and the machine went back to the old slot by itself with nobody touching it.
+
+**Broke and fixed on the way:**
+- **The Surface showed a black screen with a pointer** (Roger, from 1.2.1 on the Surface). DASH's log said
+  "CPU ISA level is lower than required": the Java runtime bundled into DASH was the G14's own (CachyOS),
+  built for the G14's Ryzen (x86-64-v4, which needs AVX-512); the Surface's 2014 i5 does not have it. DASH-AA Linux now bundles
+  the generic **Eclipse Temurin 17** (fetched by `build.sh`, given to Gradle as `DASH_JAVA_HOME` — the G14's
+  own builds are unchanged), and **the build refuses any program in DASH's folder that needs x86-64-v3 or
+  v4** (`readelf`), so DASH asks for nothing beyond plain x86-64 on any machine.
+- **Every update would have failed to start:** the overlay over `/etc` remembers the `/etc` it was first laid
+  over and refuses any other ("failed to verify upper root origin") — and an update is exactly another one.
+  It is mounted with `index=off`. Found by the first update in the VM.
+- A release whose start-up step failed sat in emergency mode for ever, so its three tries were never used up:
+  `dash-state` now says what went wrong on the screen and, while the release is on trial, restarts the machine
+  for its next try.
+- The update script: `sfdisk` complains when it cannot re-read a disk that is in use; the change is read back
+  to check it instead. `findmnt` finding nothing stopped the script.
+- In the VM the pointer was upside down (QEMU's hardware pointer): labwc draws its own when
+  `systemd-detect-virt` says it is in a VM (`dash-session`).
+
+**Outstanding:**
+- **On the Surface:** the update from a USB stick and the fall back (installed fresh, so slot B is empty).
+  Bluetooth, the speakers and microphone in a call, and the battery are not yet looked at.
+- **The pairing message is wrong on DASH-AA Linux:** when the phone asks about Bluetooth pairing, DASH logs
+  "pair it in GNOME Settings › Bluetooth" — there is no GNOME; it should be Connections › Bluetooth.
+- The boot menu (hidden) calls the system "Arch Linux" (`os-release`), not DASH-AA Linux.
+- 1.2.1 started the Arch kernel on the Surface though its maker and model were right; not seen with 1.2.1.3,
+  which was installed fresh. Its cause was not found.
+- `dash-state`'s messages do not reach the serial console in the VM (they do reach the screen).
+- Once in the VM, avahi briefly took the name `dash-2.local` (it saw its own announcement); not seen again.
+- The Compose launcher aborts harmlessly as DASH closes (a crash record each time); DASH itself is unaffected.
+- The kernel's messages also go to a serial console (`console=ttyS0`), which helps in the VM and does nothing
+  on the Surface.
+- This Machine's fix is proven by `CommandTest`, not yet by opening the tab again.
+- `distro/old/`, the archiso draft, is no longer needed now that this one is proven; it was never committed
+  and is left out of the repository.
+
+**For native:** the image, the slots, the installer and `distro/` are Linux's own and do not apply to Android.
+`ThisMachineContent.kt` (the report built away from the screen) is shared: take it. `Command.kt` and the ten
+call sites are Linux's own (native's report has its own probes).
+
+---
+
 ## Version 1.1.11
 
 **Mirrors upstream:** DASH 1.7.1

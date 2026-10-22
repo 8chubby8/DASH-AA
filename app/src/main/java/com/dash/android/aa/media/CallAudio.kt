@@ -1,5 +1,6 @@
 package com.dash.android.aa.media
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -247,9 +248,7 @@ class CallAudio(
     }
 
     private fun pwDump(): JsonArray? {
-        val p = runCatching { ProcessBuilder("pw-dump").start() }.getOrNull() ?: return null
-        val text = p.inputStream.bufferedReader().readText()
-        if (!p.waitFor(3, TimeUnit.SECONDS)) { p.destroyForcibly(); return null }
+        val text = runCatching { Command.run(listOf("pw-dump"), 3, errors = false) }.getOrNull()?.out ?: return null
         return runCatching { json.parseToJsonElement(text).jsonArray }.getOrNull()
     }
 

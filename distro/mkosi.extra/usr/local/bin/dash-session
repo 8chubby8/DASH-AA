@@ -1,0 +1,28 @@
+#!/bin/sh
+# DASH-AA Linux — the session: labwc, with DASH kept running inside it (dash-keeper). labwc's own words go
+# to ~/.local/state/dash/labwc.log (the one before it to labwc.old.log), for when the screen stays dark.
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=labwc:wlroots
+# Java's windows under a window manager that does not reparent (labwc) need this or they draw blank.
+export _JAVA_AWT_WM_NONREPARENTING=1
+# At power-on the screen is first the firmware's plain framebuffer (simpledrm); the machine's own graphics
+# driver replaces it a moment later, and anything drawing on the first goes with it. Wait for the real one —
+# ten seconds at most, then carry on with what there is (a machine with no driver of its own).
+real_gpu() {
+    for c in /sys/class/drm/card[0-9]*; do
+        [ -e "$c/device/driver" ] || continue
+        case "$(basename "$(readlink "$c/device/driver")")" in simple-framebuffer|simpledrm) ;; *) return 0 ;; esac
+    done
+    return 1
+}
+i=0
+until real_gpu || [ $i -ge 50 ]; do sleep 0.2; i=$((i + 1)); done
+
+# In a virtual machine, labwc draws the mouse pointer itself: QEMU's window shows a hardware pointer upside
+# down and away from where it really is. Real machines keep their hardware pointer.
+systemd-detect-virt -q && export WLR_NO_HARDWARE_CURSORS=1
+
+LOG="$HOME/.local/state/dash"
+mkdir -p "$LOG"
+[ -f "$LOG/labwc.log" ] && mv -f "$LOG/labwc.log" "$LOG/labwc.old.log"
+exec labwc --startup dash-keeper >"$LOG/labwc.log" 2>&1

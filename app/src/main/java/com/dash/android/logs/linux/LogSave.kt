@@ -1,5 +1,6 @@
 package com.dash.android.logs.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import com.dash.android.DashApplication
 import com.dash.android.connections.DeviceKind
@@ -52,9 +53,7 @@ object LogSave {
 
     /** The maker of a hardware address, from systemd's own list (the IEEE's), if this machine has it. */
     private fun maker(oui: String): String? = runCatching {
-        val p = ProcessBuilder("systemd-hwdb", "query", "OUI:${oui.uppercase()}").redirectErrorStream(true).start()
-        val out = p.inputStream.bufferedReader().readText()
-        p.waitFor(5, TimeUnit.SECONDS)
+        val out = Command.run("systemd-hwdb", "query", "OUI:${oui.uppercase()}", seconds = 5)?.out.orEmpty()
         out.lineSequence().firstOrNull { it.startsWith("ID_OUI_FROM_DATABASE=") }?.substringAfter('=')?.trim()
     }.getOrNull()
 

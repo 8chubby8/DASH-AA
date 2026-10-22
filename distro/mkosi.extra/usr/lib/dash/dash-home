@@ -1,0 +1,11 @@
+#!/bin/bash
+# DASH-AA Linux: /home/dash exists and belongs to dash. The first time, it starts from /etc/skel.
+set -euo pipefail
+if [ ! -d /home/dash ]; then
+    install -d -m 700 /home/dash
+    cp -a /etc/skel/. /home/dash/
+    chown -R dash:dash /home/dash
+fi
+chown dash:dash /home/dash
+[ -d /home/dash/.ssh ] && chown -R dash:dash /home/dash/.ssh && chmod 700 /home/dash/.ssh
+exit 0

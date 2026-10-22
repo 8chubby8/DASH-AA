@@ -267,7 +267,7 @@ its bands); time alignment has no non-root Android path; Saved is taken as it is
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7). The
 Terminal is taken whole except its device: native runs Android's own shell as the app (1.1.10).
 
-#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06)*
+#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 in progress — DASH-AA Linux installed and working on the Surface, 2026-10-22)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
 PC — the board era's idea (upstream's version 2: dedicated hardware, DASH as the whole system) reached
 from the Linux side. Power on and DASH-AA is the screen: no desktop, no login prompt, no app to start.
@@ -314,8 +314,9 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
 - **1.2.1 — Updates, then the install.** System › Updates and roll back first, then DASH-AA Linux
   installed on the Surface — straight to the full A/B install, no plain-image stage first. The install,
   updates and roll back are proven in a virtual machine on the G14 before the Surface, so the Surface only
-  has to prove its hardware (Wi-Fi, Bluetooth, touch, speed). The early draft in `distro/` (uncommitted,
-  written before these decisions — one partition, ext4) is the starting point and is redone to match.
+  has to prove its hardware (Wi-Fi, Bluetooth, touch, speed). **Order (Roger, 2026-10-21): the A/B
+  install in a VM first; then a USB stick and the Surface; then the update file, System › Updates and roll
+  back.** Progress and what is decided are under *1.2.1 so far*, below.
 - **Then a VM as if in the car** (Roger, 2026-10-21): DASH-AA Linux run in a virtual machine on the G14
   as the test bench for everything that needs no desktop — the real image, no desktop behind it — **the
   file picker first** (it was 1.1.8, moved here because only a machine with no desktop tests it). What the
@@ -327,6 +328,33 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
 - **Looking at problems on the Surface:** Claude Code over SSH from the G14 (works even when DASH will
   not start), and Claude Code on the Surface itself, run from the 1.1.10 Terminal as the ordinary user and
   kept on the user partition so updates do not remove it.
+
+**1.2.1 so far** *(2026-10-22)*:
+- **Decided with Roger:** each release **signed** with a key that lives only on the G14, and DASH refuses an
+  unsigned one; a new release has **three tries** to reach DASH, then the machine starts the other slot by
+  itself; the system slots are **read-only**, and there is no workbench (Roger: "dont bother") — `sudo`
+  works with no password, but nothing installs into the system; **Claude Code installed natively** by
+  Anthropic's own installer into the user's home on the data partition, the first time there is internet
+  (not shipped in the public image); **SSH from the first start**, by key only — a new key made for DASH on
+  the G14 (`~/.ssh/dash_ed25519`, `ssh dash`), put on the machine by the installer, never into the image;
+  the machine is **`dash`**, found as `dash.local`.
+- **Stage 1, the A/B install — working in a VM.** Built with **mkosi** (systemd's image builder) as the
+  ordinary user, no root and no password, replacing the archiso draft (kept in `distro/old/`). One image is
+  both the installer USB and the system. The disk: ESP; slot A, the system read-only (erofs, labelled
+  `dash_<version>`, found by its UKI by partition UUID); slot B, empty; and data — `/home`, `/var` and every
+  change to `/etc` (an overlay), put in place by a piece added to the initrd. In the VM from a blank disk:
+  installer, first start, DASH full screen, SSH by key, Claude Code installed, three tries counted and the
+  release marked good only once DASH has run for 30 seconds.
+- **A USB stick and the Surface — done, 2026-10-22** (Roger: "im happy. i have dash on a device. and it
+  works"). 1.2.1.3 installed from a USB stick: the Surface's own kernel (linux-surface, chosen by the
+  installer from the machine's maker and model), its Wi-Fi, DASH full screen, touch, Android Auto from the
+  phone, `ssh dash` from the G14. The Java runtime bundled into DASH is now the generic Temurin, as the G14's
+  own needed a newer processor than the Surface's.
+- **The update from a USB stick** (`distro/usb/update`): the new release into the spare slot, the old one
+  kept to fall back to, the data partition untouched. Proven in the VM, with the fall back after three failed
+  starts; not yet on the Surface.
+- **Next: fixes Roger finds on the Surface, then stage 2** — the signed update file, System › Updates and
+  roll back.
 
 **For native:** the Linux image, the slots and the installer are Linux's own and do not apply to Android
 (Android updates itself). System › Updates is the Linux side; native's equivalent is its own app update.

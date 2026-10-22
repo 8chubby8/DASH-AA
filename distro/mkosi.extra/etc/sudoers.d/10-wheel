@@ -1,0 +1,3 @@
+# DASH-AA Linux: sudo just works, with no password, for the person at the screen (CLAUDE.md, No Passwords).
+# DASH's own code never uses it.
+%wheel ALL=(ALL:ALL) NOPASSWD: ALL

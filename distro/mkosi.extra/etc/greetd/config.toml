@@ -1,0 +1,12 @@
+# DASH-AA Linux: power on and it is DASH. greetd starts dash's session at once, with no login (CLAUDE.md,
+# No Passwords), and starts it again whenever it ends — never a login prompt in its place.
+[terminal]
+vt = 1
+
+[initial_session]
+command = "dash-session"
+user = "dash"
+
+[default_session]
+command = "dash-session"
+user = "dash"

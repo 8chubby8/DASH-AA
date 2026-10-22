@@ -1,0 +1,11 @@
+#!/bin/bash
+# DASH-AA Linux: DASH came up and stayed up — running as dash, and still running half a minute later.
+for _ in $(seq 1 180); do
+    if pgrep -u dash -f '^/opt/dash/' >/dev/null; then
+        sleep 30
+        pgrep -u dash -f '^/opt/dash/' >/dev/null && { echo "DASH is up"; exit 0; }
+    fi
+    sleep 1
+done
+echo "DASH did not come up" >&2
+exit 1

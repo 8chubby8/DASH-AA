@@ -116,6 +116,10 @@ tasks.named("processResources") { dependsOn(copyAssets) }
 compose.desktop {
     application {
         mainClass = "com.dash.android.MainKt"
+        // The Java bundled into DASH. By default the one Gradle runs on; DASH-AA Linux's image sets a generic
+        // one (distro/build.sh): the G14's own Java is CachyOS's Zen 4 build, whose launcher needs a processor
+        // level (x86-64-v4) a Surface Pro 3 does not have — DASH would not start there (1.2.1).
+        System.getenv("DASH_JAVA_HOME")?.let { javaHome = it }
         jvmArgs += listOf(
             "-Xmx1g",
             // Compose on the JVM picks a renderer itself; OpenGL is the safe one on Mesa/AMD.

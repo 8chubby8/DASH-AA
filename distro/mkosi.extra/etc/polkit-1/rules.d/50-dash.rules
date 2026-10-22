@@ -1,0 +1,18 @@
+// DASH-AA Linux — what the person at the seat may change without a password, because with no desktop
+// there is nothing to ask for one. Granted once, here, at install (CLAUDE.md, the No-Root Constraint):
+// only to the user logged in at this machine's own seat, never over the network.
+//
+// Most of what DASH does is already the seat user's by default (NetworkManager, Bluetooth, shutting down,
+// brightness, power profiles). These are the ones that are not.
+polkit.addRule(function (action, subject) {
+    if (!subject.local || !subject.active) return;
+    if (action.id.indexOf("org.freedesktop.timedate1.") === 0 ||   // System › Date & Time
+        action.id.indexOf("org.freedesktop.hostname1.") === 0 ||   // System › This Machine
+        action.id.indexOf("org.freedesktop.locale1.") === 0 ||
+        action.id === "org.freedesktop.login1.set-wall-message" ||
+        action.id === "org.freedesktop.login1.reboot-multiple-sessions" ||   // a second login (SSH) open
+        action.id === "org.freedesktop.login1.power-off-multiple-sessions" ||
+        action.id === "org.freedesktop.login1.suspend-multiple-sessions") {
+        return polkit.Result.YES;
+    }
+});

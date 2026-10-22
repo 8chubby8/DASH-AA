@@ -1,0 +1,14 @@
+# DASH-AA Linux: started from the installer USB, the first screen is the installer. On an installed machine
+# this does nothing — and must not touch the first screen, which is DASH's (so no TTY settings here: systemd
+# would hang the screen up before any check could run).
+[Unit]
+Description=DASH-AA Linux installer
+After=systemd-user-sessions.service
+
+[Service]
+Type=simple
+Environment=TERM=linux
+ExecStart=/bin/sh -c '/usr/lib/dash/not-on-usb && exit 0; systemctl stop getty@tty1.service; chvt 1; exec setsid --ctty --wait /usr/lib/dash/dash-install </dev/tty1 >/dev/tty1 2>&1'
+
+[Install]
+WantedBy=multi-user.target

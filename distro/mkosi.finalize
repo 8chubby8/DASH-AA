@@ -1,0 +1,6 @@
+#!/bin/bash
+# DASH-AA Linux — the piece added to mkosi's own initrd: putting the user partition in place (initrd/).
+set -euo pipefail
+mkdir -p "$ARTIFACTDIR/io.mkosi.initrd"
+cd "$SRCDIR/initrd"
+find . -mindepth 1 | sort | cpio --quiet -o -H newc -R 0:0 >"$ARTIFACTDIR/io.mkosi.initrd/dash.cpio"

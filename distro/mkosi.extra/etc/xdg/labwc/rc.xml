@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- DASH-AA Linux — labwc as a display program and nothing more: no window frames, no menus, no desktop
+     keys. DASH asks for its own window to be full screen. labwc loads its default keys and mouse actions
+     (close a window, open a terminal, a menu) only when none are given, so one of each is given here. -->
+<labwc_config>
+  <core>
+    <gap>0</gap>
+  </core>
+  <windowRules>
+    <windowRule identifier="*" serverDecoration="no" skipTaskbar="yes"/>
+  </windowRules>
+  <keyboard>
+    <!-- Ctrl+Alt+F2…F6 still reach the text consoles: that is the kernel's, not labwc's. -->
+    <keybind key="W-F12"><action name="None"/></keybind>
+  </keyboard>
+  <mouse>
+    <context name="Client">
+      <mousebind button="Left" action="Press"><action name="Focus"/></mousebind>
+    </context>
+  </mouse>
+</labwc_config>

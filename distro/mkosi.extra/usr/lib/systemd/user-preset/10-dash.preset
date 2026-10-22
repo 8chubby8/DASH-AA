@@ -1,0 +1,5 @@
+# DASH-AA Linux: what runs in dash's own session.
+enable pipewire.socket
+enable pipewire-pulse.socket
+enable wireplumber.service
+enable claude-code-install.service

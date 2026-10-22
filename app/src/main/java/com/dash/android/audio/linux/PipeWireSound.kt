@@ -1,5 +1,6 @@
 package com.dash.android.audio.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import com.dash.android.audio.SoundDevice
 import com.dash.android.audio.SoundState
@@ -187,9 +188,7 @@ class PipeWireSound : SoundSystem {
         fun summary(): String {
             if (which("pw-dump") == null || which("wpctl") == null) return "Missing — install pipewire and wireplumber"
             val version = runCatching {
-                val p = ProcessBuilder("pipewire", "--version").redirectErrorStream(true).start()
-                val text = p.inputStream.bufferedReader().readText()
-                p.waitFor(2, TimeUnit.SECONDS)
+                val text = Command.run("pipewire", "--version", seconds = 2)?.out.orEmpty()
                 Regex("""libpipewire (\S+)""").find(text)?.groupValues?.get(1)
             }.getOrNull()
             return if (version != null) "PipeWire $version" else "PipeWire"

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -19,7 +20,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.dash.android.prefs.DashPreferences
+import com.dash.android.system.ReportLine
 import com.dash.android.system.buildDeviceReport
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.dash.android.system.formatDeviceReport
 import com.dash.android.ui.common.BODY
 import com.dash.android.ui.theme.LocalDashTheme
@@ -41,19 +45,28 @@ fun ThisMachineContent() {
     val clipboard = LocalClipboardManager.current
     val dashTextScale by prefs.dashTextScale.collectAsState(initial = 1.0f)
 
-    val report = remember(dashTextScale) { buildDeviceReport(appContext, dashTextScale) }
+    // Built away from the screen: each line asks the machine something, and a machine that is slow to answer
+    // (no Bluetooth service, a busy sound system) must never freeze DASH while it does (DASH-AA 1.2.1).
+    val report by produceState<List<ReportLine>?>(null, dashTextScale) {
+        value = withContext(Dispatchers.IO) { buildDeviceReport(appContext, dashTextScale) }
+    }
     var copied by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         SettingsContentHeader("This Machine")
-        InfoRows(report.map { it.label to it.value })
+        val lines = report
+        if (lines == null) {
+            Text("Looking…", color = theme.textColourSecondary.copy(alpha = 0.62f), fontSize = BODY, fontFamily = theme.font)
+            return@Column
+        }
+        InfoRows(lines.map { it.label to it.value })
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             LinkButton(if (copied) "COPIED" else "COPY REPORT") {
-                clipboard.setText(AnnotatedString(formatDeviceReport(report)))
+                clipboard.setText(AnnotatedString(formatDeviceReport(lines)))
                 copied = true
             }
             if (copied) {

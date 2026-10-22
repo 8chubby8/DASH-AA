@@ -1,0 +1,128 @@
+#!/bin/bash
+# DASH-AA Linux — the installer. Started from the USB, it runs on the first screen by itself and puts
+# DASH-AA Linux on this machine's own disk. Needs no internet: the USB *is* the system it installs.
+#
+# The disk it makes:
+#   1  ESP      1 GiB    systemd-boot and the slots' UKIs
+#   2  slot A   SLOT     the system from this USB, read-only
+#   3  slot B   SLOT     empty: the next update goes here
+#   4  data     the rest the user's: /home, /var, changes to /etc
+set -euo pipefail
+export TERM=${TERM:-linux}
+SLOT=8GiB
+T=/run/dash-install
+ROOT_TYPE=4f68bce3-e8cd-4db1-96e7-fbcaf984b709   # root, x86-64
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+LINUX_TYPE=0fc63daf-8483-4772-8e79-3d69d8477de4
+
+say()  { printf '\n\e[1m%s\e[0m\n' "$*"; }
+fail() { printf '\n\e[1;31m%s\e[0m\n' "$*"; read -rp "Press Enter to try again. " _; exec "$0"; }
+trap 'fail "Something went wrong (line $LINENO). Nothing on the USB has changed."' ERR
+
+. /etc/os-release
+clear
+say "DASH-AA Linux ${IMAGE_VERSION:-} — installer"
+[ -d /sys/firmware/efi ] || fail "This machine started the USB in old (BIOS) mode. Start it in UEFI mode."
+
+# --- This USB -----------------------------------------------------------------------------------------
+src=$(findmnt -no SOURCE /)
+usb=$(lsblk -no PKNAME "$src")
+usb_esp=$(lsblk -lnpo PATH,PARTTYPE "/dev/$usb" | awk -v t=$ESP_TYPE '$2 == t {print $1; exit}')
+root_uuid=$(lsblk -no PARTUUID "$src")
+root_label=$(lsblk -no PARTLABEL "$src")
+
+# --- Which disk -------------------------------------------------------------------------------------
+mapfile -t disks < <(lsblk -dpno NAME,TYPE,RO | awk '$2 == "disk" && $3 == 0 {print $1}' | grep -v "^/dev/$usb$" | grep -v -e '/dev/zram' -e '/dev/loop')
+[ ${#disks[@]} -gt 0 ] || fail "No disk to install on was found."
+echo
+echo "Disks on this machine:"
+for i in "${!disks[@]}"; do
+    printf '  %d)  %s   %s   %s\n' $((i + 1)) "${disks[$i]}" \
+        "$(lsblk -dno SIZE "${disks[$i]}" | xargs)" "$(lsblk -dno MODEL "${disks[$i]}" | xargs)"
+done
+echo
+read -rp "Install on which disk? (number): " n
+[[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le ${#disks[@]} ] || fail "No such disk."
+DISK=${disks[$((n - 1))]}
+[ "$(lsblk -bdno SIZE "$DISK")" -ge $((24 * 1024 * 1024 * 1024)) ] || fail "$DISK is too small: DASH-AA Linux needs at least 24 GB."
+
+echo
+lsblk -po NAME,SIZE,FSTYPE,LABEL "$DISK"
+echo
+echo "EVERYTHING on $DISK will be erased — every partition, every file, any other system on it."
+read -rp "Type  erase  to carry on: " ok
+[ "$ok" = erase ] || fail "Stopped. Nothing was changed."
+
+# --- Partitions ---------------------------------------------------------------------------------------
+say "Preparing $DISK…"
+umount -R "$T" 2>/dev/null || true
+wipefs -aq "$DISK"
+sfdisk -q "$DISK" <<END
+label: gpt
+size=1GiB, type=$ESP_TYPE, name="ESP"
+size=$SLOT, type=$ROOT_TYPE, name="$root_label", uuid=$root_uuid
+size=$SLOT, type=$ROOT_TYPE, name="_empty"
+type=$LINUX_TYPE, name="dash-data"
+END
+udevadm settle
+[[ "$DISK" =~ [0-9]$ ]] && p="${DISK}p" || p="$DISK"
+
+say "Copying the system (a few minutes)…"
+dd if="$src" of="${p}2" bs=4M conv=fsync status=progress
+
+say "Setting up…"
+mkfs.fat -F 32 -n ESP "${p}1" >/dev/null
+mkfs.ext4 -q -F -L dash-data "${p}4"
+mkdir -p "$T/esp" "$T/usb-esp" "$T/data" "$T/slot"
+mount "${p}1" "$T/esp"
+# The USB's own ESP: where the system already mounted it (/boot or /efi), or mounted here for the copy.
+esp_from=$(findmnt -no TARGET "$usb_esp" | head -1 || true)
+[ -n "$esp_from" ] || { mount -o ro "$usb_esp" "$T/usb-esp"; esp_from=$T/usb-esp; }
+cp -r "$esp_from/." "$T/esp/"
+# The machine's kernel (capability detection): a Microsoft Surface keeps the linux-surface kernel (its
+# Wi-Fi, Bluetooth and touch fixes); every other machine keeps Arch's own. The other one's UKI goes.
+vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
+product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
+surface=no
+[[ "$vendor" == *Microsoft* && "$product" == *Surface* ]] && surface=yes
+for f in "$T/esp/EFI/Linux/"*.efi; do
+    case "$(basename "$f")" in
+        *surface*) [ "$surface" = yes ] || rm -f "$f" ;;
+        *)         [ "$surface" = no ] || rm -f "$f" ;;
+    esac
+done
+echo "  This machine: ${vendor:-unknown} ${product:-}  —  kernel: $(ls "$T/esp/EFI/Linux/" | sed -E 's/^dash_[^_]+_//; s/(\+[0-9-]+)?\.efi$//')"
+# Three fresh tries for the slot, whatever this USB's own count has come to (the USB marks itself good
+# when it starts, which drops the count from its name).
+for f in "$T/esp/EFI/Linux/"*.efi; do
+    fresh=$(basename "$f" | sed -E 's/(\+[0-9]+(-[0-9]+)?)?\.efi$/+3.efi/')
+    [ "$(basename "$f")" = "$fresh" ] || mv "$f" "$T/esp/EFI/Linux/$fresh"
+done
+printf 'timeout 0\neditor no\n' >"$T/esp/loader/loader.conf"
+rm -f "$T/esp/loader/random-seed"
+bootctl --esp-path="$T/esp" install >/dev/null 2>&1 || echo "  (could not tell the firmware about the new disk — it will still start from it as the first disk)"
+
+# The user partition: /var and /home from the system, and the key allowed in over SSH.
+mount -o ro "${p}2" "$T/slot"
+mount "${p}4" "$T/data"
+cp -a "$T/slot/var" "$T/data/var"
+install -d -m 755 "$T/data/home"
+install -d -m 700 -o 1000 -g 1000 "$T/data/home/dash"
+cp -a "$T/slot/etc/skel/." "$T/data/home/dash/"
+chown -R 1000:1000 "$T/data/home/dash"
+mkdir -p "$T/data/etc/upper" "$T/data/etc/work"
+if [ -s /data/usb/authorized_keys ]; then
+    install -d -m 700 -o 1000 -g 1000 "$T/data/home/dash/.ssh"
+    install -m 600 -o 1000 -g 1000 /data/usb/authorized_keys "$T/data/home/dash/.ssh/authorized_keys"
+    echo "  SSH: $(wc -l </data/usb/authorized_keys) key(s) allowed in (ssh dash@dash.local)"
+else
+    echo "  SSH: no key on this USB, so nobody can log in from another computer yet."
+fi
+
+sync
+umount -R "$T/esp" "$T/data" "$T/slot"
+mountpoint -q "$T/usb-esp" && umount "$T/usb-esp"
+trap - ERR
+say "Done. DASH-AA Linux is installed on $DISK."
+read -rp "Take the USB out, then press Enter to restart. " _
+systemctl reboot

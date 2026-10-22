@@ -1,0 +1,98 @@
+#!/bin/bash
+# DASH-AA Linux — update this machine from the USB stick (roadmap 1.2.1). The stick's system goes into the
+# spare slot, with its kernel image, and the machine starts it next time. The slot running now is left as it
+# is, to fall back to: the new one has three tries to get DASH on the screen, as after any install. The data
+# partition — the home folder, settings, Wi-Fi, pairings — is not touched.
+#
+# On the machine, with the stick plugged in:   sudo mount /dev/sdX3 /mnt && sudo /mnt/usb/update
+# (sdX: the stick — lsblk shows it). By hand until System › Updates does it (1.2.1, stage 2).
+set -euo pipefail
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+ROOT_TYPE=4f68bce3-e8cd-4db1-96e7-fbcaf984b709
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+T=/run/dash-update
+say()  { printf '\n\e[1m%s\e[0m\n' "$*"; }
+fail() { printf '\n\e[1;31m%s\e[0m\n' "$*"; exit 1; }
+
+# --- This machine ---------------------------------------------------------------------------------------
+cur=$(findmnt -no SOURCE /)
+disk=/dev/$(lsblk -no PKNAME "$cur")
+cur_label=$(lsblk -no PARTLABEL "$cur")
+spare="" esp=""
+while read -r path type; do
+    [ "$type" = "$ROOT_TYPE" ] && [ "$path" != "$cur" ] && spare=$path
+    [ "$type" = "$ESP_TYPE" ] && esp=$path
+done < <(lsblk -lnpo PATH,PARTTYPE "$disk")
+[ -n "$spare" ] || fail "This machine has no spare slot."
+[ -n "$esp" ] || fail "This machine's boot partition was not found."
+
+# --- The stick ------------------------------------------------------------------------------------------
+new="" usb_esp=""
+for d in $(lsblk -dpno NAME,TRAN | awk '$2 == "usb" {print $1}'); do
+    while read -r path type; do
+        [ "$type" = "$ROOT_TYPE" ] && new=$path
+        [ "$type" = "$ESP_TYPE" ] && usb_esp=$path
+    done < <(lsblk -lnpo PATH,PARTTYPE "$d")
+    [ -n "$new" ] && break
+done
+[ -n "$new" ] && [ -n "$usb_esp" ] || fail "No DASH-AA Linux stick is plugged in."
+new_label=$(lsblk -no PARTLABEL "$new")
+new_uuid=$(lsblk -no PARTUUID "$new")
+new_version=${new_label#dash_}
+
+say "DASH-AA Linux — update from USB"
+echo "  Running now:  ${cur_label#dash_}   ($cur)"
+echo "  On the stick: $new_version"
+echo "  Goes into:    $spare   (the spare slot; the one running now stays, to fall back to)"
+[ "$new_label" != "$cur_label" ] || fail "This machine is already running $new_version."
+[ "$(blockdev --getsize64 "$new")" -le "$(blockdev --getsize64 "$spare")" ] || fail "The new system is bigger than the spare slot."
+read -rp "Type  update  to carry on: " ok
+[ "$ok" = update ] || fail "Stopped. Nothing was changed."
+
+# --- The system into the spare slot ---------------------------------------------------------------------
+say "Copying the new system…"
+dd if="$new" of="$spare" bs=4M conv=fsync status=progress
+# Its kernel image finds it by these.
+partn=$(cat "/sys/class/block/$(basename "$spare")/partition")
+# (The disk is in use — the system runs from it — so the kernel is told of the change with partx, not a re-read.)
+# sfdisk writes the change, then says it cannot re-read a disk in use; what was written is checked instead.
+sfdisk -q --no-reread --part-uuid "$disk" "$partn" "$new_uuid" 2>/dev/null || true
+sfdisk -q --no-reread --part-label "$disk" "$partn" "$new_label" 2>/dev/null || true
+[ "$(sfdisk --part-uuid "$disk" "$partn" | tr A-Z a-z)" = "$(echo "$new_uuid" | tr A-Z a-z)" ] &&
+    [ "$(sfdisk --part-label "$disk" "$partn")" = "$new_label" ] || fail "The spare slot could not be labelled."
+partx -u "$disk" 2>/dev/null || true
+
+# --- Its kernel image -----------------------------------------------------------------------------------
+mkdir -p "$T/esp" "$T/usb-esp"
+esp_at=$(findmnt -no TARGET "$esp" | head -1 || true)
+[ -n "$esp_at" ] || { mount "$esp" "$T/esp"; esp_at=$T/esp; }
+usb_at=$(findmnt -no TARGET "$usb_esp" | head -1 || true)
+[ -n "$usb_at" ] || { mount -o ro "$usb_esp" "$T/usb-esp"; usb_at=$T/usb-esp; }
+vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)
+product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)
+surface=no
+[[ "$vendor" == *Microsoft* && "$product" == *Surface* ]] && surface=yes
+echo "  Boot partition before: $(ls "$esp_at/EFI/Linux" | paste -sd' ')"
+# Kernel images for a slot that is neither the one running nor the new one have nothing left to start.
+for f in "$esp_at/EFI/Linux/"dash_*.efi; do
+    case "$(basename "$f")" in "${cur_label}_"*|"dash_${new_version}_"*) ;; *) rm -f "$f" ;; esac
+done
+copied=0
+for f in "$usb_at/EFI/Linux/dash_${new_version}_"*.efi; do
+    [ -e "$f" ] || continue
+    case "$(basename "$f")" in
+        *surface*) [ "$surface" = yes ] || continue ;;
+        *)         [ "$surface" = no ] || continue ;;
+    esac
+    name=$(basename "$f" | sed -E 's/(\+[0-9]+(-[0-9]+)?)?\.efi$/+3.efi/')
+    cp "$f" "$esp_at/EFI/Linux/$name"
+    copied=1
+done
+[ "$copied" = 1 ] || fail "The stick has no kernel image for this machine."
+echo "  Boot partition after:  $(ls "$esp_at/EFI/Linux" | paste -sd' ')"
+sync
+mountpoint -q "$T/esp" && umount "$T/esp"
+mountpoint -q "$T/usb-esp" && umount "$T/usb-esp"
+
+say "Done. $new_version starts next time; ${cur_label#dash_} stays, to fall back to."
+echo "Take the USB stick out first (the new system and the stick look alike), then:  sudo reboot"

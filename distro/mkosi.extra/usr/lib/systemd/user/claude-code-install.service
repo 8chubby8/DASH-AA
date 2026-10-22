@@ -1,0 +1,15 @@
+# DASH-AA Linux: Claude Code, installed natively by Anthropic's own installer into ~/.local (the user
+# partition), the first time there is internet. Not shipped in DASH's image: it is not ours to pass on.
+# It keeps itself up to date there; updates and roll backs of the system never touch it.
+[Unit]
+Description=Install Claude Code
+ConditionPathExists=!%h/.local/bin/claude
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+Restart=on-failure
+RestartSec=120
+
+[Install]
+WantedBy=default.target

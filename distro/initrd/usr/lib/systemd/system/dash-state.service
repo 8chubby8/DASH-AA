@@ -1,0 +1,13 @@
+# DASH-AA Linux, in the initrd: put the user partition under the read-only system before it starts.
+[Unit]
+Description=DASH: the user partition
+DefaultDependencies=no
+Requires=sysroot.mount
+After=sysroot.mount
+Before=initrd-fs.target initrd-parse-etc.service
+OnFailure=emergency.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/dash/dash-state

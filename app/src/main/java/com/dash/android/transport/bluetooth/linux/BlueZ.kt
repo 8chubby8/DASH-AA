@@ -1,5 +1,6 @@
 package com.dash.android.transport.bluetooth.linux
 
+import com.dash.android.system.linux.Command
 import android.util.Log
 import com.sun.jna.Library
 import com.sun.jna.Memory
@@ -61,10 +62,8 @@ object BlueZ {
     }
 
     private fun bluetoothctl(vararg args: String): String? = try {
-        val p = ProcessBuilder(listOf("bluetoothctl") + args).redirectErrorStream(true).start()
-        val text = p.inputStream.bufferedReader().readText()
-        if (!p.waitFor(4, TimeUnit.SECONDS)) { p.destroyForcibly(); null }
-        else text.replace(Regex("""\u001B\[[0-9;?]*[A-Za-z]"""), "")
+        // With no Bluetooth service, bluetoothctl waits for one forever: the limit is what stops it (1.2.1).
+        Command.run(listOf("bluetoothctl") + args, 4)?.out?.replace(Regex("""\u001B\[[0-9;?]*[A-Za-z]"""), "")
     } catch (e: IOException) {
         null                                   // bluez-utils not installed — no Bluetooth, quietly
     }
