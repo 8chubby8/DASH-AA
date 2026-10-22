@@ -85,9 +85,8 @@ newer came back by itself and was not restarted over and over.
 - A copy over the network to the Surface failed — it has no rsync (the stick was used instead).
 
 **Outstanding:**
-- **CLAUDE.md lists two privileged rules** (No-Root Constraint: the udev rule, the polkit rule for the clock).
-  On DASH-AA Linux the polkit rule now also lets the seat start the two update services. Raised for Roger —
-  the Bible is his to change.
+- ~~CLAUDE.md listed two privileged rules~~ — Bible updated on Roger's word (2026-10-22): the No-Root
+  Constraint now names DASH-AA Linux's third rule, starting the two update services and nothing else.
 - On the Surface: going back and the Updates tab itself not yet pressed there (1.2.2 went on by hand); Updates
   from the tab is first used for the next release. Bluetooth, call audio and the battery still unchecked.
 - The stick check runs while the Ready screen is open; restarting from Power with the stick in is not caught.

@@ -186,6 +186,12 @@ everyone — one narrow thing and nothing more:
 Like Android's permission, they are asked for once, by the user, knowingly. On DASH-AA Linux (1.2.x) they
 are part of the system itself, so there is no install step at all.
 
+**DASH-AA Linux has a third rule, its own** (1.2.2; Roger, 2026-10-22), for System › Updates. It lets the
+person at the seat start the system's two update services — install a release into the spare slot, and go
+back to the other slot — and nothing else. Starting them is all DASH can do; they run as root and trust
+nothing DASH says, checking each release's seal (the release key) themselves before anything is written.
+It exists only on DASH-AA Linux, which has the slots; a laptop running DASH has no slots and no such rule.
+
 Any feature that would require elevated access must have a non-root path. Graceful degradation is mandatory
 when none exists — the feature does not appear or does not function, but the system continues without error
 or complaint. DASH never asks a user to run it as root. Not as a recommendation. Not as an optional
