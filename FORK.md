@@ -123,6 +123,8 @@ shim, a permission, a tab.
 | 1.2.1 | `ui/settings/content/ThisMachineContent.kt` | The report is built away from the screen, so a slow probe never freezes DASH. Take it. |
 | 1.1.11 | `location/Nmea.kt`, `location/DashLocation.kt`, `location/LocationRules.kt`, `location/LocationPreferences.kt` (new) | Where DASH is: NMEA read, the sources (GPS, a module, the internet, the pin) by the user's choice, the `location_*` signals with `unknown`, `DashLocation` for everything that reads it. Take them; native fills the GNSS flow from Android's location. |
 | 1.1.11 | `ui/settings/content/LocationContent.kt`, `ui/systembar/DashElement.kt`, `ui/time/DateTimeContent.kt`, `weather/WeatherProvider.kt`, `core/SystemCommands.kt`, `transport/Streams.kt` | The Location tab (its Android Auto switch comes out), `ElementScope.location`, Follow Location's wording, the weather reading `DashLocation`, the eight signals, and a position's threshold as metres moved. Take them. |
+| 1.2.3 | `connections/NetworkSystem.kt`, `ui/connections/WifiContent.kt` | `NetworkState.country` (the Wi-Fi rules' country, `NO_COUNTRY` for the world's) shown under DASH network, and `NetworkAdapter.mac` (the address in use) beside `identity`, which is now the card's own. Take them; native reports Android's country, or null. |
+| 1.2.3 | `ui/androidauto/AndroidAutoContent.kt`, `ui/viewport/AndroidAutoViewport.kt` | The Wireless switch and its line on Android Auto › Connection; the waiting screen mentions Bluetooth when wireless is ready. DASH-AA's own (native's tenant is its apps) — for a native that one day runs Android Auto. |
 | 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
@@ -159,9 +161,14 @@ with a time limit that holds — every program DASH-AA asks something of goes th
 Linux: the image, its installer, the update from a USB stick and the VM test — 1.2.1; the sealed update file,
 `dash-update` and the slot rules — 1.2.2), `updates/` (System › Updates: the update file and its seal, the
 settings copies — plain Kotlin, shared-ready — and `updates/linux/LinuxUpdates.kt`, the slots and the update
-services — 1.2.2), `ui/updates/UpdatesContent.kt` (System › Updates, 1.2.2), and the whole of
+services — 1.2.2), `ui/updates/UpdatesContent.kt` (System › Updates, 1.2.2), `distro/`'s `dash-wifi-country` and
+`dash-bluetooth-wake` (Wi-Fi's country from the time zone; the Surface's Bluetooth woken after its Wi-Fi —
+1.2.3), and the whole of
 `aa/` — the Android Auto head unit, calls, echo cancelling and call volume included; from 1.1.7 it closes
-the projection before the machine sleeps and looks for the phone afresh on waking.
+the projection before the machine sleeps and looks for the phone afresh on waking; from 1.2.3 `aa/wireless/`,
+wireless Android Auto — its messages, `TcpLink` and `WirelessAa` plain Kotlin, ready for native, and
+`aa/wireless/linux/BlueZAaService.kt` the service offered through BlueZ. `connections/linux/BlueZBluetooth.kt`
+calls the paired phones at start (1.2.3).
 
 ---
 

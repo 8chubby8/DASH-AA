@@ -52,6 +52,12 @@ class BlueZBluetooth : BluetoothSystem {
     private var searchStop: ScheduledFuture<*>? = null
     private var visibleStop: ScheduledFuture<*>? = null
 
+    /** Calling the paired phones (1.2.3) runs apart from [worker]: a phone that is not there takes seconds to fail. */
+    private val caller = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "dash-bluetooth-call").apply { isDaemon = true } }
+    /** When DASH started or Bluetooth was last switched on — calling is brisk for a while after either. */
+    @Volatile private var poweredAt = System.currentTimeMillis()
+    @Volatile private var lastCall = 0L
+
     /** The answer the agent is waiting on, completed by [answer]; null is "no". */
     @Volatile private var waiting: CompletableFuture<String?>? = null
 
@@ -69,6 +75,7 @@ class BlueZBluetooth : BluetoothSystem {
                 c.addSigHandler(Properties.PropertiesChanged::class.java) { s ->
                     if (!s.path.startsWith("/org/bluez")) return@addSigHandler
                     if (s.interfaceName == DEVICE && s.propertiesChanged["Paired"]?.value == true) worker.execute { trust(s.path) }
+                    if (s.interfaceName == ADAPTER && s.propertiesChanged["Powered"]?.value == true) { poweredAt = System.currentTimeMillis(); lastCall = 0L }
                     queueRefresh()
                 }
                 // BlueZ restarted (or started late): its agent list starts empty, so register again.
@@ -79,6 +86,30 @@ class BlueZBluetooth : BluetoothSystem {
             }.onFailure { Log.w(TAG, "could not watch BlueZ: ${it.message}") }
             registerAgent()
             refresh()
+            caller.scheduleWithFixedDelay({ callPhones() }, CALL_FIRST_S, CALL_TICK_S, TimeUnit.SECONDS)
+        }
+    }
+
+    /**
+     * **Calling the phones, as a car does** (Roger, 2026-10-23): phones wait for the car to call them, so
+     * with no phone connected DASH calls each paired one in turn — every [CALL_BRISK_S] seconds for the first
+     * minutes after DASH starts or Bluetooth is switched on, then every [CALL_SLOW_S] — until one answers.
+     * Quiet: a phone that is not in the car simply does not answer, and nothing is shown for it. Not while
+     * searching or pairing, which the radio is busy with.
+     */
+    private fun callPhones() {
+        val st = _state.value
+        val c = bus ?: return
+        if (!st.available || !st.powered || st.searching || st.pairing != null) return
+        if (st.devices.any { it.kind == DeviceKind.PHONE && it.connected }) return
+        val now = System.currentTimeMillis()
+        val every = if (now - poweredAt < CALL_BRISK_FOR_MS) CALL_BRISK_S else CALL_SLOW_S
+        if (now - lastCall < every * 1000L) return
+        lastCall = now
+        st.devices.filter { it.kind == DeviceKind.PHONE && it.paired && !it.connected }.forEach { d ->
+            val path = devicePath(d.address) ?: return@forEach
+            val answered = runCatching { c.getRemoteObject(BLUEZ, path, Device1::class.java).Connect() }.isSuccess
+            if (answered) { Log.i(TAG, "${d.name} answered DASH's call"); refresh(); return }
         }
     }
 
@@ -342,6 +373,11 @@ class BlueZBluetooth : BluetoothSystem {
         /** How long a pairing question waits for the person before it is refused. */
         const val ANSWER_SECONDS = 30
         private const val PAIR_SECONDS = 60
+        private const val CALL_FIRST_S = 5L
+        private const val CALL_TICK_S = 5L
+        private const val CALL_BRISK_S = 20
+        private const val CALL_SLOW_S = 120
+        private const val CALL_BRISK_FOR_MS = 5 * 60_000L
 
         /** BlueZ's error, in plain words. */
         internal fun plain(e: Throwable?, what: String, timedOut: Boolean = false): String {

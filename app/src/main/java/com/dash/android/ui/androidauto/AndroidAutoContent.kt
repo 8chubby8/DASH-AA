@@ -67,13 +67,15 @@ fun AndroidAutoConnectionContent() {
     val status by host.status.collectAsState()
     val callsNote by host.callsNote.collectAsState()
     val soundStuck by host.soundStuck.collectAsState()
+    val wirelessNote by host.wireless.note.collectAsState()
+    val wirelessReady by host.wireless.ready.collectAsState()
     val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
         SettingsContentHeader("Connection")
         InfoRows(
             listOfNotNull(
-                "Status" to (statusLine(status) ?: when (status) {
+                "Status" to (statusLine(status, wirelessReady) ?: when (status) {
                     is AaStatus.Projecting -> "Projecting"
                     AaStatus.Disabled -> "Off"
                     else -> "—"
@@ -90,6 +92,14 @@ fun AndroidAutoConnectionContent() {
             name = "Android Auto",
             control = {
                 PresetSegment(listOf("Off", "On"), if (s.enabled) 1 else 0, controlWidth) { i -> aa.set { it.copy(enabled = i == 1) } }
+            },
+        )
+        // Wireless (1.2.3): one switch, and what it is doing in one line beneath (Roger, 2026-10-22).
+        SettingBlock(
+            name = "Wireless",
+            help = if (s.enabled) wirelessNote else null,
+            control = {
+                PresetSegment(listOf("Off", "On"), if (s.wireless) 1 else 0, controlWidth) { i -> aa.set { it.copy(wireless = i == 1) } }
             },
         )
         // Offered only when the desktop's sound system has actually stopped taking audio. It stays here

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.dash.android.connections.AdapterJob
 import com.dash.android.connections.AdapterKind
 import com.dash.android.connections.Band
+import com.dash.android.connections.NO_COUNTRY
 import com.dash.android.connections.ConnectionsSettings
 import com.dash.android.connections.DashNetwork
 import com.dash.android.connections.NetworkAdapter
@@ -204,6 +205,10 @@ private fun Saved(network: NetworkSystem, state: NetworkState) {
     })
 }
 
+/** "United Kingdom (GB)", from Java's own list of countries. */
+private fun countryName(code: String): String =
+    java.util.Locale("", code).getDisplayCountry(java.util.Locale.UK).takeIf { it.isNotBlank() && it != code }?.let { "$it ($code)" } ?: code
+
 @Composable
 private fun DashNetworkSection(
     network: NetworkSystem,
@@ -222,6 +227,9 @@ private fun DashNetworkSection(
             "Name" to n.name,
             ip?.let { "Modules connect to" to "$it : $MODULE_PORT" },
             "Band" to n.band.label,
+            // The country's Wi-Fi rules decide whether 5 GHz may be hosted at all (1.2.3). On DASH-AA Linux
+            // the system follows the time zone; null when this machine cannot say.
+            state.country?.let { "Country" to if (it == NO_COUNTRY) "Not set — 5 GHz cannot be hosted" else countryName(it) },
         ))
     }
     val name = remember(n.name) { mutableStateOf(n.name) }
@@ -261,7 +269,7 @@ private fun DashNetworkSection(
     val bands = Band.entries.filter { b -> b in host.bands }
     SettingBlock(
         name = "Band",
-        help = "2.4 GHz reaches every module (ESP32 boards hear nothing else). 5 GHz is quicker, for wireless Android Auto.",
+        help = "2.4 GHz reaches every module (ESP32 boards hear nothing else). 5 GHz is quicker, and what wireless Android Auto needs.",
         control = { PresetSegment(bands.map { it.label }, bands.indexOf(n.band).coerceAtLeast(0), controlWidth) { i -> update { it.copy(network = it.network.copy(band = bands[i])) } } },
     )
 }

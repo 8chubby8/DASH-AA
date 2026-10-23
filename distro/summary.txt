@@ -1,2 +1,7 @@
-System › Updates: install a release from a USB stick, and go back to the one before
-The boot menu says DASH
+Wireless Android Auto: Android Auto › Connection › Wireless
+Wi-Fi follows the country of the time zone, so DASH's own Wi-Fi can use 5 GHz
+The "Send the GPS to the phone" switch is remembered
+Bluetooth wakes properly at power-on on the Surface (it sometimes came up deaf)
+Wireless Android Auto no longer gets stuck when it restarts, and lets the phone back in
+Bluetooth calls your paired phones when DASH starts, as a car does, until one answers
+Connections › Wi-Fi remembers the Wi-Fi's job while it is not on any network

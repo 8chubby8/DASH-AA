@@ -9,3 +9,6 @@ enable power-profiles-daemon.service
 enable dash-home.service
 enable dash-up.service
 enable dash-install.service
+enable dash-wifi-country.service
+enable dash-wifi-country.path
+enable dash-bluetooth-wake.service

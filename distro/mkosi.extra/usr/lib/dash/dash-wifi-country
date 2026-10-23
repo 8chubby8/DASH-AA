@@ -1,0 +1,36 @@
+#!/bin/bash
+# DASH-AA Linux (1.2.3): the country whose Wi-Fi rules this machine keeps, taken from its time zone — the
+# time zone the person sets in System › Date & Time (or Location sets for them). London is GB, Paris FR.
+# Without a country a Wi-Fi card keeps the world's rules, and under those it may not host on 5 GHz, which
+# wireless Android Auto needs. Run at start and whenever the time zone changes (dash-wifi-country.path).
+#
+# DASH never asks for this and cannot change it: it follows the time zone, nothing else. A zone with no one
+# country (UTC) leaves the world's rules in place.
+set -uo pipefail
+
+zone=$(readlink /etc/localtime)
+zone=${zone#*zoneinfo/}
+country=""
+while IFS=$'\t' read -r code _ name _; do
+    [[ $code == \#* ]] && continue
+    if [[ $name == "$zone" ]]; then country=$code; break; fi
+done < /usr/share/zoneinfo/zone.tab
+
+conf=/etc/modprobe.d/dash-wifi-country.conf
+if [[ ! $country =~ ^[A-Z]{2}$ ]]; then
+    echo "time zone $zone belongs to no one country: Wi-Fi keeps the world's rules"
+    rm -f "$conf"
+    exit 0
+fi
+
+# From the next start, set as Wi-Fi's rules load, before any network is hosted.
+mkdir -p /etc/modprobe.d
+echo "options cfg80211 ieee80211_regdom=$country" > "$conf"
+# And now.
+modprobe cfg80211 2>/dev/null
+if iw reg set "$country"; then
+    echo "Wi-Fi keeps the rules of $country (time zone $zone)"
+else
+    echo "could not set Wi-Fi's country to $country"
+fi
+exit 0

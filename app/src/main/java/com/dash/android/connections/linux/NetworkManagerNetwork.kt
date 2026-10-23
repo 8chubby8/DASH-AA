@@ -131,12 +131,16 @@ class NetworkManagerNetwork : NetworkSystem {
             val id = d["GENERAL.DEVICE"] ?: return@mapNotNull null
             val stateCode = d["GENERAL.STATE"]?.substringBefore(' ')?.toIntOrNull() ?: 0
             if (stateCode == 10) return@mapNotNull null         // unmanaged: not NetworkManager's, so not DASH's either
-            val identity = (d["GENERAL.HWADDR"] ?: id).uppercase()
+            val mac = (d["GENERAL.HWADDR"] ?: id).uppercase()
+            // Remembered by the card's own address: the one it shows changes while it looks for networks
+            // (a privacy measure), and a job remembered by that was forgotten at once (seen 2026-10-23).
+            val identity = permanentAddress(d["GENERAL.DBUS-PATH"], kind) ?: mac
             val conUuid = d["GENERAL.CON-UUID"]?.takeIf { it.isNotBlank() }
             val con = conUuid?.let { details[it] }
             NetworkAdapter(
                 id = id,
                 identity = identity,
+                mac = mac,
                 kind = kind,
                 name = productName(d["GENERAL.VENDOR"], d["GENERAL.PRODUCT"], kind, id),
                 connected = stateCode == 100,
@@ -172,7 +176,26 @@ class NetworkManagerNetwork : NetworkSystem {
             known = known,
             internet = internet,
             phoneInternet = phoneInternet,
+            country = country(),
         )
+    }
+
+    /**
+     * The country the machine's Wi-Fi keeps the rules of, from `iw reg get` (readable by anyone). On
+     * DASH-AA Linux the system sets it from the time zone (`dash-wifi-country`); elsewhere it is the
+     * machine's own. Null with no `iw` to ask.
+     */
+    private fun country(): String? {
+        val out = try { Command.run(listOf("iw", "reg", "get"), 3)?.out } catch (e: IOException) { null } ?: return null
+        return Regex("""country ([A-Z0-9]{2}):""").find(out)?.groupValues?.get(1)
+    }
+
+    /** The address built into the adapter, from NetworkManager over the system bus (`busctl`, readable by anyone). */
+    private fun permanentAddress(path: String?, kind: AdapterKind): String? {
+        if (path.isNullOrBlank()) return null
+        val iface = if (kind == AdapterKind.WIFI) "org.freedesktop.NetworkManager.Device.Wireless" else "org.freedesktop.NetworkManager.Device.Wired"
+        val out = try { Command.run(listOf("busctl", "get-property", "org.freedesktop.NetworkManager", path, iface, "PermHwAddress"), 3)?.out } catch (e: IOException) { null }
+        return out?.let { Regex("""([0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5})""").find(it)?.value?.uppercase() }
     }
 
     private data class Connection(
@@ -211,7 +234,8 @@ class NetworkManagerNetwork : NetworkSystem {
         val st = _state.value
         if (!st.available) return
         val wifi = st.adapters.filter { it.kind == AdapterKind.WIFI }
-        val key = s to wifi.map { it.identity }.toSet()
+        // The country is part of it: hosting on 5 GHz that failed for want of one is tried again once it is set.
+        val key = s to (wifi.map { it.identity }.toSet() + "country=${st.country}")
         if (applied == key) return
         val before = applied?.first
         applied = key
@@ -404,7 +428,7 @@ class NetworkManagerNetwork : NetworkSystem {
         const val DASH_NETWORK = "DASH network"
 
         private const val DEVICE_FIELDS = "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,GENERAL.CON-UUID," +
-            "GENERAL.HWADDR,GENERAL.VENDOR,GENERAL.PRODUCT,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,CAPABILITIES.SPEED," +
+            "GENERAL.HWADDR,GENERAL.DBUS-PATH,GENERAL.VENDOR,GENERAL.PRODUCT,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,CAPABILITIES.SPEED," +
             "WIFI-PROPERTIES.AP,WIFI-PROPERTIES.2GHZ,WIFI-PROPERTIES.5GHZ"
 
         private const val CONNECTION_FIELDS = "connection.uuid,connection.id,802-11-wireless.ssid,802-11-wireless.mode," +

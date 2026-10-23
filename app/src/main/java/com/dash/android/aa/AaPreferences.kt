@@ -56,6 +56,11 @@ data class AaSettings(
     val systemLevel: Float = 1.0f,
     /** System › Location (1.1.11): offer the phone DASH's GPS fix, as a car with its own GPS does. */
     val carLocation: Boolean = true,
+    /**
+     * Wireless Android Auto (1.2.3): phones paired with DASH are offered it over Bluetooth, while DASH's own
+     * Wi-Fi is up on 5 GHz. Off until switched on.
+     */
+    val wireless: Boolean = false,
 ) {
     /** Driver side resolved — AUTO follows the country the laptop is set to. */
     val leftHandDrive: Boolean get() = when (driverSide) {
@@ -105,6 +110,8 @@ class AaPreferences(private val context: Context) {
             p[MUSIC_LEVEL] = next.musicLevel
             p[DIRECTIONS_LEVEL] = next.directionsLevel
             p[SYSTEM_LEVEL] = next.systemLevel
+            p[CAR_LOCATION] = next.carLocation
+            p[WIRELESS] = next.wireless
         }
     }
 
@@ -124,6 +131,8 @@ class AaPreferences(private val context: Context) {
         musicLevel = p[MUSIC_LEVEL] ?: 1.0f,
         directionsLevel = p[DIRECTIONS_LEVEL] ?: 1.0f,
         systemLevel = p[SYSTEM_LEVEL] ?: 1.0f,
+        carLocation = p[CAR_LOCATION] ?: true,
+        wireless = p[WIRELESS] ?: false,
     )
 
     private companion object {
@@ -142,5 +151,7 @@ class AaPreferences(private val context: Context) {
         val MUSIC_LEVEL = floatPreferencesKey("aa_music_level")
         val DIRECTIONS_LEVEL = floatPreferencesKey("aa_directions_level")
         val SYSTEM_LEVEL = floatPreferencesKey("aa_system_level")
+        val CAR_LOCATION = booleanPreferencesKey("aa_car_location")
+        val WIRELESS = booleanPreferencesKey("aa_wireless")
     }
 }

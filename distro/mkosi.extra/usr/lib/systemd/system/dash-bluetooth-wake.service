@@ -1,0 +1,12 @@
+# DASH-AA Linux (1.2.3): Bluetooth woken once the Wi-Fi is up, on chips that need it (see the script).
+[Unit]
+Description=DASH: wake Bluetooth after the Wi-Fi starts
+After=bluetooth.service
+Wants=bluetooth.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/dash/dash-bluetooth-wake
+
+[Install]
+WantedBy=multi-user.target

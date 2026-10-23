@@ -132,7 +132,8 @@ object BlueZ {
 
 /**
  * A kernel RFCOMM socket (`AF_BLUETOOTH` / `BTPROTO_RFCOMM`) driven through libc — what Android's
- * `BluetoothSocket` wraps. Outbound only: DASH dials the module's SPP server, as upstream does.
+ * `BluetoothSocket` wraps. DASH dials the module's SPP server, as upstream does; and since 1.2.3 it also
+ * takes over a connection BlueZ has accepted for it ([adopt]) — a phone opening wireless Android Auto.
  */
 class RfcommSocket private constructor(private val fd: Int, val address: String) : Closeable {
 
@@ -144,6 +145,7 @@ class RfcommSocket private constructor(private val fd: Int, val address: String)
         fun write(fd: Int, buf: ByteArray, count: NativeLong): NativeLong
         fun shutdown(fd: Int, how: Int): Int
         fun close(fd: Int): Int
+        fun fcntl(fd: Int, cmd: Int, arg: Int): Int
     }
 
     @Volatile private var closed = false
@@ -191,6 +193,9 @@ class RfcommSocket private constructor(private val fd: Int, val address: String)
         private const val SOCK_STREAM = 1
         private const val BTPROTO_RFCOMM = 3
         private const val SHUT_RDWR = 2
+        private const val F_GETFL = 3
+        private const val F_SETFL = 4
+        private const val O_NONBLOCK = 0x800
 
         private val libc: LibC by lazy { Native.load("c", LibC::class.java) }
 
@@ -208,6 +213,16 @@ class RfcommSocket private constructor(private val fd: Int, val address: String)
                 libc.close(fd)
                 throw IOException("rfcomm connect to $address ch$channel failed (errno $errno)")
             }
+            return RfcommSocket(fd, address)
+        }
+
+        /**
+         * A connected RFCOMM socket handed over by BlueZ (a registered profile's `NewConnection`), now
+         * DASH's to read, write and close. BlueZ hands it over non-blocking; DASH's reads block.
+         */
+        fun adopt(fd: Int, address: String): RfcommSocket {
+            val flags = libc.fcntl(fd, F_GETFL, 0)
+            if (flags >= 0 && flags and O_NONBLOCK != 0) libc.fcntl(fd, F_SETFL, flags and O_NONBLOCK.inv())
             return RfcommSocket(fd, address)
         }
     }

@@ -18,7 +18,7 @@ object LogParts {
     const val DASH = "DASH"
 
     private val byTag = mapOf(
-        ANDROID_AUTO to listOf("DashAa", "DashAndroidAuto"),
+        ANDROID_AUTO to listOf("DashAa", "DashAndroidAuto", "DashAaWireless"),
         SOUND to listOf("DashSound", "DashVolume"),
         MODULES to listOf(
             "DashInstall", "DashModuleDb", "DashReconcile", "DashReports", "DashStreams", "DashBroadcast",

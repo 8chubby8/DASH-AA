@@ -30,8 +30,9 @@ RELEASE_KEY=${DASH_RELEASE_KEY:-$HOME/.config/dash-release/release.pem}
 
 [ -x "$MKOSI" ] || git clone -q --depth 1 -b v26 https://github.com/systemd/mkosi.git "$W/mkosi"
 
-VERSION=$(grep -m1 -oP '^## Version \K[0-9]+\.[0-9]+\.[0-9]+' changelog.md)
-# The version is three numbers, the changelog's, and nothing else (Roger, 2026-10-22). Each build is also told
+VERSION=$(grep -m1 -oP '^## Version \K[0-9]+\.[0-9]+\.[0-9]+[a-z]?(?=\s*$)' changelog.md)
+# The version is the changelog's: three numbers (Roger, 2026-10-22), and a letter for a test build of it (1.2.3a,
+# Roger 2026-10-23). Each build is also told
 # apart by when it was made, so a second build of the same version can still update a machine that has the
 # first: the release is <version>-<yyyymmddHHMM> (dash_1.2.2-202610222310), shown as "1.2.2, built 22 Oct 23:10".
 IMAGE_VERSION=$VERSION-$(date +%Y%m%d%H%M)

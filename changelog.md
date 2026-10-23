@@ -22,6 +22,93 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.2.3
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-23. **Wireless Android Auto works on the Surface Pro 3** with Roger's Pixel 8 Pro,
+on the Surface's own Wi-Fi card (Roger: "it works perfectly"). Three test builds went to the Surface through
+System › Updates — 1.2.3 (then numbered so), 1.2.3a, 1.2.3b; it runs 1.2.3b. Tests pass (169).
+
+**What and why.** Wireless Android Auto (roadmap 1.2.3; moved up from 1.4.x by Roger). Agreed with Roger on
+2026-10-22, before building:
+1. **The Wi-Fi:** the Surface has one card. It either joins a network or hosts DASH's own, and wireless Android
+   Auto needs it hosting — the job *DASH network* in Connections › Wi-Fi, on 5 GHz. That job switch is the A/B
+   switch Roger asked for. *Both at once* was to be tried after; it is not possible with Roger's set-up: the
+   phone would not start wireless Android Auto while it was also the hotspot (found 2026-10-22). In the car
+   the internet comes from the router's cable, so it only matters away from the car.
+2. **The country** follows the time zone, changed with it in System › Date & Time.
+3. **Any phone paired with DASH** may use it; pairing is the trust.
+4. **The first phone there keeps the screen**, by cable or not; a cable plugged in during a wireless session
+   only charges, and takes over when it ends.
+5. **The car's internet goes to the phone** — DASH's own Wi-Fi already shares it (see *Outstanding*).
+6. **A Wireless switch** on Android Auto › Connection, with one line under it saying what it is doing.
+
+**Done:**
+- **The start, over Bluetooth** (`aa/wireless/WirelessSetup.kt`, shared): the few messages that tell the
+  phone where DASH is and how to join its Wi-Fi — DASH's address and port 5288, then the network's name,
+  password, BSSID and WPA2 — in the open wireless adapters' framing (length, id, protobuf). Then the phone
+  connects to DASH on Wi-Fi and it is the same Android Auto as by cable (`TcpLink`, an `AaLink` like the USB
+  one: reads and writes both time out).
+- **Offering it** (`aa/wireless/linux/BlueZAaService.kt`): the service registered with BlueZ's profile
+  manager, only while it can actually happen, so a phone never tries a car that cannot answer. BlueZ hands
+  over the phone's connection as a file descriptor, which the JDK's own unix sockets cannot carry: the system
+  bus transport is now junixsocket's (`dbus-java-transport-junixsocket`, Apache-2.0); `RfcommSocket.adopt`
+  takes the descriptor.
+- **When it is offered** (`aa/wireless/WirelessAa.kt`, shared): switched on, Bluetooth on, an adapter hosting
+  DASH's own Wi-Fi on 5 GHz with a country set. Whatever is missing, the line under the switch says so in
+  plain words. DASH waits for the phone only on its own Wi-Fi's address, and only a phone just told over
+  Bluetooth is let in. The connection loop runs a phone on Wi-Fi exactly as one on the cable; with no libusb,
+  wireless still works. The waiting screen says "Connect your phone by USB, or switch on its Bluetooth".
+- **The country** (`dash-wifi-country`, a service and a path unit on DASH-AA Linux): from the time zone
+  (`zone.tab`) to Wi-Fi's rules, now (`iw reg set`) and from the next start (`cfg80211` option). No new
+  permission: the system follows the time zone; DASH asks for nothing. Connections › Wi-Fi shows it under
+  DASH network (`NetworkState.country`, read with `iw reg get`), and hosting is tried again when it changes.
+- **DASH calls the phones, as a car does** (`BlueZBluetooth`, Roger 2026-10-23): with no phone connected,
+  each paired phone is called in turn — every 20 s for five minutes after DASH starts or Bluetooth is
+  switched on, then every 2 min — until one answers. Quiet: nothing is shown for a phone that is not there.
+  For calls as much as for wireless.
+- Location's *Send the GPS to the phone* switch is now saved (it was never written, 1.1.11).
+
+**Broke and fixed on the way:**
+- **No Wi-Fi rules on the system.** DASH-AA Linux had no `wireless-regdb`, so the card kept the world's rules
+  and would not host on 5 GHz. Added, with `iw`.
+- **Bluetooth deaf at power-on** (Surface): its Marvell chip starts Bluetooth a few hundredths of a second
+  before its Wi-Fi firmware, and about one start in two the Bluetooth came up powered and hearing nothing
+  (checked by restarting: 200 signals heard in 10 s, then none). Switching it off and on wakes it:
+  `dash-bluetooth-wake` does so once the Wi-Fi is up, only on a machine with this chip.
+- **Android Auto stuck after a restart over Wi-Fi.** A setting changed mid-session; the phone stopped
+  reading; a socket has no write limit, so a write waited for ever, and every thread that wanted to send
+  with it — the session never ended, and the phone was turned away 46 times as "already running". Writes over
+  Wi-Fi now give up after 2 s, as the USB link's do; and the phone of a wireless session asking again is taken
+  at its word — the old session ends and it comes in.
+- **The Wi-Fi's job forgotten while it is on no network.** Cards change the address they show while they
+  look for networks (a privacy measure), and jobs were remembered by that address: *DASH network* flicked back
+  to *Join networks* the moment the hotspot went off. Jobs are now remembered by the card's own address
+  (`PermHwAddress`, from NetworkManager over the bus); the address in use is kept apart, for the BSSID.
+
+**Version letters** (Roger, 2026-10-23): a test build of a version carries a letter — 1.2.3a, 1.2.3b — and
+the finished version none. Still never a fourth number. `distro/build.sh` and the app's build read them; the
+packager is given the numbers alone.
+
+**Outstanding:**
+- The car's internet always goes to the phone: DASH's own Wi-Fi shares it with everything on it, and an off
+  switch for the phone alone is not built. Android probably keeps a car's Wi-Fi for Android Auto and its own
+  data for the internet anyway — not checked.
+- Not yet tried: a call during wireless Android Auto, a long drive's worth of it, and two phones paired.
+- The picture is slow, more so at higher resolutions — next (Roger, 2026-10-23).
+
+**For native:** `aa/wireless/WirelessSetup.kt` (the messages and `TcpLink`) and `WirelessAa.kt` (when it is
+offered, who gets the screen) are plain Kotlin — take them. Native writes its own `PhoneService` (a
+`BluetoothServerSocket` listening on the service's UUID) and hosts its network with Android's hotspot
+(`LocalOnlyHotspot` chooses its own name and password, which is fine: DASH tells the phone whatever they are).
+Calling the paired phones belongs in native's `BluetoothSystem` the same way. `dash-wifi-country` and
+`dash-bluetooth-wake` are DASH-AA Linux's own; Android keeps its own country and its own radios. The
+`NetworkState.country` and `NetworkAdapter.mac` fields, and the Wireless switch on Android Auto › Connection,
+are shared.
+
+---
+
 ## Version 1.2.2
 
 **Mirrors upstream:** DASH 1.7.1

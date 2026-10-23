@@ -76,12 +76,20 @@ data class NetworkState(
     val internet: Internet = Internet.UNKNOWN,
     /** Phones (by Bluetooth address) set up to give their internet over Bluetooth, and whether they are now. */
     val phoneInternet: Map<String, Boolean> = emptyMap(),
+    /**
+     * The country whose Wi-Fi rules the machine keeps, two letters (`GB`); [NO_COUNTRY] when it keeps none —
+     * the world's rules, under which most adapters will not host on 5 GHz (1.2.3); null when it cannot be told.
+     */
+    val country: String? = null,
     /** The network being joined now, by name. */
     val joining: String? = null,
     val scanning: Boolean = false,
     /** The last thing that did not happen, in plain words; null when the last one did. */
     val failure: String? = null,
 )
+
+/** [NetworkState.country] when the machine keeps the world's Wi-Fi rules, not a country's. */
+const val NO_COUNTRY = "00"
 
 enum class Internet(val label: String) {
     FULL("Connected to the internet"),
@@ -117,6 +125,8 @@ data class NetworkAdapter(
     val canHost: Boolean = false,
     val bands: Set<Band> = emptySet(),
     val job: AdapterJob = AdapterJob.JOIN,
+    /** The hardware address it uses now — a network it hosts is known to phones by this (its BSSID). */
+    val mac: String = identity,
 )
 
 enum class AdapterJob(val label: String) {

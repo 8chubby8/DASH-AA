@@ -1,0 +1,22 @@
+#!/bin/bash
+# DASH-AA Linux (1.2.3): wake Bluetooth on a Marvell Wi-Fi + Bluetooth chip (the Surface Pro 3's 88W8897).
+# Its Bluetooth starts a few hundredths of a second before its Wi-Fi firmware does, on the same chip, and
+# about one start in two the Bluetooth comes up deaf: powered, and hearing nothing — no phone, no module.
+# Switching it off and on once the Wi-Fi is up wakes it (found 2026-10-23). Any other machine: nothing done.
+set -uo pipefail
+
+marvell() { for d in /sys/class/net/*/device/driver; do [[ $(readlink "$d") == *mwifiex* ]] && return 0; done; return 1; }
+
+# Wait (at most 30 s) for the Wi-Fi to be up and the Bluetooth adapter to be there.
+for _ in $(seq 60); do
+    marvell && [ -e /sys/class/bluetooth/hci0 ] && break
+    sleep 0.5
+done
+marvell || exit 0
+[ -e /sys/class/bluetooth/hci0 ] || exit 0
+
+sleep 2
+btmgmt --index 0 power off >/dev/null
+sleep 1
+btmgmt --index 0 power on >/dev/null && echo "Bluetooth woken after the Wi-Fi's start"
+exit 0

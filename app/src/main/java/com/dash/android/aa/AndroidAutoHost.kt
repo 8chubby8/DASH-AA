@@ -16,7 +16,10 @@ import com.dash.android.aa.protocol.AaSessionHost
 import com.dash.android.aa.protocol.HeadUnitConfig
 import com.dash.android.aa.protocol.VideoGeometry
 import com.dash.android.aa.usb.AaUsb
+import com.dash.android.aa.wireless.WirelessAa
+import com.dash.android.aa.wireless.linux.BlueZAaService
 import com.dash.android.audio.ViewportVolume
+import com.dash.android.connections.ConnectionsPreferences
 import com.dash.android.transport.DashController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,6 +112,16 @@ class AndroidAutoHost(
 
     private val bridge = AaBridge(state = controller.systemState, scope = scope)
 
+    /** Wireless Android Auto (1.2.3): a paired phone told DASH's Wi-Fi over Bluetooth, arriving on it. */
+    val wireless = WirelessAa(
+        service = { onPhone -> BlueZAaService(onPhone) },
+        networks = app.network.state,
+        connections = ConnectionsPreferences(app).settings,
+        bluetooth = app.bluetooth.state,
+        busy = { session != null },
+        endSession = { why -> session?.close(why) },
+    )
+
     /** Android Auto's own volume, for the volume buttons when the user points them here (Audio › Speakers). */
     override fun stepVolume(direction: Int) {
         scope.launch { prefs.update { s -> s.copy(volume = (s.volume + direction * VOLUME_STEP).coerceIn(0f, 1f)) } }
@@ -162,8 +175,10 @@ class AndroidAutoHost(
                 val active = activeConnectionSettings
                 if (active != null && connectionFieldsDiffer(active, s)) requestRestart("settings changed")
                 if (!s.enabled) session?.requestShutdown()
+                wireless.setEnabled(s.enabled && s.wireless)
             }
         }
+        wireless.start(scope)
         multiTouch = runCatching { evdev.start() }.getOrDefault(false)
         Thread({ connectionLoop() }, "dash-host").apply { isDaemon = true }.start()
     }
@@ -328,10 +343,8 @@ class AndroidAutoHost(
     // ---- The connection loop ----
 
     private fun connectionLoop() {
-        if (!AaUsb.available()) {
-            _status.value = AaStatus.Unavailable("libusb-1.0 is not installed, so DASH cannot reach a phone on USB.")
-            return
-        }
+        // Without libusb there is no phone by cable — but there may still be one on Wi-Fi.
+        val usb = AaUsb.available()
         if (VideoDecoder.ffmpegPath() == null) {
             _status.value = AaStatus.Unavailable("ffmpeg is not installed, so Android Auto's video cannot be shown.")
             return
@@ -347,6 +360,21 @@ class AndroidAutoHost(
                 if (!settings.enabled) { _status.value = AaStatus.Disabled; Thread.sleep(POLL_MS); continue }
                 if (!viewportSettled()) { Thread.sleep(200); continue }
 
+                // A phone already on Wi-Fi was there first: it keeps the screen, and a cable meanwhile only charges.
+                val onWifi = wireless.take()
+                if (onWifi != null) {
+                    val outcome = try { runSession(onWifi.link, onWifi.phone) } finally { wireless.ended(onWifi) }
+                    if (outcome == Outcome.FAILED) backoff = 2000
+                    continue
+                }
+                if (!usb) {
+                    if (wireless.ready.value) {
+                        if (_status.value !is AaStatus.Retrying && _status.value !is AaStatus.Ended) _status.value = AaStatus.WaitingForPhone
+                    } else _status.value = AaStatus.Unavailable("libusb-1.0 is not installed, so DASH cannot reach a phone on USB.")
+                    Thread.sleep(POLL_MS / 4)
+                    continue
+                }
+
                 val found = runCatching { AaUsb.scan() }.getOrNull()
                 if (parked) {
                     if (found == null) parked = false               // unplugged — the next plug is a fresh start
@@ -354,7 +382,7 @@ class AndroidAutoHost(
                     continue
                 }
                 when (found) {
-                    null -> { if (_status.value !is AaStatus.Retrying) _status.value = AaStatus.WaitingForPhone; Thread.sleep(POLL_MS) }
+                    null -> { if (_status.value !is AaStatus.Retrying) _status.value = AaStatus.WaitingForPhone; Thread.sleep(POLL_MS / 4) }
                     is AaUsb.Found.NoPermission -> { _status.value = AaStatus.NoPermission(found.id); Thread.sleep(2000) }
                     is AaUsb.Found.Phone -> {
                         if (System.currentTimeMillis() - lastSwitch < SWITCH_COOLDOWN_MS) { Thread.sleep(POLL_MS); continue }

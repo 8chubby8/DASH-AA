@@ -224,6 +224,7 @@ private val DEPENDENCIES = listOf(
     Dependency("Java Native Access (JNA)", "5.19.1", "Apache 2.0 / LGPL-2.1", "github.com/java-native-access/jna"),
     Dependency("kXML2", "2.3.0", "MIT", "kxml.sourceforge.net"),
     Dependency("dbus-java", "5.2.2", "MIT", "github.com/hypfvieh/dbus-java"),
+    Dependency("junixsocket", "2.10.1", "Apache 2.0", "github.com/kohlschutter/junixsocket"),
     Dependency("SLF4J", "2.0.17", "MIT", "slf4j.org"),
     Dependency("JediTerm (terminal emulator core)", "3.70", "LGPL-3.0", "github.com/JetBrains/jediterm"),
     Dependency("JetBrains Java Annotations", "24.0.1", "Apache 2.0", "github.com/JetBrains/java-annotations"),

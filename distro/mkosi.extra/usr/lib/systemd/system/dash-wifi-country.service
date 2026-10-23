@@ -1,0 +1,12 @@
+# DASH-AA Linux (1.2.3): Wi-Fi's country follows the time zone (see /usr/lib/dash/dash-wifi-country).
+[Unit]
+Description=DASH: Wi-Fi's country, from the time zone
+After=local-fs.target
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/dash/dash-wifi-country
+
+[Install]
+WantedBy=multi-user.target

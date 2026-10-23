@@ -60,6 +60,7 @@ fun AndroidAutoViewport(
     modifier: Modifier = Modifier,
 ) {
     val status by host.status.collectAsState()
+    val wirelessReady by host.wireless.ready.collectAsState()
 
     Box(
         modifier
@@ -93,7 +94,7 @@ fun AndroidAutoViewport(
         if (status is AaStatus.Projecting) {
             ProjectionSurface(host)
         } else {
-            IdleViewport(status, onReconnect = { host.reconnect() })
+            IdleViewport(status, wirelessReady, onReconnect = { host.reconnect() })
         }
     }
 }
@@ -152,11 +153,11 @@ private fun ProjectionSurface(host: AndroidAutoHost) {
 }
 
 @Composable
-private fun IdleViewport(status: AaStatus, onReconnect: () -> Unit) {
+private fun IdleViewport(status: AaStatus, wireless: Boolean, onReconnect: () -> Unit) {
     val theme = LocalDashTheme.current
     Box(Modifier.fillMaxSize()) {
         AnalogueClock(Modifier.fillMaxSize())
-        val line = statusLine(status)
+        val line = statusLine(status, wireless)
         if (line != null) {
             val tappable = status is AaStatus.Ended || status is AaStatus.Retrying
             Text(
@@ -177,8 +178,9 @@ private fun IdleViewport(status: AaStatus, onReconnect: () -> Unit) {
 }
 
 /** One plain sentence about where Android Auto is — or nothing, when there is nothing worth saying. */
-internal fun statusLine(status: AaStatus): String? = when (status) {
-    AaStatus.WaitingForPhone -> "Connect your phone by USB for Android Auto"
+internal fun statusLine(status: AaStatus, wireless: Boolean = false): String? = when (status) {
+    AaStatus.WaitingForPhone -> if (wireless) "Connect your phone by USB, or switch on its Bluetooth, for Android Auto"
+        else "Connect your phone by USB for Android Auto"
     AaStatus.Disabled -> null
     is AaStatus.Unavailable -> status.reason
     is AaStatus.NoPermission -> "Phone found, but DASH may not open it — run packaging/install.sh"

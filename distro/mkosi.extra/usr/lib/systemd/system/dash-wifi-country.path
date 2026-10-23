@@ -1,0 +1,10 @@
+# DASH-AA Linux (1.2.3): set Wi-Fi's country again whenever the time zone changes.
+[Unit]
+Description=DASH: watch the time zone for Wi-Fi's country
+
+[Path]
+PathChanged=/etc/localtime
+Unit=dash-wifi-country.service
+
+[Install]
+WantedBy=multi-user.target

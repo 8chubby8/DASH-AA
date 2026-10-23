@@ -21,7 +21,7 @@ val changelogText: Provider<String> =
 
 val dashVersionName: String = run {
     val text = changelogText.orNull ?: error("changelog.md is unreadable — the version is derived from it.")
-    Regex("""^## Version (\d+\.\d+\.\d+)\s*$""", RegexOption.MULTILINE).find(text)?.groupValues?.get(1)
+    Regex("""^## Version (\d+\.\d+\.\d+[a-z]?)\s*$""", RegexOption.MULTILINE).find(text)?.groupValues?.get(1)
         ?: error("No '## Version <n.n.n>' heading in changelog.md — add the entry before building.")
 }
 
@@ -60,9 +60,10 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.19.1")
 
     // The system message bus (D-Bus), for BlueZ (1.1.6): DASH answers pairing requests as BlueZ's agent,
-    // which means BlueZ calling DASH — something the command-line tools cannot do. Pure Java, MIT.
+    // which means BlueZ calling DASH — something the command-line tools cannot do. MIT. Its junixsocket
+    // transport (Apache-2.0) since 1.2.3: it passes file descriptors, as wireless Android Auto needs.
     implementation("com.github.hypfvieh:dbus-java-core:5.2.2")
-    implementation("com.github.hypfvieh:dbus-java-transport-native-unixsocket:5.2.2")
+    implementation("com.github.hypfvieh:dbus-java-transport-junixsocket:5.2.2")
     implementation("org.slf4j:slf4j-nop:2.0.17")
 
     // Developer › Terminal (1.1.10): JetBrains' terminal emulator, the core only — what the shell's output
@@ -128,7 +129,8 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.AppImage)
             packageName = "dash"
-            packageVersion = dashVersionName
+            // The packager takes numbers only: a test letter (1.2.3a, Roger 2026-10-23) is left off here alone.
+            packageVersion = dashVersionName.trimEnd { it.isLetter() }
             modules("java.naming", "jdk.unsupported", "jdk.net", "java.xml", "jdk.security.auth")
         }
     }

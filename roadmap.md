@@ -267,7 +267,7 @@ its bands); time alignment has no non-root Android path; Saved is taken as it is
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7). The
 Terminal is taken whole except its device: native runs Android's own shell as the app (1.1.10).
 
-#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 and 1.2.2 complete, 2026-10-22 — DASH-AA Linux on the Surface, updated from System › Updates. Next: 1.2.3)*
+#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 and 1.2.2 complete, 2026-10-22 — DASH-AA Linux on the Surface, updated from System › Updates; 1.2.3 complete, 2026-10-23 — wireless Android Auto. Next: 1.2.4, the Android Auto picture)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
 PC — the board era's idea (upstream's version 2: dedicated hardware, DASH as the whole system) reached
 from the Linux side. Power on and DASH-AA is the screen: no desktop, no login prompt, no app to start.
@@ -324,13 +324,16 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
   back; USB only for now (GitHub later — publishing the system brings a duty to offer its source); the
   first update carries the small Surface fixes (the boot menu says DASH; the pairing note names Connections
   › Bluetooth).
-- **1.2.3 — Wireless Android Auto — next.** (Roger, 2026-10-22; moved up from 1.4.x, after Updates so every test
-  build reaches the Surface through System › Updates and can be rolled back). The phone pairs with DASH over
-  Bluetooth, is handed the name and password of DASH's own network over a Bluetooth service, joins it and
-  connects to DASH; from there it is the same Android Auto as by cable. The Surface's one Wi-Fi card hosts
-  the network for the phone, so it cannot join a router at the same time: in the car the router's Ethernet
-  (through the hub) gives the internet. Roger tests it on the Surface's own card first, with no second
-  adapter (he is on holiday), the card taken off his hotspot for the test.
+- ~~**1.2.3 — Wireless Android Auto**~~ **Complete, 2026-10-23** — on the Surface with the Pixel, on the
+  Surface's own Wi-Fi card (changelog). (Roger, 2026-10-22; moved up from 1.4.x, after Updates so every test
+  build reaches the Surface through System › Updates and can be rolled back.) The phone, paired with DASH, is
+  told DASH's own Wi-Fi over Bluetooth, joins it and connects; from there it is the same Android Auto as by
+  cable. The card hosts *or* joins — the job switch in Connections › Wi-Fi — and in the car the router's
+  Ethernet gives the internet. Wi-Fi's country follows the time zone; any paired phone; the first phone there
+  keeps the screen; a Wireless switch on Android Auto › Connection. DASH now calls the paired phones at start,
+  as a car does. Test builds carry a letter (1.2.3a, 1.2.3b; Roger, 2026-10-23).
+- **1.2.4 — The Android Auto picture — next** (Roger, 2026-10-23: "its super slow. especially at higher
+  resolutions"). To be looked at and talked through before building.
 - **Then a VM as if in the car** (Roger, 2026-10-21): DASH-AA Linux run in a virtual machine on the G14
   as the test bench for everything that needs no desktop — the real image, no desktop behind it — **the
   file picker first** (it was 1.1.8, moved here because only a machine with no desktop tests it). What the

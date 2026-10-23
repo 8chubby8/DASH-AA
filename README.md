@@ -113,8 +113,21 @@ may ask you to accept the car again on the phone, as its name is now "DASH".
    on the phone while DASH-AA waits.
 3. The viewport fills with Android Auto.
 
+**Without the cable (wireless, 1.2.3).** The phone joins DASH's own Wi-Fi, so DASH needs a Wi-Fi card that
+can host one on 5 GHz:
+1. Pair the phone with DASH once, in Connections › Bluetooth. DASH calls paired phones by itself whenever it
+   starts, as a car does.
+2. Connections › Wi-Fi: give the Wi-Fi the job **DASH network**, and its Band **5 GHz**. The Country under it
+   follows the time zone (System › Date & Time); with no country, 5 GHz cannot be hosted.
+3. Android Auto › Connection › **Wireless** on. The line under it says what is happening, or what is missing.
+
+With one Wi-Fi card, hosting DASH's Wi-Fi means it joins no other network: give it internet by cable (a
+router's Ethernet), or a second Wi-Fi card. A phone that is also being a hotspot will not start wireless
+Android Auto: switch the hotspot off. The first phone there keeps the screen; a cable plugged in meanwhile
+only charges.
+
 Settings › **Android Auto** has the rest:
-- **Connection:** whether the phone is projecting, Android Auto on or off, Reconnect, and **Restart
+- **Connection:** whether the phone is projecting, Android Auto on or off, **Wireless**, Reconnect, and **Restart
   sound**, which appears only when the sound system has stopped
 - **Picture:** video resolution, frame rate, and **density** (how big the phone draws its interface)
 - **Night & Driver Side:** night mode, and which side the driver sits

@@ -101,6 +101,15 @@ names on the boot partition: `+3` on trial, no count good, `+0-9` set aside (see
 example `sdb`), then `sudo mount /dev/sdb3 /mnt && sudo /mnt/usb/update`, type `update`, take the stick out
 and `sudo reboot`.
 
+## Wi-Fi and Bluetooth (1.2.3)
+
+- **Wi-Fi's country follows the time zone** (`dash-wifi-country`, run at start and whenever the time zone
+  changes): Europe/London is GB. Without a country the card keeps the world's rules and will not host on
+  5 GHz, which wireless Android Auto needs. A zone with no one country (UTC) leaves the world's rules.
+- **Bluetooth woken after the Wi-Fi starts** (`dash-bluetooth-wake`): on a Marvell Wi-Fi + Bluetooth chip
+  (the Surface Pro 3's), Bluetooth sometimes comes up deaf at power-on; switching it off and on once the
+  Wi-Fi is up wakes it. Any other machine: it does nothing.
+
 ## Getting in
 
 - **From the G14:** `ssh dash` (the `Host dash` entry in `~/.ssh/config`: `dash@dash.local`, the DASH key).
