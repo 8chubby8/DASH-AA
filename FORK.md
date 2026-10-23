@@ -125,6 +125,7 @@ shim, a permission, a tab.
 | 1.1.11 | `ui/settings/content/LocationContent.kt`, `ui/systembar/DashElement.kt`, `ui/time/DateTimeContent.kt`, `weather/WeatherProvider.kt`, `core/SystemCommands.kt`, `transport/Streams.kt` | The Location tab (its Android Auto switch comes out), `ElementScope.location`, Follow Location's wording, the weather reading `DashLocation`, the eight signals, and a position's threshold as metres moved. Take them. |
 | 1.2.3 | `connections/NetworkSystem.kt`, `ui/connections/WifiContent.kt`, `content/LicenceContent.kt` | junixsocket joins DASH-AA's licence list (native keeps its own). `NetworkState.country` (the Wi-Fi rules' country, `NO_COUNTRY` for the world's) shown under DASH network, and `NetworkAdapter.mac` (the address in use) beside `identity`, which is now the card's own. Take them; native reports Android's country, or null. |
 | 1.2.3 | `ui/androidauto/AndroidAutoContent.kt`, `ui/viewport/AndroidAutoViewport.kt` | The Wireless switch and its line on Android Auto › Connection; the waiting screen mentions Bluetooth when wireless is ready. DASH-AA's own (native's tenant is its apps) — for a native that one day runs Android Auto. |
+| 1.2.4 | `ui/androidauto/AndroidAutoContent.kt`, `ui/viewport/AndroidAutoViewport.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | Android Auto › Debug: the frame counter over the picture (Roger's debugging exception to the viewport rule), Reconnect moved there from Connection, and Check. DASH-AA's own — for a native that one day runs Android Auto. |
 | 1.1.7 | `core/SystemCommands.kt`, `display/DisplayRules.kt`, `audio/SoundReady.kt`, `ui/settings/SettingsTree.kt`, `content/SettingsContent.kt` | The new signals (`doors_locked`, `battery_voltage`, `head_unit_awake`, `power_state`, `power_output_1…8`); blanking raises `screen_on`; `sound_ready` raised again on waking; Power becomes Shut Down & Restart · Car · Outputs · Sleep & Wake · Performance · Battery, live. Take them. |
 
 ## Dropped — Android-only, by Roger's ruling (2026-10-05)
@@ -168,7 +169,11 @@ services — 1.2.2), `ui/updates/UpdatesContent.kt` (System › Updates, 1.2.2),
 the projection before the machine sleeps and looks for the phone afresh on waking; from 1.2.3 `aa/wireless/`,
 wireless Android Auto — its messages, `TcpLink` and `WirelessAa` plain Kotlin, ready for native, and
 `aa/wireless/linux/BlueZAaService.kt` the service offered through BlueZ. `connections/linux/BlueZBluetooth.kt`
-calls the paired phones at start (1.2.3).
+calls the paired phones at start (1.2.3). From 1.2.4, `aa/media/VideoFrame.kt` (the frame turned into colour by a
+shader as it is drawn), `aa/media/VideoDecoder.kt` decoding on the graphics chip where it can (VA-API, probed with
+`resources/aa/probe.h264`), the session's silence watch and frames in flight, the frame-rate numbering put right,
+and DASH's own Wi-Fi hosted 80 MHz wide with power saving off (`connections/linux/NetworkManagerNetwork.kt`);
+DASH-AA Linux carries Intel's video drivers.
 
 ---
 

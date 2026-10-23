@@ -76,6 +76,7 @@ val DASH_SETTINGS_TREE: List<SettingsCategory> = listOf(
             SettingsSub("androidauto.connection", "Connection", SettingsStatus.LIVE),
             SettingsSub("androidauto.picture", "Picture", SettingsStatus.LIVE),
             SettingsSub("androidauto.night", "Night & Driver Side", SettingsStatus.LIVE),
+            SettingsSub("androidauto.debug", "Debug", SettingsStatus.LIVE),
         )
     ),
     SettingsCategory(

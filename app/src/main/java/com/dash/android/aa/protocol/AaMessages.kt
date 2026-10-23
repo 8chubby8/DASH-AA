@@ -95,8 +95,11 @@ object Aa {
     const val AUDIO_MEDIA = 3
     const val VIDEO_FOCUSED = 1
     const val VIDEO_UNFOCUSED = 2
-    const val FPS_30 = 1
-    const val FPS_60 = 2
+    // The phone's own numbering (VideoFrameRateType): 60 is 1, 30 is 2. aasdk's older VideoFPS has
+    // them the other way round, and DASH followed it until 1.2.4 — "30" got 60 frames a second,
+    // measured on the Surface (51–60 a second asked for 30).
+    const val FPS_60 = 1
+    const val FPS_30 = 2
 
     const val SENSOR_LOCATION = 1
     const val SENSOR_CAR_SPEED = 3

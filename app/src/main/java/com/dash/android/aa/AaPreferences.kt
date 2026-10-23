@@ -61,6 +61,8 @@ data class AaSettings(
      * Wi-Fi is up on 5 GHz. Off until switched on.
      */
     val wireless: Boolean = false,
+    /** Android Auto › Debug (1.2.4): the frames-a-second counter, top left of the picture. */
+    val showFps: Boolean = false,
 ) {
     /** Driver side resolved — AUTO follows the country the laptop is set to. */
     val leftHandDrive: Boolean get() = when (driverSide) {
@@ -112,6 +114,7 @@ class AaPreferences(private val context: Context) {
             p[SYSTEM_LEVEL] = next.systemLevel
             p[CAR_LOCATION] = next.carLocation
             p[WIRELESS] = next.wireless
+            p[SHOW_FPS] = next.showFps
         }
     }
 
@@ -133,6 +136,7 @@ class AaPreferences(private val context: Context) {
         systemLevel = p[SYSTEM_LEVEL] ?: 1.0f,
         carLocation = p[CAR_LOCATION] ?: true,
         wireless = p[WIRELESS] ?: false,
+        showFps = p[SHOW_FPS] ?: false,
     )
 
     private companion object {
@@ -153,5 +157,6 @@ class AaPreferences(private val context: Context) {
         val SYSTEM_LEVEL = floatPreferencesKey("aa_system_level")
         val CAR_LOCATION = booleanPreferencesKey("aa_car_location")
         val WIRELESS = booleanPreferencesKey("aa_wireless")
+        val SHOW_FPS = booleanPreferencesKey("aa_show_fps")
     }
 }

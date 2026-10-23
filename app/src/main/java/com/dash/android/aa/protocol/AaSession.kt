@@ -67,6 +67,12 @@ class AaSession(
     private val activeSensors = mutableSetOf<Int>()
     @Volatile private var micOpen = false
 
+    @Volatile private var pingAnswered = false
+    @Volatile private var check: java.util.concurrent.CompletableFuture<Unit>? = null
+
+    /** When anything last arrived from the phone — the watch in [pingLoop]. */
+    @Volatile private var lastHeard = System.currentTimeMillis()
+
     /** Why the session ended — read after [run] returns. */
     @Volatile var endReason: String = "ended"
         private set
@@ -77,7 +83,7 @@ class AaSession(
             host.onProgress("Negotiating with the phone…")
             messenger.send(Aa.CH_CONTROL, Aa.VERSION_REQUEST, AaMessages.versionRequest(), encrypted = false)
             pinger.start()
-            while (!ended) dispatch(messenger.receive())
+            while (!ended) { val m = messenger.receive(); lastHeard = System.currentTimeMillis(); dispatch(m) }
         } catch (e: EOFException) {
             if (!ended) endReason = "the phone disconnected"
         } catch (e: Exception) {
@@ -143,7 +149,10 @@ class AaSession(
                 val ts = ProtoMessage.parse(m.payload).long(1) ?: 0L
                 messenger.send(Aa.CH_CONTROL, Aa.PING_RESPONSE, AaMessages.pingResponse(ts))
             }
-            Aa.PING_RESPONSE -> Unit
+            Aa.PING_RESPONSE -> {
+                if (!pingAnswered) { pingAnswered = true; Log.i(TAG, "the phone answers pings") }
+                check?.complete(Unit)
+            }
             Aa.NAVIGATION_FOCUS_REQUEST ->
                 messenger.send(Aa.CH_CONTROL, Aa.NAVIGATION_FOCUS_RESPONSE, AaMessages.navigationFocusResponse())
             Aa.AUDIO_FOCUS_REQUEST -> {
@@ -179,7 +188,11 @@ class AaSession(
     private fun media(m: AaMessage) {
         when (m.id) {
             Aa.AV_SETUP_REQUEST -> {
-                messenger.send(m.channel, Aa.AV_SETUP_RESPONSE, AaMessages.avSetupResponse(maxUnacked = 1))
+                // Video may have a few frames in flight (1.2.4): over Wi-Fi a resent packet holds up
+                // the acknowledgement, and with one allowed the phone simply stopped — a stutter.
+                // Audio keeps one: its acknowledgement is the phone's clock (see [ackMedia]).
+                val unacked = if (m.channel == Aa.CH_VIDEO) VIDEO_UNACKED else 1
+                messenger.send(m.channel, Aa.AV_SETUP_RESPONSE, AaMessages.avSetupResponse(maxUnacked = unacked))
                 if (m.channel == Aa.CH_VIDEO) {
                     messenger.send(m.channel, Aa.VIDEO_FOCUS_INDICATION, AaMessages.videoFocusIndication(true, false))
                 }
@@ -350,11 +363,44 @@ class AaSession(
         runCatching { link.close() }
     }
 
+    /**
+     * Ping the phone, and **end the session when it has gone quiet** (1.2.4). A phone that leaves —
+     * walked out of Wi-Fi range, its Wi-Fi or Bluetooth switched off — says nothing, and Linux can
+     * hold a silent connection open for many minutes: the last frame stayed on screen. The phone
+     * answers every ping, so [SILENCE_MS] with nothing at all from it means it is not there.
+     */
+    /**
+     * Android Auto › Debug › Check (1.2.4): ping the phone now and wait for its answer. The time in
+     * milliseconds, or null if it did not answer within [timeoutMs] — a phone that has gone, which the
+     * watch in [pingLoop] then ends. Blocks: call it off the UI.
+     */
+    fun checkPhone(timeoutMs: Long = 3000): Long? {
+        if (ended || !authenticated) return null
+        val answered = java.util.concurrent.CompletableFuture<Unit>()
+        check = answered
+        val start = System.nanoTime()
+        return try {
+            messenger.send(Aa.CH_CONTROL, Aa.PING_REQUEST, AaMessages.pingRequest(micros()))
+            answered.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            (System.nanoTime() - start) / 1_000_000
+        } catch (_: Exception) {
+            null
+        } finally {
+            check = null
+        }
+    }
+
     private fun pingLoop() {
         try {
             while (!ended) {
                 Thread.sleep(PING_MS)
                 if (authenticated && !ended) {
+                    val quiet = System.currentTimeMillis() - lastHeard
+                    if (quiet > SILENCE_MS) {
+                        Log.w(TAG, "nothing from the phone for ${quiet / 1000} s — it has gone")
+                        close("the phone stopped answering")
+                        return
+                    }
                     runCatching { messenger.send(Aa.CH_CONTROL, Aa.PING_REQUEST, AaMessages.pingRequest(micros())) }
                 }
             }
@@ -372,5 +418,7 @@ class AaSession(
     private companion object {
         const val TAG = "DashAaSession"
         const val PING_MS = 1500L
+        const val SILENCE_MS = 5000L
+        const val VIDEO_UNACKED = 4
     }
 }

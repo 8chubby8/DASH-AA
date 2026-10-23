@@ -289,15 +289,22 @@ class AndroidAutoHost(
         return VideoGeometry.fit(if (h > w) settings.videoMode.forPortrait() else settings.videoMode, w, h)
     }
 
-    /** Test hook: show [image] as if a phone were projecting with [geometry]. Never called by DASH-AA. */
-    internal fun debugShowFrame(geometry: VideoGeometry, image: org.jetbrains.skia.Image) {
+    /** Test hook: show [frame] as if a phone were projecting with [geometry]. Never called by DASH-AA. */
+    internal fun debugShowFrame(geometry: VideoGeometry, frame: com.dash.android.aa.media.VideoFrame) {
         debugHold = true
         _status.value = AaStatus.Projecting("debug", geometry)
-        frames.publish(image)
+        frames.publish(frame)
     }
 
     /** Press a key on the phone — the settings tab's Home / Back, and the bridge's controls. */
     fun sendKey(code: Int) { session?.sendKey(code) }
+
+    /** Android Auto › Debug › Check: is the phone still answering? One line for the settings. Blocks. */
+    fun checkPhone(): String {
+        val s = session ?: return "No phone is connected"
+        val ms = s.checkPhone() ?: return "No answer from the phone — Android Auto ends if it stays silent"
+        return "The phone answered in $ms ms"
+    }
 
     /** End a parked wait (or a running session) and connect afresh. */
     fun reconnect() {
@@ -349,6 +356,7 @@ class AndroidAutoHost(
             _status.value = AaStatus.Unavailable("ffmpeg is not installed, so Android Auto's video cannot be shown.")
             return
         }
+        VideoDecoder.hardware()   // ask the graphics chip now, so the first picture doesn't wait for it
         var backoff = 0L
         var lastSwitch = 0L
         while (true) {

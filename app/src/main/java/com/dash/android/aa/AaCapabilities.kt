@@ -17,7 +17,9 @@ object AaCapabilities {
         else -> "Needs the udev rule — run packaging/install.sh"
     }
 
-    fun decoderSummary(): String = VideoDecoder.ffmpegPath()?.let { "ffmpeg ($it)" } ?: "Missing — install ffmpeg"
+    fun decoderSummary(): String = VideoDecoder.ffmpegPath()?.let { path ->
+        "ffmpeg ($path), decoding on " + (VideoDecoder.hardwareSummary() ?: "— not yet checked (Android Auto has not started)")
+    } ?: "Missing — install ffmpeg"
 
     fun touchSummary(): String = EvdevTouch.findTouchscreen()?.let { d ->
         if (File(d.path).canRead()) "${d.name} — multi-touch" else "${d.name} — single-touch (join the 'input' group for multi-touch)"

@@ -63,13 +63,16 @@ class UiScreenshots {
             // viewport — its interface in the content area, the margins empty — shown through the
             // real viewport, which must crop the margins away and fill edge to edge.
             val g = app.androidAuto.geometryForViewport()
-            val frame = File(out, "phone-frame.png")
+            val frame = File(out, "phone-frame.nv12")
             val p = ProcessBuilder("ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                 "-i", "testsrc2=size=${g.contentWidth}x${g.contentHeight}",
                 "-vf", "pad=${g.mode.width}:${g.mode.height}:${g.contentLeft}:${g.contentTop}:color=magenta",
-                "-frames:v", "1", frame.absolutePath).redirectErrorStream(true).start()
+                "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "nv12", frame.absolutePath).redirectErrorStream(true).start()
             p.inputStream.readAllBytes(); p.waitFor()
-            app.androidAuto.debugShowFrame(g, org.jetbrains.skia.Image.makeFromEncoded(frame.readBytes()))
+            val nv12 = frame.readBytes()
+            val lumaBytes = g.mode.width * g.mode.height
+            app.androidAuto.debugShowFrame(g, com.dash.android.aa.media.VideoFrame.make(g.mode.width, g.mode.height,
+                nv12.copyOfRange(0, lumaBytes), nv12.copyOfRange(lumaBytes, nv12.size), com.dash.android.aa.media.VideoColour.BT601_LIMITED))
             settle(scene, 1_000)
             save(scene, File(out, "1b-projecting.png"))
 

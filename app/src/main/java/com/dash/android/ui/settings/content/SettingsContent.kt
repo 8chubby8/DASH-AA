@@ -26,6 +26,7 @@ import com.dash.android.ui.monitor.SerialMonitorContent
 import com.dash.android.ui.signal.SignalMonitorContent
 import com.dash.android.ui.transports.TransportManagerContent
 import com.dash.android.ui.androidauto.AndroidAutoConnectionContent
+import com.dash.android.ui.androidauto.AndroidAutoDebugContent
 import com.dash.android.ui.androidauto.AndroidAutoNightContent
 import com.dash.android.ui.androidauto.AndroidAutoPictureContent
 import com.dash.android.ui.audio.AudioInputContent
@@ -55,6 +56,7 @@ fun SettingsContent(sub: SettingsSub) {
         "androidauto.connection" -> AndroidAutoConnectionContent()
         "androidauto.picture" -> AndroidAutoPictureContent()
         "androidauto.night" -> AndroidAutoNightContent()
+        "androidauto.debug" -> AndroidAutoDebugContent()
         "audio.output" -> AudioOutputContent()
         "audio.input" -> AudioInputContent()
         "audio.calls" -> CallsContent()

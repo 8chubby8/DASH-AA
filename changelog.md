@@ -22,6 +22,95 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.2.4
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-23. **Android Auto runs smoothly on the Surface Pro 3**: 1080p at 30 frames a
+second holds 30 exactly with the processor about half idle; at 60 it manages 50–52 (Roger: "the 30 fps is rock
+solid"). Wireless smoother, and a phone that leaves is now noticed. Four test builds went to the Surface through
+System › Updates — 1.2.4a to 1.2.4d; it runs 1.2.4d. Tests pass (174).
+
+**What and why.** Roger, 2026-10-23: "its very slow, its very laggy" — half a second from moving the map to
+the map moving, on cable and on Wi-Fi, better but not right at 480p; on the G14 it was excellent. Measured
+before anything was changed, over SSH on the Surface (an i3-4020Y: two cores, four threads, 1.5 GHz), at 1080p:
+about **270–330% of its 400%**, and only a sixth of it decoding. The rest was moving pictures about — ffmpeg
+turning each frame into BGRA (8 MB at 1080p) and piping it, DASH copying it and sending it up to the graphics
+chip. The graphics chip was idle much of the time and already drew DASH (checked: Intel's driver loaded, the
+chip awake while DASH drew). With the processor full, video piled up in DASH's queue: the delay Roger felt.
+Agreed with Roger: give the graphics chip as much as possible — *level 1* (colour and scaling on the graphics
+chip) and *level 2* (decoding on it too); *level 3* (the picture never leaving the graphics chip) only if
+still needed. It was not.
+
+**Done:**
+- **The colour on the graphics chip** (`aa/media/VideoFrame.kt`, new). ffmpeg hands over each frame as the
+  decoder made it — NV12, 3 MB at 1080p — and a few lines of shader turn it into colour as it is drawn,
+  scaled into the viewport in the same pass. The stream's own colour (BT.601 or BT.709, limited or full range)
+  is read from ffmpeg's description of it; the Pixel's is BT.709. The planes are read straight into the buffers
+  Skia copies from — one copy fewer than before.
+- **Decoding on the graphics chip** (`aa/media/VideoDecoder.kt`): ffmpeg decodes with VA-API where the machine
+  can. Capability detection: at start each graphics chip is asked to decode a three-frame clip
+  (`resources/aa/probe.h264`), the one driving the screen first (`boot_vga`) — on the G14 that keeps it on the
+  AMD chip, not the NVIDIA one, which the default would have woken. A chip that fails on the phone's real stream
+  hands over to the processor at once, replaying what it was given so the picture needn't wait for the phone's
+  next key frame. About DASH says which decodes. `DASH_AA_VIDEO=processor` forces the processor, to compare.
+  DASH-AA Linux gains Intel's video drivers (`libva-intel-driver` for the Surface's Haswell and older,
+  `intel-media-driver` from Broadwell on); mesa brings AMD's.
+- **Frames in flight** (`AaSession`): video may have four frames unacknowledged, not one. Over Wi-Fi a resent
+  packet held up the acknowledgement and the phone simply stopped. Audio keeps one: its acknowledgement is the
+  phone's clock.
+- **DASH's Wi-Fi wide and awake** (`connections/linux/NetworkManagerNetwork.kt`): hosted 80 MHz wide on 5 GHz
+  (it was NetworkManager's "auto": 20 MHz), power saving off. A card that cannot host 80 MHz wide falls back to
+  its own width. Seen on the Surface: started 80 MHz wide.
+- **A phone that leaves is noticed** (`AaSession`): a phone that walks out of range says nothing, and Linux
+  held the silent connection open — the last frame stayed on screen for minutes (seen: nothing received for
+  4 min 42 s). The phone answers DASH's pings every 1.5 s, so 5 s with nothing at all from it ends the session:
+  the clock comes back and DASH waits for the phone. Seen on the Surface: the phone left at 13:48:22, DASH ended
+  at 13:48:27.
+- **Android Auto › Debug** (Roger, 2026-10-23), a fourth tab: *Frame rate counter* — frames a second, large,
+  top left of the picture, while switched on; *Reconnect*, moved here from Connection; and *Check*, which pings
+  the phone and says how long it took to answer, or that it did not.
+
+**Broke and fixed on the way:**
+- **30 and 60 frames a second were the wrong way round, all along.** DASH followed aasdk's older enum
+  (30 = 1, 60 = 2); the phone's own (`VideoFrameRateType`, in the newer protocol descriptions) is 60 = 1,
+  30 = 2. Asked for 30, the Pixel sent 51–60 a second. Fixed (1.2.4d); the fake-phone test now checks the
+  number sent. Anyone who chose 60 had been getting 30.
+- **The graphics chip refused the Pixel's stream** (1.2.4a): the phone labels it plain *Baseline*, which VA-API
+  no longer lists, so ffmpeg would not use the chip — DASH fell back to the processor, as built, and only the
+  colour work helped. `allow_profile_mismatch` tells ffmpeg to go ahead (what phones send decodes as
+  Constrained Baseline); the probe clip is now labelled as phones label theirs (1.2.4b).
+- **skiko 0.9.22 cannot make a two-channel image**: its `R8G8_UNORM` reaches Skia as a different colour type
+  (skiko's numbering is one behind Skia's since Skia added a colour type before it) and is refused. The colour
+  plane goes up as a one-byte image, and the shader reads each pair and blends the four nearest itself.
+
+**Measured on the Surface at 1080p, wired** (processor: 400% is all of it):
+
+| | Pictures a second | ffmpeg | DASH | Processor idle |
+|---|---|---|---|---|
+| 1.2.3, before | not counted | 130–160% | 140–170% | almost none |
+| 1.2.4d at 60 | 50–60 | 40–50% | 100–140% | 25–45% |
+| 1.2.4d at 30 | 30 | ~29% | ~57% | ~55% |
+
+What is left is the frame copied: out of the graphics chip, through the pipe, into DASH, and back up. Level 3
+would remove it — only needed for 60 on a machine like the Surface.
+
+**Outstanding:**
+- **Not measured over Wi-Fi.** Roger found it smoother; the recorder never caught a wireless session (it
+  cannot run with SSH at the same time — the Surface's one card hosts DASH's Wi-Fi).
+- **Level 3** — the picture kept on the graphics chip end to end — if 60 frames a second on the Surface is
+  ever wanted.
+- **Two Bible points for Roger:** the frame counter draws inside the viewport while projecting (interface.md
+  principle 7 — Roger's debugging exception), and interface.md's DASH-AA tree lists Android Auto's tabs without
+  Debug.
+
+**For native:** none of it. Native's viewport runs Android apps, and Android decodes and draws their video
+itself; native has no Android Auto. All of 1.2.4 is in `aa/`, `distro/` and DASH-AA's network code. For a
+native that one day runs Android Auto, `VideoFrame`'s shader is not the way (MediaCodec decodes onto a surface);
+the frame-rate numbering, the frames in flight, the silence watch and the Debug tab are.
+
+---
+
 ## Version 1.2.3
 
 **Mirrors upstream:** DASH 1.7.1

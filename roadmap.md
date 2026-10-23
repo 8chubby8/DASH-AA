@@ -267,7 +267,7 @@ its bands); time alignment has no non-root Android path; Saved is taken as it is
 equivalents or do not apply. Power's car stages and outputs are DASH's and are taken as they are (1.1.7). The
 Terminal is taken whole except its device: native runs Android's own shell as the app (1.1.10).
 
-#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 and 1.2.2 complete, 2026-10-22 — DASH-AA Linux on the Surface, updated from System › Updates; 1.2.3 complete, 2026-10-23 — wireless Android Auto. Next: 1.2.4, the Android Auto picture)*
+#### 1.2.x — DASH-AA Linux: the head unit as an operating system *(planned 2026-10-05 as 1.1.x; moved back a place by Roger, 2026-10-06; 1.2.1 and 1.2.2 complete, 2026-10-22 — DASH-AA Linux on the Surface, updated from System › Updates; 1.2.3 complete, 2026-10-23 — wireless Android Auto; 1.2.4 complete, 2026-10-23 — the Android Auto picture. Next: 1.2.5, scrolling in the settings menu)*
 **What it is:** a lightweight Linux distribution with DASH-AA built in, installed on Roger's touchscreen
 PC — the board era's idea (upstream's version 2: dedicated hardware, DASH as the whole system) reached
 from the Linux side. Power on and DASH-AA is the screen: no desktop, no login prompt, no app to start.
@@ -332,8 +332,17 @@ other machine keeps Arch's own. It has one USB port, so a hub is part of the set
   Ethernet gives the internet. Wi-Fi's country follows the time zone; any paired phone; the first phone there
   keeps the screen; a Wireless switch on Android Auto › Connection. DASH now calls the paired phones at start,
   as a car does. Test builds carry a letter (1.2.3a, 1.2.3b; Roger, 2026-10-23).
-- **1.2.4 — The Android Auto picture — next** (Roger, 2026-10-23: "its super slow. especially at higher
-  resolutions"). To be looked at and talked through before building.
+- ~~**1.2.4 — The Android Auto picture**~~ **Complete, 2026-10-23** — 1080p at 30 frames a second holds 30
+  on the Surface with the processor half idle (changelog). (Roger, 2026-10-23: "its super slow. especially at
+  higher resolutions".) Measured first: the Surface's processor was full moving pictures about, not decoding.
+  Now the graphics chip decodes (VA-API, probed at start, the processor as fallback) and turns the frame into
+  colour as it draws it; the 30/60 setting is the right way round (it was backwards); the phone may have four
+  frames in flight; DASH's Wi-Fi is hosted 80 MHz wide; a phone that leaves ends the session after 5 s of
+  silence; and Android Auto › Debug has a frame counter, Reconnect and Check. Native follows none of it (its
+  viewport runs Android apps). *Level 3* — the picture never leaving the graphics chip — stays in reserve, for
+  60 frames a second on a machine like the Surface. Test builds 1.2.4a–1.2.4d.
+- **1.2.5 — Scrolling in the settings menu — next** (Roger, 2026-10-23). To be talked through before
+  building.
 - **Then a VM as if in the car** (Roger, 2026-10-21): DASH-AA Linux run in a virtual machine on the G14
   as the test bench for everything that needs no desktop — the real image, no desktop behind it — **the
   file picker first** (it was 1.1.8, moved here because only a machine with no desktop tests it). What the

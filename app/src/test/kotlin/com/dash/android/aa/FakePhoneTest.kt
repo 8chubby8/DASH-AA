@@ -106,15 +106,7 @@ class FakePhoneTest {
         assertEquals(listOf<Byte>(0, 1, 0, 1), version.payload.toList())
         phone.send(Aa.CH_CONTROL, Aa.VERSION_RESPONSE, byteArrayOf(0, 1, 0, 1, 0, 0), encrypted = false)
 
-        // TLS: the head unit speaks first; keep answering until it says AUTH_COMPLETE.
-        while (true) {
-            val m = phone.receive()
-            if (m.id == Aa.AUTH_COMPLETE) { assertEquals(0, ProtoMessage.parse(m.payload).int(1)); break }
-            assertEquals(Aa.SSL_HANDSHAKE, m.id)
-            val reply = phoneTls.handshake(m.payload)
-            if (reply.isNotEmpty()) phone.send(Aa.CH_CONTROL, Aa.SSL_HANDSHAKE, reply, encrypted = false)
-        }
-        assertTrue(phoneTls.handshakeComplete)
+        handshake(phone, phoneTls)
 
         phone.send(Aa.CH_CONTROL, Aa.SERVICE_DISCOVERY_REQUEST, ByteArray(0))
         val discovery = phone.expect(Aa.CH_CONTROL, Aa.SERVICE_DISCOVERY_RESPONSE)
@@ -123,6 +115,7 @@ class FakePhoneTest {
         val channels = sd.repeatedMessages(1)
         val video = channels.first { it.int(1) == Aa.CH_VIDEO }.message(3)!!.message(4)!!
         assertEquals(AaVideoMode.P720.code, video.int(1))
+        assertEquals(2, video.int(2), "30 frames a second is 2 in the phone's numbering")
         assertEquals(geometry.marginHeight, video.int(4))
         assertTrue(channels.any { it.int(1) == Aa.CH_AV_INPUT }, "microphone channel advertised")
         val touchConfig = channels.first { it.int(1) == Aa.CH_INPUT }.message(4)!!.message(2)!!
@@ -155,7 +148,8 @@ class FakePhoneTest {
         phone.expect(Aa.CH_INPUT, Aa.BINDING_RESPONSE)
 
         phone.send(Aa.CH_VIDEO, Aa.AV_SETUP_REQUEST, proto { uint(1, 0) })
-        phone.expect(Aa.CH_VIDEO, Aa.AV_SETUP_RESPONSE)
+        val videoSetup = ProtoMessage.parse(phone.expect(Aa.CH_VIDEO, Aa.AV_SETUP_RESPONSE).payload)
+        assertEquals(4, videoSetup.int(2), "video may have a few frames in flight")
         phone.expect(Aa.CH_VIDEO, Aa.VIDEO_FOCUS_INDICATION)
         phone.send(Aa.CH_VIDEO, Aa.AV_START, proto { int(1, 7); uint(2, 0) })
         assertTrue(projecting.await(5, TimeUnit.SECONDS))
@@ -178,7 +172,7 @@ class FakePhoneTest {
         val deadline = System.currentTimeMillis() + 10_000
         while (frames.tick.value < 5 && System.currentTimeMillis() < deadline) Thread.sleep(50)
         assertTrue(frames.tick.value >= 5, "decoded frames: ${frames.tick.value}")
-        frames.withFrame { img -> assertEquals(1280, img!!.width); assertEquals(720, img.height) }
+        frames.withFrame { f -> assertEquals(1280, f!!.width); assertEquals(720, f.height) }
 
         // Audio is acknowledged only once played — the phone's clock (Spotify paused without it).
         phone.send(Aa.CH_MEDIA_AUDIO, Aa.CHANNEL_OPEN_REQUEST, proto { int(1, 0); int(2, Aa.CH_MEDIA_AUDIO) }, control = true)
@@ -211,6 +205,73 @@ class FakePhoneTest {
         assertEquals("the phone ended Android Auto", session.endReason)
         decoder.stop()
         server.close()
+    }
+
+    /** A phone that leaves says nothing: the session must notice the silence and end (1.2.4). */
+    @Test
+    fun `a phone that goes quiet ends the session`() {
+        val tmp = createTempDirectory("dash-test").toFile()
+        val server = ServerSocket(0)
+        val phoneSocket = arrayOfNulls<Socket>(1)
+        val accept = Thread { phoneSocket[0] = server.accept() }.apply { start() }
+        val huSocket = Socket("127.0.0.1", server.localPort)
+        accept.join()
+        val geometry = VideoGeometry.fit(AaVideoMode.P720, 1280, 720)
+        val config = HeadUnitConfig(geometry, Aa.FPS_30, 160, false, emptyList(), micEnabled = false, audioEnabled = false,
+            softwareVersion = "test", bluetoothAddress = null)
+        val host = object : AaSessionHost {
+            override fun onProgress(text: String) = Unit
+            override fun onProjecting() = Unit
+            override fun onVideoStart() = Unit
+            override fun onVideoData(data: ByteArray, offset: Int, length: Int) = Unit
+            override fun onVideoStop() = Unit
+            override fun onAudioStart(channel: Int) = Unit
+            override fun onAudioData(channel: Int, data: ByteArray, offset: Int, length: Int) = false
+            override fun onAudioStop(channel: Int) = Unit
+            override fun onMicrophone(open: Boolean) = Unit
+            override fun onBluetoothPairing(phoneAddress: String, method: Int) = false
+            override fun onSensorRequested(type: Int): ByteArray? = null
+        }
+        val session = AaSession(SocketLink(huSocket, "test"), config, host, null)
+        val sessionThread = Thread { session.run() }.apply { start() }
+        val phoneTls = phoneTls(tmp)
+        val phone = AaMessenger(SocketLink(phoneSocket[0]!!, "phone"), phoneTls)
+        phone.receive()   // the version request
+        phone.send(Aa.CH_CONTROL, Aa.VERSION_RESPONSE, byteArrayOf(0, 1, 0, 1, 0, 0), encrypted = false)
+        handshake(phone, phoneTls)
+
+        // Android Auto › Debug › Check: a phone that answers is timed; one that does not, is not.
+        val answering = Thread {
+            while (true) {
+                val m = phone.receive()
+                if (m.channel == Aa.CH_CONTROL && m.id == Aa.PING_REQUEST) {
+                    phone.send(Aa.CH_CONTROL, Aa.PING_RESPONSE, m.payload); break
+                }
+            }
+        }.apply { start() }
+        assertTrue(session.checkPhone(2000) != null, "an answered check is timed")
+        answering.join(2000)
+        assertEquals(null, session.checkPhone(300), "an unanswered check says so")
+
+        // Now the phone says nothing — its connection open, as when it walks out of Wi-Fi range.
+        val quietSince = System.currentTimeMillis()
+        sessionThread.join(10_000)
+        assertTrue(!sessionThread.isAlive, "the session must end on its own")
+        assertEquals("the phone stopped answering", session.endReason)
+        assertTrue(System.currentTimeMillis() - quietSince in 4_000..8_000, "ended after about five seconds")
+        server.close()
+    }
+
+    /** TLS: the head unit speaks first; keep answering until it says AUTH_COMPLETE. */
+    private fun handshake(phone: AaMessenger, phoneTls: AaTls) {
+        while (true) {
+            val m = phone.receive()
+            if (m.id == Aa.AUTH_COMPLETE) { assertEquals(0, ProtoMessage.parse(m.payload).int(1)); break }
+            assertEquals(Aa.SSL_HANDSHAKE, m.id)
+            val reply = phoneTls.handshake(m.payload)
+            if (reply.isNotEmpty()) phone.send(Aa.CH_CONTROL, Aa.SSL_HANDSHAKE, reply, encrypted = false)
+        }
+        assertTrue(phoneTls.handshakeComplete)
     }
 
     /** Waits for one specific message, answering pings on the way as a phone would. */

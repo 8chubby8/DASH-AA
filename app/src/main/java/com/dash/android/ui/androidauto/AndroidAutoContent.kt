@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -29,7 +31,9 @@ import com.dash.android.ui.settings.content.SettingBlock
 import com.dash.android.ui.settings.content.SettingsContentHeader
 import com.dash.android.ui.settings.content.Stepper
 import com.dash.android.ui.viewport.statusLine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Android Auto (DASH-AA) — the viewport's tenant, configured. Its own category since 1.1.1 (it was
@@ -57,7 +61,7 @@ fun rememberAaSettings(): AaSettingsState {
     return AaSettingsState(s) { t -> scope.launch { prefs.update(t) } }
 }
 
-/** Android Auto › Connection: is the phone projecting, and the buttons that get it going again. */
+/** Android Auto › Connection: is the phone projecting, and the switches that get it going. */
 @Composable
 fun AndroidAutoConnectionContent() {
     val app = LocalContext.current.applicationContext as DashApplication
@@ -108,9 +112,51 @@ fun AndroidAutoConnectionContent() {
             name = "The laptop's sound system has stopped",
             control = { DashButton("Restart sound", { host.restartSoundSystem() }, modifier = controlWidth) },
         )
+    }
+}
+
+/**
+ * Android Auto › Debug (1.2.4, Roger): the tools for looking into Android Auto — the frames-a-second
+ * counter (drawn over the top left of the picture: a debugging exception to the viewport rule, Roger's
+ * choice), Reconnect (moved here from Connection), and Check, which asks the phone if it is still there.
+ */
+@Composable
+fun AndroidAutoDebugContent() {
+    val app = LocalContext.current.applicationContext as DashApplication
+    val host = app.androidAuto
+    val aa = rememberAaSettings()
+    val s = aa.settings
+    val scope = rememberCoroutineScope()
+    var checked by remember { mutableStateOf<String?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    val controlWidth = Modifier.width(controlWidth(LocalDensity.current.fontScale))
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SETTING_SPACING)) {
+        SettingsContentHeader("Debug")
+        SettingBlock(
+            name = "Frame rate counter",
+            control = {
+                PresetSegment(listOf("Off", "On"), if (s.showFps) 1 else 0, controlWidth) { i -> aa.set { it.copy(showFps = i == 1) } }
+            },
+        )
         SettingBlock(
             name = "Phone",
             control = { DashButton("Reconnect", { host.reconnect() }, modifier = controlWidth) },
+        )
+        SettingBlock(
+            name = "Connection",
+            help = if (checking) "Asking the phone…" else checked,
+            control = {
+                DashButton("Check", {
+                    if (!checking) {
+                        checking = true
+                        scope.launch {
+                            checked = withContext(Dispatchers.IO) { host.checkPhone() }
+                            checking = false
+                        }
+                    }
+                }, modifier = controlWidth)
+            },
         )
     }
 }

@@ -10,7 +10,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.dash.android.ui.androidauto.rememberAaSettings
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,7 +41,6 @@ import com.dash.android.ui.common.BODY
 import com.dash.android.ui.theme.LocalDashTheme
 import com.dash.android.ui.clock.AnalogueClock
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
 
 /**
  * **The viewport** (DASH-AA) — interface.md's "dedicated display area for all Android applications",
@@ -44,7 +53,8 @@ import org.jetbrains.skia.SamplingMode
  * - **"Apps always fill the viewport completely — DASH never letterboxes."** The phone is told margins
  *   that make its interface exactly the viewport's shape ([com.dash.android.aa.protocol.VideoGeometry]);
  *   the margins are cropped off here and the rest scaled to fill.
- * - **"The viewport is the app's entire world."** Nothing of DASH is drawn inside it while projecting.
+ * - **"The viewport is the app's entire world."** Nothing of DASH is drawn inside it while projecting —
+ *   but for the debugging frame counter, while Android Auto › Debug has it on (Roger, 1.2.4).
  * - **The module panel and the settings blind draw over it**, as upstream's do over an app — and touches
  *   on them never reach the phone, because they are on top.
  *
@@ -93,6 +103,7 @@ fun AndroidAutoViewport(
     ) {
         if (status is AaStatus.Projecting) {
             ProjectionSurface(host)
+            if (rememberAaSettings().settings.showFps) FpsCounter(host, Modifier.align(Alignment.TopStart))
         } else {
             IdleViewport(status, wirelessReady, onReconnect = { host.reconnect() })
         }
@@ -139,17 +150,50 @@ private fun ProjectionSurface(host: AndroidAutoHost) {
     ) {
         tick // read here, in the draw pass, so a new frame redraws without recomposing anything
         drawIntoCanvas { canvas ->
-            host.frames.withFrame { image ->
-                if (image == null) return@withFrame
+            host.frames.withFrame { frame ->
+                if (frame == null) return@withFrame
                 val src = Rect.makeXYWH(
                     geometry.contentLeft.toFloat(), geometry.contentTop.toFloat(),
                     geometry.contentWidth.toFloat(), geometry.contentHeight.toFloat(),
                 )
                 val dst = Rect.makeWH(size.width, size.height)
-                canvas.nativeCanvas.drawImageRect(image, src, dst, SamplingMode.LINEAR, null, true)
+                frame.draw(canvas.nativeCanvas, src, dst)
             }
         }
     }
+}
+
+/**
+ * Android Auto › Debug › Frame rate counter (1.2.4): frames a second, as decoded and handed to the
+ * viewport, counted each second. Large and plain — it is for debugging, and is drawn over the picture
+ * only while that switch is on (Roger's exception to "nothing of DASH inside the viewport").
+ */
+@Composable
+private fun FpsCounter(host: AndroidAutoHost, modifier: Modifier) {
+    var fps by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(host) {
+        var frames = host.frames.tick.value
+        var at = System.nanoTime()
+        while (true) {
+            delay(1000)
+            val nowFrames = host.frames.tick.value
+            val now = System.nanoTime()
+            fps = ((nowFrames - frames) * 1_000_000_000.0 / (now - at)).roundToInt()
+            frames = nowFrames; at = now
+        }
+    }
+    Text(
+        "${fps ?: "–"} fps",
+        color = Color.White,
+        fontSize = 40.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace,
+        modifier = modifier
+            .padding(12.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    )
 }
 
 @Composable

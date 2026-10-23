@@ -278,6 +278,12 @@ class NetworkManagerNetwork : NetworkSystem {
             "802-11-wireless.band", if (band == Band.GHZ_5) "a" else "bg",
             // Channel 36: allowed for an access point almost everywhere, with no radar check to wait on.
             "802-11-wireless.channel", if (band == Band.GHZ_5) "36" else "0",
+            // Wide and awake (1.2.4): "auto" hosts on 20 MHz, and Android Auto at 1080p over 20 MHz
+            // lost and resent enough to stutter. 80 MHz where the card can (36–48 is one block of
+            // four), else whatever it can — see below. No power saving: a hosting card that dozes
+            // delays every packet.
+            "802-11-wireless.channel-width", if (band == Band.GHZ_5) "80mhz" else "auto",
+            "802-11-wireless.powersave", "disable",
             "ipv4.method", "shared",
             "ipv6.method", "disabled",
             "wifi-sec.key-mgmt", "wpa-psk",
@@ -290,7 +296,13 @@ class NetworkManagerNetwork : NetworkSystem {
         val made = if (exists) nmcli("connection", "modify", "id", DASH_NETWORK, *props.toTypedArray())
             else nmcli("connection", "add", "type", "wifi", "con-name", DASH_NETWORK, *props.toTypedArray())
         if (made == null || made.code != 0) { fail("set up the DASH network", made); return }
-        val up = nmcli("--wait", "30", "connection", "up", "id", DASH_NETWORK, "ifname", a.id)
+        var up = nmcli("--wait", "30", "connection", "up", "id", DASH_NETWORK, "ifname", a.id)
+        if ((up == null || up.code != 0) && band == Band.GHZ_5) {
+            // Capability detection: a card that cannot host 80 MHz wide hosts as wide as it can.
+            Log.w(TAG, "the DASH network would not start 80 MHz wide on ${a.id} — trying the card's own width")
+            nmcli("connection", "modify", "id", DASH_NETWORK, "802-11-wireless.channel-width", "auto")
+            up = nmcli("--wait", "30", "connection", "up", "id", DASH_NETWORK, "ifname", a.id)
+        }
         if (up == null || up.code != 0) fail("start the DASH network", up) else ok()
     }
 
