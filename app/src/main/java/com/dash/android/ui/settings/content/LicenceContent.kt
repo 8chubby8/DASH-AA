@@ -1,5 +1,8 @@
 package com.dash.android.ui.settings.content
 
+import com.dash.android.ui.common.dragScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.Orientation
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.dash.android.ui.common.verticalDragScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,7 +62,7 @@ private fun LicenceOverview(onViewFullText: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            .verticalDragScroll(rememberScrollState())
             .padding(BOX_PAD),
         verticalArrangement = Arrangement.spacedBy(40.dp),
     ) {
@@ -157,9 +160,12 @@ private fun FullLicence(onBack: () -> Unit) {
 
         // A lazy list rather than one enormous Text: 674 lines composed at once is a visible pause on
         // a Bronze tablet, and only a screenful is ever on show.
+        val listState = rememberLazyListState()
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .dragScroll(listState, Orientation.Vertical)
                 .clip(RoundedCornerShape(10.dp))
                 .background(theme.textColourSecondary.copy(alpha = 0.05f))
                 .border(1.dp, theme.textColourSecondary.copy(alpha = 0.14f), RoundedCornerShape(10.dp))

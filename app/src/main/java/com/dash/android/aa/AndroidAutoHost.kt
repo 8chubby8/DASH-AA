@@ -148,7 +148,7 @@ class AndroidAutoHost(
     @Volatile var coveredFully: Boolean = false
         private set
 
-    private val evdev = EvdevTouch { kind, slot, sx, sy -> onScreenTouch(kind, slot, sx, sy) }
+    private val evdev = EvdevTouch { kind, slot, sx, sy, _ -> onScreenTouch(kind, slot, sx, sy) }
     @Volatile var multiTouch: Boolean = false
         private set
     private val evdevGestures = mutableSetOf<Long>()

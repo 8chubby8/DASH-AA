@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import com.dash.android.ui.touch.linux.ScreenTouch
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -93,6 +94,10 @@ fun main() {
                 val natural = window.width < window.height
                 val turns = display.ownOrientation?.let { transformFor(it, natural) } ?: 0
                 LaunchedEffect(turns) { app.androidAuto.contentTurn = turns }
+                // A finger as a finger, not a mouse (1.2.5): Compose's own scrolling, flicking and tapping.
+                LaunchedEffect(Unit) {
+                    ScreenTouch(window) { app.display.state.value.main?.let { it.quarterTurns to it.flipped } ?: (0 to false) }.start()
+                }
                 TurnedWindow(turns) { MainScreen(isColdBoot = true, window = window) }
             }
         }

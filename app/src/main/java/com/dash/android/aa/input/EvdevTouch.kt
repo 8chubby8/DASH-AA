@@ -27,7 +27,8 @@ import java.io.File
  * them into the viewport.
  */
 class EvdevTouch(
-    private val onTouch: (kind: Kind, slotKey: Long, screenX: Float, screenY: Float) -> Unit,
+    /** [timeMillis]: when the touchscreen saw it, on the wall clock (the kernel's stamp, 1.2.5). */
+    private val onTouch: (kind: Kind, slotKey: Long, screenX: Float, screenY: Float, timeMillis: Long) -> Unit,
 ) {
     enum class Kind { DOWN, MOVE, UP }
 
@@ -45,6 +46,7 @@ class EvdevTouch(
         fun read(fd: Int, buf: ByteArray, count: NativeLong): NativeLong
         fun ioctl(fd: Int, request: NativeLong, arg: Memory): Int
         fun close(fd: Int): Int
+        fun poll(fds: Memory, nfds: NativeLong, timeout: Int): Int
     }
 
     fun start(): Boolean {
@@ -80,14 +82,20 @@ class EvdevTouch(
 
     private fun readLoop(lib: LibC, fd: Int, xr: IntRange, yr: IntRange) {
         val slots = Array(MAX_SLOTS) { Slot() }
+        val fingers = Fingers(onTouch)
         var slot = 0
         val buf = ByteArray(EVENT_SIZE * 64)
+        val poll = Memory(8).apply { setInt(0, fd); setShort(4, 1 /* POLLIN */); setShort(6, 0) }
         try {
             while (running) {
+                // A lift held back (see Fingers) is passed on when its moment is up, even if the screen is quiet.
+                val wait = fingers.due(System.currentTimeMillis())
+                if (wait != null && lib.poll(poll, NativeLong(1), wait.toInt().coerceAtLeast(1)) == 0) continue
                 val n = lib.read(fd, buf, NativeLong(buf.size.toLong())).toInt()
                 if (n <= 0) break
                 var off = 0
                 while (off + EVENT_SIZE <= n) {
+                    val millis = s64(buf, off) * 1000 + s64(buf, off + 8) / 1000
                     val type = u16(buf, off + 16)
                     val code = u16(buf, off + 18)
                     val value = s32(buf, off + 20)
@@ -103,14 +111,19 @@ class EvdevTouch(
                         }
                     } else if (type == EV_SYN && code == SYN_REPORT) {
                         lastActivityNanos = System.nanoTime()
+                        fun fx(s: Slot) = (s.x - xr.first).toFloat() / (xr.last - xr.first)
+                        fun fy(s: Slot) = (s.y - yr.first).toFloat() / (yr.last - yr.first)
+                        // Lifts first, so a finger the screen lost and found again in this same report rejoins.
                         slots.forEachIndexed { i, s ->
-                            val key = i.toLong()
-                            val fx = (s.x - xr.first).toFloat() / (xr.last - xr.first)
-                            val fy = (s.y - yr.first).toFloat() / (yr.last - yr.first)
+                            if (s.lifted && !s.down) { fingers.up(i, millis); s.tracking = -1 }
+                        }
+                        slots.forEachIndexed { i, s ->
                             when {
-                                s.down -> onTouch(Kind.DOWN, key, fx, fy)
-                                s.lifted -> { onTouch(Kind.UP, key, fx, fy); s.tracking = -1 }
-                                s.moved && s.tracking >= 0 -> onTouch(Kind.MOVE, key, fx, fy)
+                                s.down -> {
+                                    fingers.down(i, fx(s), fy(s), millis)
+                                    if (s.lifted) { fingers.up(i, millis); s.tracking = -1 }
+                                }
+                                s.moved && s.tracking >= 0 && !s.lifted -> fingers.move(i, fx(s), fy(s), millis)
                             }
                             s.down = false; s.moved = false; s.lifted = false
                         }
@@ -121,6 +134,80 @@ class EvdevTouch(
             Log.w(TAG, "touchscreen read ended: ${e.message}")
         } finally {
             lib.close(fd)
+        }
+    }
+
+    /**
+     * The fingers on the screen, as fingers rather than as the touchscreen's numbered slots — and a finger
+     * the screen loses for a moment in a gesture of two or more is not lifted (roadmap 1.2.5).
+     *
+     * **Why.** The Surface Pro 3's touchscreen sometimes loses a finger in the middle of a gesture and
+     * finds it again a moment later, at the same spot, as a new touch (recorded 2026-10-24: one finger of
+     * a two-finger rotate reported lifted, and a "new" one 110 ms later where it had been; the finger never
+     * left the glass). To the phone that was a lift and a fresh touch: the rotate broke off, a drag flicked
+     * away and stopped. So the lift of a finger that has had company — a pinch, a rotate, where losing one
+     * does harm — is held back for [REJOIN_MS], and a touch that comes down within [REJOIN_DISTANCE] of it
+     * meanwhile is the same finger, carrying on. A lift not followed in time is passed on with its own
+     * time. A finger alone is passed on at once: holding its lift would pause every flick, and taps and
+     * double taps must stay as they are.
+     *
+     * Its own class so it can be tested without a screen. Positions are fractions of the panel.
+     */
+    internal class Fingers(private val out: (Kind, Long, Float, Float, Long) -> Unit) {
+        private class Finger(val key: Long, var x: Float, var y: Float) {
+            var company = false
+        }
+        private class Held(val finger: Finger, val liftedAt: Long)
+
+        private val bySlot = HashMap<Int, Finger>()
+        private val held = ArrayList<Held>()
+        private var nextKey = 0L
+
+        fun down(slot: Int, x: Float, y: Float, millis: Long) {
+            val back = held.filter { distance(it.finger.x, it.finger.y, x, y) <= REJOIN_DISTANCE }
+                .minByOrNull { distance(it.finger.x, it.finger.y, x, y) }
+            if (back != null) {
+                held.remove(back)
+                bySlot[slot] = back.finger
+                move(slot, x, y, millis)
+                return
+            }
+            val f = Finger(nextKey++, x, y)
+            if (bySlot.isNotEmpty() || held.isNotEmpty()) { f.company = true; bySlot.values.forEach { it.company = true } }
+            bySlot[slot] = f
+            out(Kind.DOWN, f.key, x, y, millis)
+        }
+
+        fun move(slot: Int, x: Float, y: Float, millis: Long) {
+            val f = bySlot[slot] ?: return
+            f.x = x; f.y = y
+            out(Kind.MOVE, f.key, x, y, millis)
+        }
+
+        fun up(slot: Int, millis: Long) {
+            val f = bySlot.remove(slot) ?: return
+            if (f.company) held += Held(f, millis)
+            else out(Kind.UP, f.key, f.x, f.y, millis)
+        }
+
+        /** Passes on the held lifts whose moment has come; the milliseconds until the next one, or null if none. */
+        fun due(now: Long): Long? {
+            val it = held.iterator()
+            while (it.hasNext()) {
+                val h = it.next()
+                if (now - h.liftedAt >= REJOIN_MS) { it.remove(); out(Kind.UP, h.finger.key, h.finger.x, h.finger.y, h.liftedAt) }
+            }
+            return held.minOfOrNull { it.liftedAt + REJOIN_MS - now }
+        }
+
+        private fun distance(ax: Float, ay: Float, bx: Float, by: Float) =
+            kotlin.math.hypot((ax - bx).toDouble(), (ay - by).toDouble()).toFloat()
+
+        companion object {
+            /** How long a lost finger is waited for. Longer than the Surface's gap (110 ms seen), short to feel. */
+            const val REJOIN_MS = 150L
+            /** How near the lost finger a touch must come down to be it: about 1 cm on the Surface. */
+            const val REJOIN_DISTANCE = 0.04f
         }
     }
 
@@ -154,6 +241,11 @@ class EvdevTouch(
             }
         }
 
+        private fun s64(b: ByteArray, o: Int): Long {
+            var v = 0L
+            for (i in 7 downTo 0) v = (v shl 8) or (b[o + i].toLong() and 0xFF)
+            return v
+        }
         private fun u16(b: ByteArray, o: Int) = (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8)
         private fun s32(b: ByteArray, o: Int) =
             (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8) or

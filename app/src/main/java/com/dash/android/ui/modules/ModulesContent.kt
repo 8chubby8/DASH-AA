@@ -1,9 +1,12 @@
 package com.dash.android.ui.modules
 
+import com.dash.android.ui.common.dragScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import com.dash.android.ui.common.horizontalDragScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -216,8 +219,10 @@ fun ModulesContent() {
                     modifier = Modifier.align(Alignment.Center).padding(32.dp)
                 )
             } else {
+                val listState = rememberLazyListState()
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(vertical = 4.dp),
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(vertical = 4.dp).dragScroll(listState, Orientation.Vertical),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(rows, key = { it.id }) { row ->
@@ -350,7 +355,7 @@ private fun ModuleCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+            Box(Modifier.weight(1f).horizontalDragScroll(rememberScrollState())) {
                 Text(
                     text = row.name.ifBlank { "(unnamed)" },
                     color = ink,
@@ -376,11 +381,11 @@ private fun ModuleCard(
                 fontFamily = theme.font,
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().horizontalDragScroll(rememberScrollState()),
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth().horizontalDragScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(row.id, color = inkFaint, fontSize = TINY, fontFamily = theme.font, maxLines = 1, softWrap = false)
@@ -404,7 +409,7 @@ private fun ModuleCard(
                 fontFamily = theme.font,
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().horizontalDragScroll(rememberScrollState()),
             )
         }
     }

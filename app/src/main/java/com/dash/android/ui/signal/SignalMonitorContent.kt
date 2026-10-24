@@ -1,5 +1,8 @@
 package com.dash.android.ui.signal
 
+import com.dash.android.ui.common.dragScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -115,6 +118,7 @@ fun SignalMonitorContent() {
 
         // The list takes the remaining height and scrolls on its own — the tab is `fillsBox`, so the
         // count and the column heads above stay pinned.
+        val listState = rememberLazyListState()
         if (shown.isEmpty()) {
             // Only reachable in live-only with nothing heard — the full list is never empty.
             Text(
@@ -125,7 +129,8 @@ fun SignalMonitorContent() {
                 modifier = Modifier.weight(1f),
             )
         } else LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            state = listState,
+            modifier = Modifier.fillMaxWidth().weight(1f).dragScroll(listState, Orientation.Vertical),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items(shown, key = { it }) { function ->

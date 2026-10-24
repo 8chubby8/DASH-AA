@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.dash.android.ui.common.verticalDragScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -127,7 +127,7 @@ fun TransportManagerContent() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(BOX_PAD).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(BOX_PAD).verticalDragScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         statuses.forEach { (tag, status) ->

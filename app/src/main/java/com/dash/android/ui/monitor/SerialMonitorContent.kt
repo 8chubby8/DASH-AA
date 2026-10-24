@@ -1,9 +1,11 @@
 package com.dash.android.ui.monitor
 
+import com.dash.android.ui.common.dragScroll
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import com.dash.android.ui.common.horizontalDragScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -422,7 +424,7 @@ fun SerialMonitorContent() {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .horizontalScroll(rememberScrollState())
+                .horizontalDragScroll(rememberScrollState())
         ) {
             Row(
                 modifier = Modifier.width(w.total).padding(bottom = 6.dp),
@@ -449,7 +451,7 @@ fun SerialMonitorContent() {
                 } else {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().dragScroll(listState, Orientation.Vertical),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         items(shown) { row -> GridRow(row, w, ink, inkFaint, theme.font) }

@@ -22,6 +22,80 @@ equivalent, what does not apply to Android. (Every entry from 1.1.1 on, Roger 20
 
 ---
 
+## Version 1.2.5
+
+**Mirrors upstream:** DASH 1.7.1
+
+**Status:** Complete — 2026-10-24. **Touch and size on Linux, done properly.** A finger reaches DASH as a real
+touch — Compose's own scrolling, flicking and tapping, as on Android — and DASH is drawn at the size the screen
+calls for. Test builds 1.2.5a and 1.2.5b went to the Surface; 1.2.5c was the first of the proper fix (Roger:
+"everything is way way better. the setting scrolling is fantastic"); 1.2.5d mends Android Auto's two-finger touch (Roger: "rotating and pinching works much better now"). The
+Surface runs 1.2.5d. Tests pass (192).
+
+**What and why.** Roger, 2026-10-23: on the Surface "i cant seem to scroll through the pages on the settings
+pages" — with a finger, on every page. 2026-10-24: the touch points are too small for the car; a light touch has
+to be a stab.
+
+- **1.2.5a–b, the first answer (a plaster, Roger's word for it).** DASH's window runs under XWayland, and Java on
+  X11 has no touch: the display program turns a finger into a mouse, and Compose deliberately ignores a mouse
+  drag. New `ui/common/DragScroll.kt` made a mouse drag scroll, on every scrolling settings page. On the Surface
+  it scrolled, but "janky": a quick flick did nothing. Measured — the Surface's raw touchscreen recorded beside
+  DASH's log (a per-swipe detail line, `DashDragScroll`): the digitiser reports ~110 or ~43 times a second, and
+  **holds every touch still at its last point for 90–130 ms after the finger has gone** before reporting the
+  lift. 8 of ~30 flicks were read as "stopped, then lifted". A second recording (108 touches) found no gap in
+  the touchscreen's reports — the "dead for a few seconds" Roger saw once did not come back while recording.
+- **Roger: "i dont want to stick a plaster on it… change the code so that linux works propperly."** The root:
+  DASH under XWayland is told neither that a finger is a finger nor the screen's scale.
+- **Tried: DASH as a real Wayland program** (JetBrains Runtime 25, its Wayland toolkit). Compose cannot draw on
+  it — "Can't lock DrawingSurface", in software as well: Compose's drawing layer (Skiko) needs X11. No Compose
+  release supports Wayland (October 2026; others hit the same wall). Not possible yet.
+- **Done: the touchscreen handed to Compose as a touchscreen** — new `ui/touch/linux/ScreenTouch.kt`. DASH reads
+  the touchscreen from the kernel (`EvdevTouch`, Android Auto's reader, which now also reports when each touch
+  happened) and gives each finger — more than one included — to Compose's scene as a real touch. The mouse the
+  display program makes from the same finger is dropped. Compose then scrolls, flicks and taps exactly as on
+  Android: no DASH code in the way. One correction for the hardware: a lift within 150 ms of the last movement is
+  dated to that movement (the digitiser's lag); a longer stop is a real stop. Android Auto is unchanged (it reads
+  the touchscreen itself, and drops the window's copy). Developer › Terminal already took a touch as a touch: a
+  finger now scrolls it, a long press chooses text.
+- **⚠ A Compose update can break the touchscreen.** Compose accepts touches through its scene, but its window
+  keeps the scene private, so `ScreenTouch` reaches it by four private names inside Compose 1.9.3
+  (`ComposeWindow.composePanel` → `_composeContainer` → `mediator` → `access$getScene`). An update of Compose
+  may rename them. Nothing on DASH-AA Linux updates by itself — only what Roger publishes — so: **whenever
+  Compose is updated, run the tests (`ScreenTouchTest` fails at once if the names have gone) and try a finger on
+  the Surface before releasing.** If it does break, DASH does not: it says so in its log ("Compose's window is not
+  as DASH knows it") and a finger reaches DASH as a mouse again, as in 1.2.5b.
+- **The size: from the screen's own size** (`system/DesktopScale.kt`). DASH asked only GNOME for the scale, and
+  with no GNOME used 1× — on the Surface everything was a quarter too small (2160 pixels across 254 mm, 216 to
+  the inch: Android would use 1.35×). Now, after GNOME, DASH reads the screen's size in millimetres from its
+  EDID and works the density out as Android does (dots to the inch over 160): 1.35× on the Surface. The G14 keeps
+  GNOME's answer.
+- **1.2.5d: a finger the touchscreen loses is not lifted.** On 1.2.5c Android Auto's touch felt "bitty… like it
+  registers phantom touches": the map would not rotate, a zoom out flicked to zoomed in. Recorded on the Surface
+  (raw touchscreen, DASH's load, what Android Auto was sent): DASH sent the phone exactly what the screen
+  reported, the picture held 29–30 a second with the processor ~60% idle — but in a two-finger gesture the
+  screen reported one finger lifted and a "new" one 110 ms later in the same place; the finger never left the
+  glass. The touchscreen reader (`EvdevTouch`, shared by Android Auto and `ScreenTouch`) now follows fingers
+  rather than the screen's slots (new `EvdevTouch.Fingers`), and holds the lift of a finger that has had company
+  for up to 150 ms: a touch coming down within ~1 cm meanwhile is the same finger, carrying on. A finger alone
+  lifts at once — holding it would pause every flick — so taps, double taps and one-finger flicks are unchanged.
+- **`DragScroll` stays, for a mouse only** (Roger: a mouse drag scrolls too). Its flick reads the last tenth of a
+  second, and a pointer still for up to 200 ms before lifting still flicks.
+
+**Tests:** 192 pass. New `LostFingerTest`: the rotate the Surface broke, replayed — no lift reaches the phone;
+a pinch really lifted is passed on with its own times; a finger alone lifts at once; a touch far off is a new
+finger. New `ScreenTouchTest`: Compose's private names are where `ScreenTouch` looks; fingers become
+press/move/release with every finger in every event; the Surface's late lift dated to the last movement, a real
+stop not; a quick flick with the Surface's own timing coasts in Compose's own list and presses nothing; the scale
+from a screen's size (the Surface's 254 × 169 mm → 1.35; a television's shape-for-a-size → none). `DragScrollTest`
+(9): a mouse drag scrolls and presses nothing, a tap stays a tap, a flick coasts and a touch stops it, a control's
+own drag kept, a real touch never scrolled twice.
+
+**For native:** nothing of `ScreenTouch` or the scale applies — Android hands Compose real touches and tells it
+the density. `DragScroll.kt` and the nine settings files that use it have nothing of Linux in them: take them as
+they are (a mouse on an Android head unit then drags a list too), or leave them.
+
+---
+
 ## Version 1.2.4
 
 **Mirrors upstream:** DASH 1.7.1

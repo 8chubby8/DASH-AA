@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.dash.android.ui.common.verticalDragScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -232,7 +232,7 @@ private fun WideSettings(
             ) { category ->
                 val scroll = rememberScrollState()
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(scroll),
+                    modifier = Modifier.fillMaxSize().verticalDragScroll(scroll),
                     verticalArrangement = Arrangement.spacedBy((4 * fontScale).dp)
                 ) {
                     if (category == null) {
@@ -326,7 +326,7 @@ private fun NarrowSettings(
                 s.category != null -> {
                     val scroll = rememberScrollState()
                     Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = PANEL_GAP),
+                        modifier = Modifier.fillMaxSize().verticalDragScroll(scroll).padding(horizontal = PANEL_GAP),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         s.category.subs.forEach { sub ->
@@ -337,7 +337,7 @@ private fun NarrowSettings(
                 else -> {
                     val scroll = rememberScrollState()
                     Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = PANEL_GAP),
+                        modifier = Modifier.fillMaxSize().verticalDragScroll(scroll).padding(horizontal = PANEL_GAP),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         DASH_SETTINGS_TREE.forEach { cat ->
@@ -419,7 +419,7 @@ private fun SettingsContentBox(sub: SettingsSub, modifier: Modifier = Modifier) 
     } else {
         Column(
             modifier = surface
-                .verticalScroll(rememberScrollState())
+                .verticalDragScroll(rememberScrollState())
                 .padding(BOX_PAD)
         ) {
             SettingsContent(sub)

@@ -95,6 +95,7 @@ shim, a permission, a tab.
 
 | Version | Files | What native takes |
 |---|---|---|
+| 1.2.5 | `ui/common/DragScroll.kt` (new); `ui/settings/SettingsShell.kt`, `ui/settings/content/SettingsScaffold.kt`, `LicenceContent.kt`, `ui/transports/TransportManagerContent.kt`, `ui/modules/ModulesContent.kt`, `ui/monitor/SerialMonitorContent.kt`, `ui/signal/SignalMonitorContent.kt`, `ui/logs/LogsContent.kt` | A mouse dragging a list scrolls it, with a flick (Roger: a mouse drag scrolls too). Nothing of Linux: take the files as they are, or keep native's — a finger is Compose's own either way. |
 | 1.1.1 | `ui/settings/SettingsTree.kt` | The reorganised categories and their order, Developer back as the last. Native's Apps category fills the Android Auto slot; its Android deep links, Rotation and Power tabs fill Connections, Display and Power. |
 | 1.1.1 | `ui/settings/content/ThisMachineContent.kt`, `AboutContent.kt` | The report moves from About DASH to System › This Machine. Take the new tab as it is, and cut the report section from native's About. `system/DeviceReport.kt` stays each edition's own. |
 | 1.1.2 | `audio/SoundSystem.kt`, `audio/SoundPreferences.kt`, `audio/VolumeButtons.kt` (new) | The seam the Audio tabs talk through, DASH's own sound settings (the start-up volume limit, what the volume buttons turn), and the volume buttons themselves — heard from the system state for the life of the process, no longer only inside Android Auto. Take both as they are. Native writes an Android `SoundSystem` (`AudioManager` for volume; no choice of speakers, and other apps' levels are not Android's to set, so those lists come back empty and the tabs leave them out). |
@@ -139,7 +140,8 @@ Notification Suppression are dropped from the tree for the same reason.
 
 ## New — DASH-AA's own
 
-`Main.kt`, `R.kt`, `system/DesktopSettings.kt`, `system/DesktopScale.kt`,
+`Main.kt`, `R.kt`, `system/DesktopSettings.kt`, `system/DesktopScale.kt` (from 1.2.5 also the scale from the screen's own size),
+`ui/touch/linux/ScreenTouch.kt` (1.2.5: the touchscreen handed to Compose as real touches — reaches Compose's private scene by reflection, so **a Compose update can break it**: run `ScreenTouchTest` and try a finger before releasing one),
 `transport/bluetooth/linux/BlueZ.kt`, `ui/viewport/AndroidAutoViewport.kt`,
 `ui/androidauto/AndroidAutoContent.kt` (Android Auto › Connection, Picture, Night & Driver Side),
 `ui/androidauto/CallsContent.kt` (Audio › Calls; from 1.1.3 also where calls play — shared-ready), `audio/linux/PipeWireSound.kt` (the machine's sound
@@ -173,7 +175,9 @@ calls the paired phones at start (1.2.3). From 1.2.4, `aa/media/VideoFrame.kt` (
 shader as it is drawn), `aa/media/VideoDecoder.kt` decoding on the graphics chip where it can (VA-API, probed with
 `resources/aa/probe.h264`), the session's silence watch and frames in flight, the frame-rate numbering put right,
 and DASH's own Wi-Fi hosted 80 MHz wide with power saving off (`connections/linux/NetworkManagerNetwork.kt`);
-DASH-AA Linux carries Intel's video drivers.
+DASH-AA Linux carries Intel's video drivers. From 1.2.5, `aa/input/EvdevTouch.kt` (the touchscreen reader) also gives each touch's time, follows
+fingers rather than the screen's slots, and does not lift a finger of a pinch or rotate that the screen loses for a
+moment (`Fingers`); `ui/touch/linux/ScreenTouch.kt` reads through it for DASH's own screen.
 
 ---
 

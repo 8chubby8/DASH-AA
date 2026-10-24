@@ -1,5 +1,7 @@
 package com.dash.android.ui.logs
 
+import com.dash.android.ui.common.dragScroll
+import androidx.compose.foundation.gestures.Orientation
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -237,7 +239,7 @@ fun LogsContent() {
                     if (lines.isEmpty()) (if (machine && live) "Waiting for the machine's log…" else "Nothing in this log.") else "Nothing matches.",
                     color = faint, fontSize = MAINBODY, fontFamily = theme.font,
                 )
-                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize().dragScroll(listState, Orientation.Vertical), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     items(shown) { l ->
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
